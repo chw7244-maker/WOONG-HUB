@@ -2,9 +2,10 @@
 import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {ArrowUpRight,Check,Database,Disc3,Heart,Music2,Plus,Pencil,RefreshCw,Search,Star,Trash2} from 'lucide-react';
 import {type Entry,safeUrl} from '@/lib/store';
-import {emptyMusic,lastListenedAt,musicFormats,musicStatuses,musicStats,validateAlbum,validateMusic,type AlbumMetadata} from '@/lib/music';
+import {emptyMusic,spotifyMusicDraft,lastListenedAt,musicFormats,musicStatuses,musicStats,validateAlbum,validateMusic,type AlbumMetadata} from '@/lib/music';
 import Dialog from './dialog';
 import {SpotifyConnection,SpotifyPlayer,ListeningJournal,PlaylistFavorite,playlistDraft} from './spotify-music';
+import SpotifyAccount from './spotify-account';
 
 function AlbumArt({url,title}:{url?:string;title:string}){
   const [failed,setFailed]=useState(false),[loaded,setLoaded]=useState(false);
@@ -21,7 +22,8 @@ export default function MusicHub({entries,onAdd,onEdit,onDelete,onSave}:{entries
   const stats=musicStats(allEntries),selected=entries.find(e=>e.id===selectedId);
   const albums=entries.filter(e=>(status==='전체'||e.status===status)&&(format==='전체'||e.category===format)&&[e.title,e.detail,e.music?.artist,e.music?.genre,e.music?.favoriteTrack,...(e.music?.tags??[]),e.music?.catalog?.title,e.music?.catalog?.artist].join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).sort((a,b)=>sort==='name'?a.title.localeCompare(b.title,'ko'):sort==='artist'?(a.music?.artist??'').localeCompare(b.music?.artist??'','ko'):sort==='rating'?(b.music?.rating??-1)-(a.music?.rating??-1):sort==='listened'?lastListenedAt(b.music).localeCompare(lastListenedAt(a.music)):b.createdAt.localeCompare(a.createdAt));
   return <div className="music-hub">
-    <section className="spotify-banner"><div><span className="spotify-label"><Music2 size={16}/>SPOTIFY × WOONG HUB</span><h2>음악은 가까이, 감상은 오래.</h2><p>Spotify 앨범과 플레이리스트를 연결하고 나만의 감상을 남겨보세요.</p><small>공유 링크로 연결 · 감상은 직접 기록 · 계정 보관함과 재생 이력 자동 조회는 지원하지 않습니다.</small></div><button className="button secondary" onClick={addPlaylist}><Plus size={15}/>플레이리스트 추가</button></section>
+    <SpotifyAccount collections={allEntries} onCollect={entity=>onEdit(spotifyMusicDraft(entity))}/>
+    <section className="spotify-banner"><div><span className="spotify-label"><Music2 size={16}/>SPOTIFY × WOONG HUB</span><h2>음악은 가까이, 감상은 오래.</h2><p>Spotify 앨범과 플레이리스트를 연결하고 나만의 감상을 남겨보세요.</p><small>공유 링크로 연결 · 감상은 직접 기록합니다. Spotify 계정의 음악은 위의 Premium 카드에서 확인하세요.</small></div><button className="button secondary" onClick={addPlaylist}><Plus size={15}/>플레이리스트 추가</button></section>
     <div className="tabs music-view-tabs" role="group" aria-label="음악 보기">{[['albums','앨범 컬렉션'],['playlists','플레이리스트'],['journal','감상 기록']].map(([id,label])=><button key={id} className={view===id?'selected':''} aria-pressed={view===id} onClick={()=>{setView(id);setQuery('');setStatus('전체');setFormat('전체');setSelectedId(null);}}>{label}</button>)}</div>
     {view==='journal'?<ListeningJournal entries={allEntries} onSave={onSave}/>:<>
     {view==='playlists'&&<div className="playlist-toolbar"><label><input type="checkbox" checked={favoritesOnly} onChange={e=>setFavoritesOnly(e.target.checked)}/>즐겨찾기만 보기</label><span>{allEntries.filter(e=>e.music?.type==='playlist').length}개 플레이리스트</span></div>}

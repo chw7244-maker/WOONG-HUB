@@ -6,7 +6,10 @@ import '../components/audio.css';
 import '../components/calendar.css';
 import '../components/games.css';
 import '../components/music.css';
+import '../components/spotify-account.css';
 import { SyncProvider } from '@/components/sync-provider';
+import { SpotifyProvider } from '@/components/spotify-provider';
+import { SpotifyPlaybackProvider } from '@/components/spotify-playback';
 export const metadata: Metadata = { title: 'WOONG HUB · 나만의 일상, 하나의 공간', description: '오늘의 일정부터 오디오, 게임, 음악까지. 취미와 일상을 연결하는 개인 대시보드.', manifest: '/manifest.webmanifest', appleWebApp: { capable: true, title: 'WOONG HUB', statusBarStyle: 'black-translucent' } };
 export const viewport: Viewport = { themeColor: '#101114', width: 'device-width', initialScale: 1 };
-export default function Layout({ children }: Readonly<{children: React.ReactNode}>) { return <html lang="ko" suppressHydrationWarning><body><SyncProvider>{children}</SyncProvider></body></html>; }
+export default function Layout({ children }: Readonly<{children: React.ReactNode}>) { return <html lang="ko" suppressHydrationWarning><body><SyncProvider><SpotifyProvider><SpotifyPlaybackProvider>{children}</SpotifyPlaybackProvider></SpotifyProvider></SyncProvider></body></html>; }

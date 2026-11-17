@@ -4,6 +4,8 @@ import { handleCalendar } from './calendar.mjs';
 import { handleSteam } from './steam.mjs';
 import { handleAlbums } from './music.mjs';
 import { handleSpotify } from './spotify.mjs';
+import { handleSpotifyAuth } from './spotify-auth.mjs';
+import { handleSpotifyData } from './spotify-data.mjs';
 
 const MAX_BYTES = 1024 * 1024;
 function json(body, status = 200) {
@@ -48,6 +50,8 @@ export async function handleApi(request, env, ctx) {
   if(path==='/api/games/steam')return handleSteam(request,env,ctx);
   if(path==='/api/music/albums')return handleAlbums(request,env,ctx);
   if(path==='/api/music/spotify')return handleSpotify(request,env,ctx);
+  if(['/api/spotify/status','/api/spotify/connect','/api/spotify/callback','/api/spotify/disconnect','/api/spotify/sdk-token'].includes(path))return handleSpotifyAuth(request,env,ctx);
+  if(path.startsWith('/api/spotify/'))return handleSpotifyData(request,env,ctx);
   if(path!=='/api/hub')return json({error:'not_found'},404);
   // Only dispatch-injected identity is accepted. A private service token supplies no user identity.
   const userId=request.headers.get('oai-authenticated-user-id');

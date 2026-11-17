@@ -1,10 +1,16 @@
 import type {Entry} from './store.ts';
 import {validateSpotify,validateListening,type SpotifyMetadata,type ListeningSession} from './spotify.ts';
+import type {SpotifyEntity} from './spotify-account.ts';
 export const musicFormats=['디지털','FLAC','CD','LP','스트리밍'];
 export const musicStatuses=['컬렉션','위시리스트','감상 예정'];
 export type AlbumMetadata={id:string;title:string;artist:string;firstReleaseDate:string;type:string;sourceUrl:string;coverUrl:string;checkedAt:string};
 export type MusicDetails={artist:string;genre:string;releaseDate:string;rating:number|null;listenedAt:string;favoriteTrack:string;tags:string[];catalog?:AlbumMetadata;type?:'album'|'playlist';favorite?:boolean;spotify?:SpotifyMetadata;listens?:ListeningSession[]};
 export const emptyMusic=():MusicDetails=>({artist:'',genre:'',releaseDate:'',rating:null,listenedAt:'',favoriteTrack:'',tags:[]});
+export function spotifyMusicDraft(entity:SpotifyEntity):Entry{
+  if(!['album','playlist'].includes(entity.type))throw new Error('앨범과 플레이리스트만 HUB 컬렉션에 추가할 수 있어요.');
+  const type=entity.type as 'album'|'playlist';
+  return {id:crypto.randomUUID(),kind:'music',title:entity.name.slice(0,200),detail:'',category:'스트리밍',status:'컬렉션',url:entity.url,date:'',done:false,createdAt:new Date().toISOString(),music:{...emptyMusic(),type,artist:entity.artist.slice(0,200),...(type==='playlist'?{favorite:true}:{}),spotify:{id:entity.id,type,url:entity.url,title:entity.name.slice(0,200),coverUrl:entity.coverUrl,checkedAt:new Date().toISOString()}}};
+}
 export function lastListenedAt(music?:MusicDetails){return (music?.listens??[]).reduce((date,s)=>s.date>date?s.date:date,music?.listenedAt??'');}
 export function musicDate(value:unknown,partial=false){if(typeof value!=='string'||!(partial?/^\d{4}(?:-\d{2}(?:-\d{2})?)?$/:/^\d{4}-\d{2}-\d{2}$/).test(value))return false;const full=value.length===4?value+'-01-01':value.length===7?value+'-01':value;const date=new Date(full+'T00:00:00Z');return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===full;}
 export function validateAlbum(input:unknown):AlbumMetadata{

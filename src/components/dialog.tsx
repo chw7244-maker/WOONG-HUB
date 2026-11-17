@@ -1,0 +1,9 @@
+'use client';
+import {useEffect,useRef} from 'react';
+import {X} from 'lucide-react';
+
+export default function Dialog({title,onClose,children,className=''}:{title:string;onClose:()=>void;children:React.ReactNode;className?:string}){
+  const ref=useRef<HTMLDivElement>(null),closeRef=useRef(onClose);closeRef.current=onClose;
+  useEffect(()=>{const previous=document.activeElement as HTMLElement|null;const old=document.body.style.overflow;document.body.style.overflow='hidden';const el=ref.current;const focusable=()=>el?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), textarea, select, [tabindex="0"]');const timer=setTimeout(()=>{(el?.querySelector<HTMLElement>('[autofocus]')??focusable()?.[1]??el)?.focus();},0);const handle=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.stopPropagation();closeRef.current();return;}if(e.key!=='Tab')return;const elements=focusable();if(!elements?.length)return;const first=elements[0],last=elements[elements.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}};document.addEventListener('keydown',handle);return()=>{clearTimeout(timer);document.body.style.overflow=old;document.removeEventListener('keydown',handle);previous?.focus();};},[]);
+  return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}><div className={`dialog ${className}`} ref={ref} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}><div className="dialog-heading"><h2>{title}</h2><button className="icon-button" aria-label="창 닫기" onClick={onClose}><X size={19}/></button></div>{children}</div></div>;
+}

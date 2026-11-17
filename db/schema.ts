@@ -28,3 +28,17 @@ export const newsSync=sqliteTable('news_sync',{
 export const notionCalendarSnapshots=sqliteTable('notion_calendar_snapshots',{
   key:text('key').primaryKey(),revision:integer('revision').notNull(),data:text('data').notNull(),mutationId:text('mutation_id').notNull(),updatedAt:text('updated_at').notNull(),
 });
+
+// Spotify credentials are encrypted with a runtime-only key, never in HUB backups.
+export const spotifyConnections=sqliteTable('spotify_connections',{
+  userId:text('user_id').primaryKey(),accountId:text('account_id').notNull(),spotifyUserId:text('spotify_user_id').notNull(),displayName:text('display_name').notNull(),
+  accessCipher:text('access_cipher').notNull(),refreshCipher:text('refresh_cipher').notNull(),expiresAt:integer('expires_at').notNull(),scopes:text('scopes').notNull(),
+  version:integer('version').notNull(),refreshLockUntil:integer('refresh_lock_until').notNull().default(0),blockedUntil:integer('blocked_until').notNull().default(0),updatedAt:text('updated_at').notNull(),
+});
+export const spotifyOauthStates=sqliteTable('spotify_oauth_states',{
+  stateHash:text('state_hash').primaryKey(),userId:text('user_id').notNull(),browserHash:text('browser_hash').notNull(),scopes:text('scopes').notNull(),
+  connectionVersion:integer('connection_version').notNull(),expiresAt:integer('expires_at').notNull(),
+});
+export const spotifyMutations=sqliteTable('spotify_mutations',{
+  userId:text('user_id').notNull(),requestId:text('request_id').notNull(),operationHash:text('operation_hash').notNull(),status:text('status').notNull(),response:text('response').notNull(),expiresAt:integer('expires_at').notNull(),
+},table=>[primaryKey({columns:[table.userId,table.requestId]})]);

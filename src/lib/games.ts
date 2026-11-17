@@ -1,9 +1,10 @@
 import type {Entry} from './store.ts';
+import {validateSteamRef,type SteamAccountRef} from './steam-account.ts';
 
 export const gamePlatforms=['PC','PlayStation','Nintendo','Xbox','모바일','기타'];
 export const gameStatuses=['플레이 예정','플레이 중','완료','위시리스트','보류'];
 export type SteamMetadata={appId:number;name:string;developers:string[];publishers:string[];genres:string[];releaseDate:string;comingSoon:boolean;description:string;storeUrl:string;imageUrl:string;checkedAt:string};
-export type GameDetails={playMinutes:number|null;rating:number|null;startedAt:string;completedAt:string;tags:string[];steam?:SteamMetadata};
+export type GameDetails={playMinutes:number|null;rating:number|null;startedAt:string;completedAt:string;tags:string[];steam?:SteamMetadata;steamAccount?:SteamAccountRef};
 export const emptyGame=():GameDetails=>({playMinutes:null,rating:null,startedAt:'',completedAt:'',tags:[]});
 const day=(v:unknown)=>{if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(v))return false;const d=new Date(v+'T00:00:00Z');return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===v;};
 export function steamAppId(value:string):number|null{
@@ -21,7 +22,8 @@ export function validateSteam(input:unknown):SteamMetadata{
 export function validateGame(input:unknown):GameDetails{
   const g=input as GameDetails;
   if(!g||typeof g!=='object'||(g.playMinutes!==null&&(!Number.isSafeInteger(g.playMinutes)||g.playMinutes<0||g.playMinutes>6000000))||(g.rating!==null&&(typeof g.rating!=='number'||!Number.isFinite(g.rating)||g.rating<0||g.rating>5||g.rating*2%1!==0))||typeof g.startedAt!=='string'||typeof g.completedAt!=='string'||(g.startedAt&&!day(g.startedAt))||(g.completedAt&&!day(g.completedAt))||(g.startedAt&&g.completedAt&&g.completedAt<g.startedAt)||!Array.isArray(g.tags)||g.tags.length>8||g.tags.some(t=>typeof t!=='string'||!t.trim()||t.length>30))throw new Error('플레이 시간·별점·날짜·태그를 확인해주세요.');
-  return {playMinutes:g.playMinutes,rating:g.rating,startedAt:g.startedAt,completedAt:g.completedAt,tags:[...new Set(g.tags.map(t=>t.trim()))],...(g.steam!==undefined?{steam:validateSteam(g.steam)}:{})};
+  const ref=g.steamAccount!==undefined?validateSteamRef(g.steamAccount):undefined;if(ref&&g.steam&&ref.appId!==g.steam.appId)throw new Error('Steam 상점 정보와 연결할 게임의 App ID가 달라요.');
+  return {playMinutes:g.playMinutes,rating:g.rating,startedAt:g.startedAt,completedAt:g.completedAt,tags:[...new Set(g.tags.map(t=>t.trim()))],...(g.steam!==undefined?{steam:validateSteam(g.steam)}:{}),...(ref?{steamAccount:ref}:{})};
 }
 export function playTime(minutes:number|null){if(minutes===null)return '시간 미기록';if(minutes===0)return '0분';const hours=Math.floor(minutes/60),rest=minutes%60;return `${hours?`${hours.toLocaleString('ko-KR')}시간`:''}${hours&&rest?' ':''}${rest?`${rest}분`:''}`;}
 export function gameStats(entries:Entry[]){const games=entries.filter(e=>e.kind==='games'),recorded=games.filter(e=>e.game?.playMinutes!==null&&e.game?.playMinutes!==undefined);return {count:games.length,playing:games.filter(e=>e.status==='플레이 중').length,completed:games.filter(e=>e.status==='완료').length,wishlist:games.filter(e=>e.status==='위시리스트').length,recorded:recorded.length,minutes:recorded.reduce((sum,e)=>sum+(e.game?.playMinutes??0),0)};}

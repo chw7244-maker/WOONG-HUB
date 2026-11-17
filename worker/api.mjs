@@ -2,6 +2,7 @@ import { initial, validateData } from '../src/lib/store.ts';
 import { handleNews } from './news.mjs';
 import { handleCalendar } from './calendar.mjs';
 import { handleSteam } from './steam.mjs';
+import { handleSteamAccounts } from './steam-account.mjs';
 import { handleAlbums } from './music.mjs';
 import { handleSpotify } from './spotify.mjs';
 import { handleSpotifyAuth } from './spotify-auth.mjs';
@@ -48,6 +49,7 @@ export async function handleApi(request, env, ctx) {
   if(path.startsWith('/api/news'))return handleNews(request,env,ctx);
   if(path==='/api/calendar'||path==='/api/calendar/sync')return handleCalendar(request,env);
   if(path==='/api/games/steam')return handleSteam(request,env,ctx);
+  if(path.startsWith('/api/steam/'))return handleSteamAccounts(request,env,ctx);
   if(path==='/api/music/albums')return handleAlbums(request,env,ctx);
   if(path==='/api/music/spotify')return handleSpotify(request,env,ctx);
   if(['/api/spotify/status','/api/spotify/connect','/api/spotify/callback','/api/spotify/disconnect','/api/spotify/sdk-token'].includes(path))return handleSpotifyAuth(request,env,ctx);

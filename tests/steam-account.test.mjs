@@ -1,0 +1,82 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createLocalDatabase,applyLocalMigrations} from '../scripts/local-db.mjs';
+import {handleSteamAccounts,normalizeSteamGames,validateSteamAssertion,sealSteamKey,openSteamKey} from '../worker/steam-account.mjs';
+import {handleApi} from '../worker/api.mjs';
+import {steamId64,validateSteamRef} from '../src/lib/steam-account.ts';
+import {emptyGame,validateGame} from '../src/lib/games.ts';
+import {initial,validateData} from '../src/lib/store.ts';
+
+const id='76561198000000001',other='76561198000000002',key='1234567890abcdef1234567890abcdef';
+const ns='http://specs.openid.net/auth/2.0',op='https://steamcommunity.com/openid/login';
+const owned={response:{game_count:3,games:[{appid:620,name:'Portal 2',playtime_forever:125,playtime_2weeks:15,rtime_last_played:1794902400},{appid:10,name:'Counter-Strike',playtime_forever:0},{appid:20,name:'Unknown time'}]}};
+const recent={response:{total_count:1,games:[{appid:620,name:'Portal 2',playtime_forever:125,playtime_2weeks:15}]}};
+async function harness(t){
+  const DB=createLocalDatabase();await applyLocalMigrations(DB);t.after(()=>DB.sqlite.close());let now=Date.parse('2026-11-17T12:00:00Z'),handler;
+  const env={DB,STEAM_CREDENTIALS_ENCRYPTION_KEY:Buffer.alloc(32,9).toString('base64')},calls=[];
+  const fetcher=async(url,init)=>{calls.push({url,init});if(handler)return handler(url,init);if(url===op)return new Response('ns:'+ns+'\nis_valid:true\n');if(url.includes('GetPlayerSummaries')){const steamid=new URL(url).searchParams.get('steamids');return Response.json({response:{players:[{steamid,personaname:steamid===id?'Account A':'Account B',avatarfull:'https://avatars.steamstatic.com/fixture.jpg'}]}});}if(url.includes('GetOwnedGames'))return Response.json(owned);if(url.includes('GetRecentlyPlayedGames'))return Response.json(recent);throw new Error('unexpected upstream');};
+  const request=(path,body,user='alice',headers={})=>new Request('https://hub.test/api/steam/'+path,{method:body===undefined?'GET':'POST',headers:{...(user?{'oai-authenticated-user-id':user}:{}),...(body===undefined?{}:{Origin:'https://hub.test','Content-Type':'application/json'}),...headers},...(body===undefined?{}:{body:JSON.stringify(body)})});
+  const run=(path,body,user='alice',headers={})=>handleSteamAccounts(request(path,body,user,headers),env,null,{fetcher,clock:()=>now});
+  async function start(user='alice'){const r=await run('connect',{},user);assert.equal(r.status,200);return {url:new URL((await r.json()).authorizationUrl),cookie:r.headers.get('Set-Cookie').split(';')[0]};}
+  function assertion(flow,steamid=id,extra={}){const returnTo=flow.url.searchParams.get('openid.return_to'),url=new URL(returnTo);const params={'openid.ns':ns,'openid.mode':'id_res','openid.op_endpoint':op,'openid.claimed_id':`https://steamcommunity.com/openid/id/${steamid}`,'openid.identity':`https://steamcommunity.com/openid/id/${steamid}`,'openid.return_to':returnTo,'openid.response_nonce':new Date(now).toISOString().replace('.000','')+crypto.randomUUID(),'openid.assoc_handle':'fixture-association','openid.signed':'op_endpoint,claimed_id,identity,return_to,response_nonce,assoc_handle','openid.sig':'fixture-signature',...extra};for(const [k,v] of Object.entries(params))url.searchParams.set(k,v);return url;}
+  const finish=(flow,steamid=id,user='alice',extra={})=>run('callback?'+assertion(flow,steamid,extra).searchParams,undefined,user,{Cookie:flow.cookie});
+  async function connect(steamid=id,user='alice'){await finish(await start(user),steamid,user);assert.ok(await DB.prepare('SELECT * FROM steam_account_links WHERE user_id=? AND steam_id=?').bind(user,steamid).first());}
+  const saveKey=()=>run('key',{steamId:id,key});
+  return {env,DB,calls,run,request,start,finish,assertion,connect,saveKey,clock:()=>now,advance:ms=>{now+=ms;},setFetcher:value=>{handler=value;}};
+}
+
+test('Steam APIs require HUB identity, same origin JSON and never accept an arbitrary account as verified',async t=>{
+  const h=await harness(t);assert.equal((await h.run('status',undefined,null)).status,401);assert.equal((await h.run('connect',{},'alice',{Origin:'https://evil.test'})).status,403);assert.equal((await h.run('connect',{},'alice',{'Content-Type':'text/plain'})).status,415);assert.equal((await h.run('sync',{steamId:id})).status,404);assert.equal((await h.run('key',{steamId:id,key})).status,404);assert.equal(h.calls.length,0);
+  assert.equal((await handleApi(h.request('status',undefined,null),h.env)).status,401);
+});
+test('OpenID verifies state, browser, HUB user, expiry, signature and one-time use before linking',async t=>{
+  const h=await harness(t),flow=await h.start();assert.equal(flow.url.origin,'https://steamcommunity.com');assert.equal(flow.url.searchParams.get('openid.realm'),'https://hub.test/');assert.equal(flow.url.searchParams.get('openid.identity'),ns+'/identifier_select');
+  const params=h.assertion(flow).searchParams;for(const [user,cookie] of [['bob',flow.cookie],['alice',''],['alice','__Host-woong-steam-openid='+'x'.repeat(43)]])assert.match((await h.run('callback?'+params,undefined,user,{Cookie:cookie})).headers.get('Location'),/invalid_state/);assert.equal(h.calls.length,0);
+  assert.match((await h.run('callback?'+params,undefined,'alice',{Cookie:flow.cookie})).headers.get('Location'),/connected/);assert.equal(h.calls.length,1);assert.equal(h.calls[0].url,op);assert.equal(h.calls[0].init.redirect,'manual');assert.equal(new URLSearchParams(h.calls[0].init.body).get('openid.mode'),'check_authentication');assert.match((await h.finish(flow)).headers.get('Location'),/invalid_state/);
+  const expired=await h.start();h.advance(600001);assert.match((await h.finish(expired)).headers.get('Location'),/invalid_state/);
+});
+test('Forged issuer, return URL, unsigned fields, old nonce and failed direct verification are rejected',async t=>{
+  const h=await harness(t),flow=await h.start(),returnTo=flow.url.searchParams.get('openid.return_to');
+  for(const patch of [{'openid.op_endpoint':'https://evil.test'},{'openid.return_to':'https://evil.test'},{'openid.identity':`https://steamcommunity.com/openid/id/${other}`},{'openid.signed':'return_to'},{'openid.response_nonce':'2026-11-17T11:00:00Zold'}])assert.throws(()=>validateSteamAssertion(h.assertion(flow,id,patch),returnTo,h.clock));
+  const duplicate=h.assertion(flow);duplicate.searchParams.append('openid.identity',duplicate.searchParams.get('openid.identity'));assert.throws(()=>validateSteamAssertion(duplicate,returnTo,h.clock));
+  h.setFetcher(async()=>new Response('is_valid:false\n'));assert.match((await h.finish(flow)).headers.get('Location'),/failed/);assert.equal((await (await h.run('status')).json()).accounts.length,0);
+});
+test('Nonce replay across fresh sessions and callbacks completing after disconnect cannot restore links',async t=>{
+  const h=await harness(t),nonce='2026-11-17T12:00:00Zunique',a=await h.start();assert.match((await h.finish(a,id,'alice',{'openid.response_nonce':nonce})).headers.get('Location'),/connected/);const b=await h.start();assert.match((await h.finish(b,id,'alice',{'openid.response_nonce':nonce})).headers.get('Location'),/failed/);
+  let release,entered;const waiting=new Promise(r=>{entered=r;});h.setFetcher(async()=>{entered();await new Promise(r=>{release=r;});return new Response('is_valid:true\n');});const flow=await h.start(),pending=h.finish(flow);await waiting;await h.run('disconnect',{steamId:id});release();assert.match((await pending).headers.get('Location'),/failed/);assert.equal((await (await h.run('status')).json()).accounts.length,0);
+});
+test('Keys are verified then encrypted per HUB user; upstream key headers never become URLs or status data',async t=>{
+  const h=await harness(t);await h.connect();assert.equal((await h.saveKey()).status,200);const row=await h.DB.prepare('SELECT * FROM steam_user_settings WHERE user_id=?').bind('alice').first();assert.ok(!row.api_key_cipher.includes(key));assert.equal(await openSteamKey(h.env,'alice',row.api_key_cipher),key);await assert.rejects(()=>openSteamKey(h.env,'bob',row.api_key_cipher));const cipher=await sealSteamKey(h.env,'alice',key);await assert.rejects(()=>openSteamKey(h.env,'alice',cipher.slice(0,-5)+'AAAAA'));
+  const status=await (await h.run('status')).json();assert.equal(status.hasKey,true);assert.equal(status.keySource,'user');assert.ok(!JSON.stringify(status).includes(key));assert.ok(!JSON.stringify(status).includes('cipher'));assert.deepEqual((await (await h.run('status',undefined,'bob')).json()).accounts,[]);
+  const call=h.calls.find(c=>c.url.includes('GetPlayerSummaries'));assert.equal(call.init.headers['x-webapi-key'],key);assert.equal(call.url.includes(key),false);assert.equal(call.init.headers.Cookie,undefined);assert.equal(call.init.redirect,'manual');
+});
+test('Private and malformed libraries differ from a genuinely empty library and missing time differs from zero',()=>{
+  assert.throws(()=>normalizeSteamGames({response:{}}),e=>e.code==='steam_library_private');assert.deepEqual(normalizeSteamGames({response:{game_count:0}}),[]);assert.throws(()=>normalizeSteamGames({response:{game_count:2,games:owned.response.games}}));const games=normalizeSteamGames(owned);assert.equal(games[1].totalMinutes,0);assert.equal(games[2].totalMinutes,null);assert.equal(games[1].recentMinutes,null);assert.equal(steamId64(id),id);assert.equal(steamId64(Number(id)),null);assert.equal(steamId64('https://evil.test'),null);assert.throws(()=>validateSteamRef({steamId:id,appId:-1}));
+});
+test('Two verified accounts keep separate snapshots; library search, filters, paging and entry stats are user-scoped',async t=>{
+  const h=await harness(t);await h.connect();await h.connect(other);await h.saveKey();assert.equal((await h.run('sync',{steamId:id})).status,200);assert.equal((await h.run('sync',{steamId:other})).status,200);
+  const library=await (await h.run('library?steamId='+id)).json();assert.equal(library.count,3);assert.equal(library.stats.totalMinutes,125);assert.equal(library.items[0].recentMinutes,15);assert.equal(library.items[1].recentMinutes,null);assert.equal(library.stats.recorded,2);assert.equal((await (await h.run('library?steamId='+id+'&filter=unplayed')).json()).count,1);assert.equal((await (await h.run('library?steamId='+id+'&q=Portal')).json()).count,1);assert.equal((await h.run('library?steamId='+id+'&offset=-1')).status,400);
+  assert.equal((await h.run('library?steamId='+id,undefined,'bob')).status,404);const links=[{steamId:id,appId:620},{steamId:other,appId:620}];const stats=await (await h.run('entry-stats',{links})).json();assert.equal(stats.stats[0].game.totalMinutes,125);assert.equal(stats.stats[1].accountName,'Account B');const hidden=await (await h.run('entry-stats',{links},'bob')).json();assert.equal(hidden.stats[0].connected,false);assert.equal(hidden.stats[0].game,null);
+  const ownedCall=h.calls.find(c=>c.url.includes('GetOwnedGames'));assert.equal(new URL(ownedCall.url).hostname,'api.steampowered.com');assert.deepEqual(JSON.parse(new URL(ownedCall.url).searchParams.get('input_json')),{steamid:id,include_appinfo:true,include_played_free_games:true});
+});
+test('Sync failures preserve successful snapshots; 403 and 429 are explicit and respect Retry-After',async t=>{
+  const h=await harness(t);await h.connect();await h.saveKey();await h.run('sync',{steamId:id});assert.equal((await h.run('sync',{steamId:id})).status,429);h.advance(60001);h.setFetcher(async()=>Response.json({response:{}}));assert.equal((await h.run('sync',{steamId:id})).status,403);let library=await (await h.run('library?steamId='+id)).json();assert.equal(library.count,3);assert.equal(library.account.error,'steam_library_private');
+  h.advance(60001);h.setFetcher(async()=>Response.json({private:'must not echo'},{status:403}));const forbidden=await h.run('sync',{steamId:id});assert.equal(forbidden.status,403);assert.deepEqual(await forbidden.json(),{error:'steam_key_invalid'});
+  h.advance(60001);h.setFetcher(async()=>new Response('quota',{status:429,headers:{'Retry-After':'120'}}));const rate=await h.run('sync',{steamId:id});assert.equal(rate.status,429);assert.equal(rate.headers.get('Retry-After'),'120');const count=h.calls.length;h.advance(60001);assert.equal((await h.run('sync',{steamId:id})).status,429);assert.equal(h.calls.length,count);library=await (await h.run('library?steamId='+id)).json();assert.equal(library.count,3);
+});
+test('Partial recent-play failure preserves previous recent data without discarding owned games',async t=>{
+  const h=await harness(t);await h.connect();await h.saveKey();await h.run('sync',{steamId:id});h.advance(60001);h.setFetcher(async url=>url.includes('GetOwnedGames')?Response.json(owned):Response.json({response:{}}));const sync=await h.run('sync',{steamId:id});assert.equal(sync.status,200);assert.equal((await sync.json()).recentAvailable,false);const library=await (await h.run('library?steamId='+id)).json();assert.equal(library.items[0].recentMinutes,15);assert.equal(library.account.recentError,'steam_recent_unavailable');assert.notEqual(library.account.ownedAt,library.account.recentAt);
+});
+test('Oversized snapshots are rejected before database writes and keep the last successful library',async t=>{
+  const h=await harness(t);await h.connect();await h.saveKey();await h.run('sync',{steamId:id});h.advance(60001);const games=Array.from({length:6000},(_,i)=>({appid:i+1,name:'긴 게임 이름 '.repeat(30),playtime_forever:1}));h.setFetcher(async url=>url.includes('GetOwnedGames')?Response.json({response:{game_count:games.length,games}}):Response.json(recent));const result=await h.run('sync',{steamId:id});assert.equal((await result.json()).error,'steam_library_too_large');assert.equal((await (await h.run('library?steamId='+id)).json()).count,3);
+});
+test('Concurrent sync is locked and late responses cannot overwrite disconnected or re-keyed accounts',async t=>{
+  const h=await harness(t);await h.connect();await h.saveKey();let release,entered;const waiting=new Promise(r=>{entered=r;}),gate=new Promise(r=>{release=r;});h.setFetcher(async url=>{entered();await gate;return url.includes('GetOwnedGames')?Response.json(owned):url.includes('GetRecentlyPlayedGames')?Response.json(recent):Response.json({response:{players:[]}});});const pending=h.run('sync',{steamId:id});await waiting;assert.equal((await h.run('sync',{steamId:id})).status,409);await h.run('key/remove',{});release();assert.equal((await pending).status,409);const library=await (await h.run('library?steamId='+id)).json();assert.equal(library.stats.owned,null);assert.equal((await (await h.run('status')).json()).hasKey,false);
+});
+test('Removing a key or disconnecting during key verification prevents a late save',async t=>{
+  const h=await harness(t);await h.connect();let release,entered;const waiting=new Promise(r=>{entered=r;});h.setFetcher(async()=>{entered();await new Promise(r=>{release=r;});return Response.json({response:{players:[{steamid:id,personaname:'A'}]}});});const pending=h.saveKey();await waiting;await h.run('key/remove',{});release();assert.equal((await pending).status,409);assert.equal((await (await h.run('status')).json()).hasKey,false);
+});
+test('Optional Steam account references survive validation and backup; disconnect preserves manual HUB records',async t=>{
+  const h=await harness(t);await h.connect();const game={...emptyGame(),playMinutes:61,rating:4.5,tags:['manual'],steamAccount:{steamId:id,appId:620}},entry={id:'manual-game',kind:'games',title:'내 게임',detail:'기존 감상',category:'PC',status:'플레이 중',url:'',date:'',done:false,createdAt:'2026-11-17T00:00:00Z',game},data={...structuredClone(initial),entries:[entry]};assert.deepEqual(validateGame(game),game);assert.deepEqual(validateData(JSON.parse(JSON.stringify(data))),data);
+  await h.DB.prepare('INSERT INTO hub_documents (user_id,revision,data,mutation_id,updated_at) VALUES (?,?,?,?,?)').bind('alice',1,JSON.stringify(data),'fixture','2026-11-17T00:00:00Z').run();await h.run('disconnect',{steamId:id});const saved=await (await handleApi(new Request('https://hub.test/api/hub',{headers:{'oai-authenticated-user-id':'alice'}}),h.env)).json();assert.deepEqual(saved.data,data);assert.equal((await (await h.run('entry-stats',{links:[game.steamAccount]})).json()).stats[0].connected,false);
+});

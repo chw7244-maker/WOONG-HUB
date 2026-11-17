@@ -42,3 +42,17 @@ export const spotifyOauthStates=sqliteTable('spotify_oauth_states',{
 export const spotifyMutations=sqliteTable('spotify_mutations',{
   userId:text('user_id').notNull(),requestId:text('request_id').notNull(),operationHash:text('operation_hash').notNull(),status:text('status').notNull(),response:text('response').notNull(),expiresAt:integer('expires_at').notNull(),
 },table=>[primaryKey({columns:[table.userId,table.requestId]})]);
+
+export const steamUserSettings=sqliteTable('steam_user_settings',{
+  userId:text('user_id').primaryKey(),apiKeyCipher:text('api_key_cipher').notNull().default(''),keyRevision:text('key_revision').notNull(),activeSteamId:text('active_steam_id').notNull().default(''),updatedAt:text('updated_at').notNull(),
+});
+export const steamAccountLinks=sqliteTable('steam_account_links',{
+  userId:text('user_id').notNull(),steamId:text('steam_id').notNull(),linkVersion:text('link_version').notNull(),name:text('name').notNull(),avatarUrl:text('avatar_url').notNull().default(''),connectedAt:text('connected_at').notNull(),
+  ownedJson:text('owned_json').notNull().default('[]'),recentJson:text('recent_json').notNull().default('[]'),ownedAt:text('owned_at').notNull().default(''),recentAt:text('recent_at').notNull().default(''),syncError:text('sync_error').notNull().default(''),recentError:text('recent_error').notNull().default(''),lastAttempt:integer('last_attempt').notNull().default(0),retryAt:integer('retry_at').notNull().default(0),syncToken:text('sync_token').notNull().default(''),leaseUntil:integer('lease_until').notNull().default(0),
+},table=>[primaryKey({columns:[table.userId,table.steamId]})]);
+export const steamOpenidStates=sqliteTable('steam_openid_states',{
+  stateHash:text('state_hash').primaryKey(),userId:text('user_id').notNull(),browserHash:text('browser_hash').notNull(),returnTo:text('return_to').notNull(),expiresAt:integer('expires_at').notNull(),
+});
+export const steamOpenidNonces=sqliteTable('steam_openid_nonces',{
+  nonceHash:text('nonce_hash').primaryKey(),expiresAt:integer('expires_at').notNull(),
+});

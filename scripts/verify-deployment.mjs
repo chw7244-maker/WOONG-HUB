@@ -20,5 +20,6 @@ const headers={'OAI-Sites-Authorization':`Bearer ${token}`};
 const health=await fetch(new URL('/api/health',origin),{headers,signal:AbortSignal.timeout(20000)});
 const result=await health.json().catch(()=>({}));
 const unauthenticated=await fetch(new URL('/api/hub',origin),{headers,signal:AbortSignal.timeout(20000)});
-console.log(JSON.stringify({databaseHealth:health.status,schema:result.schema,storage:result.storage,userApiWithoutIdentity:unauthenticated.status}));
-if(health.status!==200||result.ok!==true||unauthenticated.status!==401)process.exitCode=1;
+const news=await fetch(new URL('/api/news',origin),{headers,signal:AbortSignal.timeout(20000)});
+console.log(JSON.stringify({databaseHealth:health.status,schema:result.schema,storage:result.storage,userApiWithoutIdentity:unauthenticated.status,newsApiWithoutIdentity:news.status}));
+if(health.status!==200||result.ok!==true||result.schema!==2||unauthenticated.status!==401||news.status!==401)process.exitCode=1;

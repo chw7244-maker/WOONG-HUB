@@ -22,7 +22,7 @@ const server=http.createServer(async(req,res)=>{
       const chunks=[];let length=0;
       for await(const chunk of req){length+=chunk.length;if(length>1024*1024+1024){res.writeHead(413);res.end();return;}chunks.push(chunk);}
       const request=new Request(url,{method:req.method,headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})});
-      const result=await handleApi(request,{DB});let body=await result.text();
+      const result=await handleApi(request,{DB},{waitUntil:promise=>{promise.catch(()=>{});}});let body=await result.text();
       if(url.pathname==='/api/hub'){const value=JSON.parse(body);value.localPreview=true;body=JSON.stringify(value);}
       res.writeHead(result.status,Object.fromEntries(result.headers));res.end(body);return;
     }

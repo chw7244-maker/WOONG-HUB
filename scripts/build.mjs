@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
-import { transpileModule, ModuleKind, ScriptTarget } from 'typescript';
+import { build } from 'esbuild';
 import path from 'node:path';
 
 const nextBuild=spawnSync(process.execPath,['node_modules/next/dist/bin/next','build'],{stdio:'inherit',env:process.env,windowsHide:true});
@@ -15,11 +15,8 @@ async function collect(dir) {
   }
 }
 await collect('out');
-const storeSource=await readFile('src/lib/store.ts','utf8');
-const shared=transpileModule(storeSource,{compilerOptions:{target:ScriptTarget.ES2022,module:ModuleKind.ES2022}}).outputText.replace(/^export /gm,'');
-const api=(await readFile('worker/api.mjs','utf8')).replace(/^import .+;\r?$/gm,'').replace(/^export /gm,'');
-const worker=(await readFile('worker/index.mjs','utf8')).replace(/^import .+;\r?$/gm,'');
-const source=`// Generated from the current source. No runtime filesystem or credentials.\nconst STATIC_ASSETS=${JSON.stringify(assets)};\n${shared}\n${api}\n${worker}`;
+const bundled=await build({entryPoints:['worker/index.mjs'],bundle:true,write:false,format:'esm',platform:'browser',target:'es2022',plugins:[{name:'hub-assets',setup(builder){builder.onResolve({filter:/^hub:assets$/},()=>({path:'hub:assets',namespace:'hub'}));builder.onLoad({filter:/.*/,namespace:'hub'},()=>({contents:`export const STATIC_ASSETS=${JSON.stringify(assets)};`,loader:'js'}));}}]});
+const source=bundled.outputFiles[0].text;
 if(Buffer.byteLength(source)>9*1024*1024)throw new Error('Worker exceeds the embedded asset budget.');
 await mkdir('dist/server',{recursive:true});await mkdir('dist/.openai',{recursive:true});
 await writeFile('dist/server/index.js',source);

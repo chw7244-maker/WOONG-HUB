@@ -1,10 +1,11 @@
 import { handleApi } from './api.mjs';
+import { STATIC_ASSETS } from 'hub:assets';
 
 const contentTypes={html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8',txt:'text/plain; charset=utf-8',json:'application/json',webmanifest:'application/manifest+json',svg:'image/svg+xml',ico:'image/x-icon',png:'image/png',jpg:'image/jpeg',woff2:'font/woff2'};
 export default {
-  async fetch(request,env) {
+  async fetch(request,env,ctx) {
     const url=new URL(request.url);
-    if(url.pathname.startsWith('/api/'))return handleApi(request,env);
+    if(url.pathname.startsWith('/api/'))return handleApi(request,env,ctx);
     if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});
     let path;
     try{path=decodeURIComponent(url.pathname);}catch{return new Response('Bad request',{status:400});}

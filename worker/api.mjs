@@ -1,4 +1,5 @@
 import { initial, validateData } from '../src/lib/store.ts';
+import { handleNews } from './news.mjs';
 
 const MAX_BYTES = 1024 * 1024;
 function json(body, status = 200) {
@@ -26,16 +27,18 @@ async function boundedBody(request) {
   try{return JSON.parse(new TextDecoder().decode(bytes));}catch{throw new Error('invalid_json');}
 }
 
-export async function handleApi(request, env) {
+export async function handleApi(request, env, ctx) {
   const path=new URL(request.url).pathname;
   // Read-only readiness endpoint. The private Sites gate still protects this path.
   if(path==='/api/health' && request.method==='GET') {
     try {
       if(!env.DB) throw new Error();
       await env.DB.prepare('SELECT revision FROM hub_documents LIMIT 1').first();
-      return json({ok:true,storage:'d1',schema:1});
+      await env.DB.prepare('SELECT id FROM news_articles LIMIT 1').first();
+      return json({ok:true,storage:'d1',schema:2,news:true});
     } catch {return json({ok:false,error:'database_unavailable'},503);}
   }
+  if(path.startsWith('/api/news'))return handleNews(request,env,ctx);
   if(path!=='/api/hub')return json({error:'not_found'},404);
   // Only dispatch-injected identity is accepted. A private service token supplies no user identity.
   const userId=request.headers.get('oai-authenticated-user-id');

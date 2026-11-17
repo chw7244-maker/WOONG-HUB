@@ -1,5 +1,6 @@
 import { initial, validateData } from '../src/lib/store.ts';
 import { handleNews } from './news.mjs';
+import { handleCalendar } from './calendar.mjs';
 
 const MAX_BYTES = 1024 * 1024;
 function json(body, status = 200) {
@@ -35,10 +36,12 @@ export async function handleApi(request, env, ctx) {
       if(!env.DB) throw new Error();
       await env.DB.prepare('SELECT revision FROM hub_documents LIMIT 1').first();
       await env.DB.prepare('SELECT id FROM news_articles LIMIT 1').first();
-      return json({ok:true,storage:'d1',schema:2,news:true});
+      await env.DB.prepare('SELECT revision FROM notion_calendar_snapshots LIMIT 1').first();
+      return json({ok:true,storage:'d1',schema:3,news:true,calendar:true});
     } catch {return json({ok:false,error:'database_unavailable'},503);}
   }
   if(path.startsWith('/api/news'))return handleNews(request,env,ctx);
+  if(path==='/api/calendar'||path==='/api/calendar/sync')return handleCalendar(request,env);
   if(path!=='/api/hub')return json({error:'not_found'},404);
   // Only dispatch-injected identity is accepted. A private service token supplies no user identity.
   const userId=request.headers.get('oai-authenticated-user-id');

@@ -3,6 +3,7 @@ import { handleNews } from './news.mjs';
 import { handleCalendar } from './calendar.mjs';
 import { handleSteam } from './steam.mjs';
 import { handleAlbums } from './music.mjs';
+import { handleSpotify } from './spotify.mjs';
 
 const MAX_BYTES = 1024 * 1024;
 function json(body, status = 200) {
@@ -46,6 +47,7 @@ export async function handleApi(request, env, ctx) {
   if(path==='/api/calendar'||path==='/api/calendar/sync')return handleCalendar(request,env);
   if(path==='/api/games/steam')return handleSteam(request,env,ctx);
   if(path==='/api/music/albums')return handleAlbums(request,env,ctx);
+  if(path==='/api/music/spotify')return handleSpotify(request,env,ctx);
   if(path!=='/api/hub')return json({error:'not_found'},404);
   // Only dispatch-injected identity is accepted. A private service token supplies no user identity.
   const userId=request.headers.get('oai-authenticated-user-id');

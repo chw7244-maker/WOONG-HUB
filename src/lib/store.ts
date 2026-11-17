@@ -3,11 +3,13 @@ import {validateAudio,type AudioDetails} from './audio.ts';
 import {validateGame,type GameDetails} from './games.ts';
 import {validateMusic,type MusicDetails} from './music.ts';
 export type Entry = { id: string; kind: Kind; title: string; detail: string; category: string; status: string; url: string; date: string; done: boolean; createdAt: string; audio?:AudioDetails; game?:GameDetails; music?:MusicDetails };
-export type Preferences = { theme: 'dark' | 'light'; city: string; widgets: string[]; calendarHiddenSources?:string[] };
+export type Preferences = { theme: 'dark' | 'light'; city: string; widgets: string[]; calendarHiddenSources?:string[]; mediaWidgets?:string[] };
 export type HubData = { version: 1; entries: Entry[]; preferences: Preferences };
 export const KEY = 'woong-hub:v1';
 export const kinds: Kind[] = ['todo','note','bookmark','audio','games','music','event','work'];
 export const widgets = ['weather','calendar','todos','bookmarks','news','interests','note'];
+export const mediaWidgets = ['spotify','steam'];
+export const mediaWidgetVisible=(preferences:Preferences,id:string)=>(preferences.mediaWidgets??mediaWidgets).includes(id);
 export const cities: Record<string, {label: string; lat: number; lon: number}> = {
   seoul: {label:'서울',lat:37.5665,lon:126.978}, busan: {label:'부산',lat:35.1796,lon:129.0756}, incheon: {label:'인천',lat:37.4563,lon:126.7052}, daegu:{label:'대구',lat:35.8714,lon:128.6014}, daejeon:{label:'대전',lat:36.3504,lon:127.3845}, gwangju:{label:'광주',lat:35.1595,lon:126.8526}, jeju:{label:'제주',lat:33.4996,lon:126.5312}
 };
@@ -29,10 +31,11 @@ export function validateData(input: unknown): HubData {
     ids.add(e.id);
   }
   const p=d.preferences;
+  if(p.mediaWidgets!==undefined&&(!Array.isArray(p.mediaWidgets)||p.mediaWidgets.length>mediaWidgets.length||p.mediaWidgets.some(id=>!mediaWidgets.includes(id))))throw new Error('음악·게임 위젯 설정을 확인해주세요.');
   if(p.calendarHiddenSources!==undefined&&(!Array.isArray(p.calendarHiddenSources)||p.calendarHiddenSources.length>100||p.calendarHiddenSources.some(id=>typeof id!=='string'||!id||id.length>200)))throw new Error('캘린더 표시 설정을 확인해주세요.');
   if(!['dark','light'].includes(p.theme) || !Object.hasOwn(cities,p.city) || !Array.isArray(p.widgets) || p.widgets.length>widgets.length || p.widgets.some(w=>!widgets.includes(w))) throw new Error('설정의 형식이 올바르지 않습니다.');
   // Keep the persisted shape explicit, including when importing untrusted JSON.
-  return { version:1, entries:d.entries.map(e=>({id:e.id,kind:e.kind,title:e.title,detail:e.detail,category:e.category,status:e.status,url:e.url,date:e.date,done:e.done,createdAt:e.createdAt,...(e.audio!==undefined?{audio:validateAudio(e.audio)}:{}),...(e.game!==undefined?{game:validateGame(e.game)}:{}),...(e.music!==undefined?{music:validateMusic(e.music)}:{})})),preferences:{theme:p.theme,city:p.city,widgets:[...new Set(p.widgets)],...(p.calendarHiddenSources!==undefined?{calendarHiddenSources:[...new Set(p.calendarHiddenSources)]}:{})} };
+  return { version:1, entries:d.entries.map(e=>({id:e.id,kind:e.kind,title:e.title,detail:e.detail,category:e.category,status:e.status,url:e.url,date:e.date,done:e.done,createdAt:e.createdAt,...(e.audio!==undefined?{audio:validateAudio(e.audio)}:{}),...(e.game!==undefined?{game:validateGame(e.game)}:{}),...(e.music!==undefined?{music:validateMusic(e.music)}:{})})),preferences:{theme:p.theme,city:p.city,widgets:[...new Set(p.widgets)],...(p.calendarHiddenSources!==undefined?{calendarHiddenSources:[...new Set(p.calendarHiddenSources)]}:{}),...(p.mediaWidgets!==undefined?{mediaWidgets:[...new Set(p.mediaWidgets)]}:{})} };
 }
 export function todayKST(date = new Date()) { return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(date); }
 export function koreanDate(value: string) { if(!value) return ''; const [y,m,d] = value.slice(0,10).split('-'); return `${Number(m)}월 ${Number(d)}일${value.includes('T') ? ` ${value.slice(11,16)}` : ''}`; }

@@ -8,6 +8,7 @@ import '../components/games.css';
 import '../components/music.css';
 import '../components/spotify-account.css';
 import '../components/steam-account.css';
+import '../components/hub-discovery.css';
 import { SyncProvider } from '@/components/sync-provider';
 import { SpotifyProvider } from '@/components/spotify-provider';
 import { SpotifyPlaybackProvider } from '@/components/spotify-playback';

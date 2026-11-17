@@ -6,7 +6,7 @@ export const FEEDS=[
   {id:'pitchfork',name:'Pitchfork',website:'https://pitchfork.com/',url:'https://pitchfork.com/feed/feed-news/rss',category:'audio-music',language:'en'},
   {id:'pcgamer',name:'PC Gamer',website:'https://www.pcgamer.com/',url:'https://www.pcgamer.com/rss/',category:'games',language:'en'},
   {id:'ars',name:'Ars Technica',website:'https://arstechnica.com/',url:'https://feeds.arstechnica.com/arstechnica/index',category:'pc-it',language:'en'},
-  {id:'zero-db',name:'영디비',website:'https://www.0db.co.kr/NEWS',url:'https://www.0db.co.kr/NEWS/rss',category:'korean-audio',language:'ko'},
+  {id:'audioplanet',name:'오디오플래닛',website:'https://audioplanet.kr/',url:'https://audioplanet.kr/feed/',category:'korean-audio',language:'ko'},
   {id:'yonhap',name:'연합뉴스',website:'https://www.yna.co.kr/',url:'https://www.yna.co.kr/rss/news.xml',category:'korea',language:'ko'},
   {id:'bbc',name:'BBC News',website:'https://www.bbc.com/news',url:'https://feeds.bbci.co.uk/news/world/rss.xml',category:'world',language:'en'},
 ];

@@ -52,7 +52,7 @@ Google Calendar OAuth, Steam 계정, AI 요약, 사이트가 닫혀 있을 때�
 ## 새 뉴스 허브
 
 - 6개 분야: 오디오·음악 / 게임 / PC·IT / 국내 오디오 / 국내 이슈 / 해외
-- 공개 RSS 7개: Headfonia, Pitchfork, PC Gamer, Ars Technica, 영디비, 연합뉴스, BBC News
+- 공개 RSS 7개: Headfonia, Pitchfork, PC Gamer, Ars Technica, 오디오플래닛, 연합뉴스, BBC News
 - 허용된 소스 주소만 서버에서 요청하며 사용자가 전달한 URL을 수집하지 않습니다.
 - 처음 접속하거나 마지막 확인 후 1시간이 지나면 새 기사를 수집합니다. 페이지가 열려 있을 때의 갱신이며, 닫힌 동안 실행되는 예약 작업은 만들지 않았습니다.
 - 수동 ‘새 기사 확인’은 60초 간격 제한과 동시 실행 잠금을 적용합니다. 일부 매체가 실패해도 저장된 기사와 다른 소스의 결과는 유지됩니다.

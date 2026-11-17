@@ -98,8 +98,8 @@ export async function handleSpotifyAuth(request,env,ctx,{fetcher=fetch,clock=Dat
       const row=await connection(env,user);return privateJson({configured,configurationError,connected:!!row,account:row?{displayName:row.display_name,url:`https://open.spotify.com/user/${encodeURIComponent(row.spotify_user_id)}`} :null,features:featureAccess(row),expiresAt:row?.expires_at??null});
     }
     if(path==='/api/spotify/connect'&&request.method==='POST'){
-      requireSameOrigin(request);const cfg=config(env,request);await encryptionKey(env);const input=await requestJson(request);const feature=input.feature??'profile';if(!Object.hasOwn(FEATURES,feature))throw new SpotifyError('invalid_feature',400);
-      const previous=await connection(env,user),scopes=[...new Set([...FEATURES.profile,...(previous?.scopes.split(' ')??[]),...FEATURES[feature]])].sort().join(' '),state=randomSecret(),browser=randomSecret();
+      requireSameOrigin(request);const cfg=config(env,request);await encryptionKey(env);const input=await requestJson(request);const features=input.features??[input.feature??'profile'];if(!Array.isArray(features)||!features.length||features.length>5||features.some(feature=>typeof feature!=='string'||!Object.hasOwn(FEATURES,feature)))throw new SpotifyError('invalid_feature',400);
+      const previous=await connection(env,user),scopes=[...new Set([...FEATURES.profile,...(previous?.scopes.split(' ')??[]),...features.flatMap(feature=>FEATURES[feature])])].sort().join(' '),state=randomSecret(),browser=randomSecret();
       await env.DB.prepare('DELETE FROM spotify_oauth_states WHERE expires_at <= ? OR user_id = ?').bind(clock(),user).run();
       await env.DB.prepare('INSERT INTO spotify_oauth_states (state_hash,user_id,browser_hash,scopes,connection_version,expires_at) VALUES (?,?,?,?,?,?)').bind(await hash(state),user,await hash(browser),scopes,previous?.version??0,clock()+600000).run();
       const url=new URL('https://accounts.spotify.com/authorize');url.search=new URLSearchParams({client_id:cfg.clientId,response_type:'code',redirect_uri:cfg.redirect,state,scope:scopes,show_dialog:'true'}).toString();
@@ -129,7 +129,7 @@ export async function handleSpotifyAuth(request,env,ctx,{fetcher=fetch,clock=Dat
       requireSameOrigin(request);await requestJson(request);await env.DB.batch([env.DB.prepare('DELETE FROM spotify_connections WHERE user_id = ?').bind(user),env.DB.prepare('DELETE FROM spotify_oauth_states WHERE user_id = ?').bind(user),env.DB.prepare('DELETE FROM spotify_mutations WHERE user_id = ?').bind(user)]);return privateJson({disconnected:true},200,{'Set-Cookie':cookie('')});
     }
     if(path==='/api/spotify/sdk-token'&&request.method==='POST'){
-      requireSameOrigin(request);await requestJson(request);requireScopes(await connection(env,user),FEATURES.browser);const auth=await accessToken(env,user,{fetcher,clock});return privateJson({accessToken:auth.token,expiresAt:auth.row.expires_at});
+      requireSameOrigin(request);await requestJson(request);requireScopes(await connection(env,user),FEATURES.browser);const auth=await accessToken(env,user,{fetcher,clock});requireScopes(auth.row,FEATURES.browser);return privateJson({accessToken:auth.token,expiresAt:auth.row.expires_at});
     }
     return privateJson({error:'method_not_allowed'},405);
   }catch(error){if(path===CALLBACK_PATH&&error.code!=='authentication_required')return callbackRedirect(request,error.code==='spotify_forbidden'?'forbidden':error.code==='spotify_credentials_invalid'?'configuration_error':'failed');return spotifyErrorResponse(error);}

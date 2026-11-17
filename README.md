@@ -123,3 +123,7 @@ Steam 계정, AI 요약, 사이트가 닫혀 있을 때의 예약 실행, 가격
 4. 사용자 요청이 있을 때 별도 수집·AI 요약·예약 브리핑 검토
 
 설계 결정은 `docs/implementation.md`, 검증 범위는 `docs/verification.md`, 기존 설계 원문은 `docs/design-source.md`에 있습니다. 실제 아이폰에서의 계정 로그인·왕복 확인은 사용자 기기 확인이 남아 있습니다.
+
+## Spotify Premium 계정 연결
+
+음악 메뉴 상단에서 Spotify 로그인과 기능별 권한 연결을 사용할 수 있습니다. Web API·브라우저 재생·라이브러리·홈 컴팩트 플레이어의 운영 설정과 제한, 확인 범위는 [Spotify 연동 문서](docs/spotify.md)를 참조하세요. 기존 공유 링크·즐겨찾기·직접 감상 기능은 유지됩니다.

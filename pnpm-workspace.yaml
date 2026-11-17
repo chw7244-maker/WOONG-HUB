@@ -4,3 +4,5 @@ nodeLinker: hoisted
 storeDir: .sites-runtime/pnpm-store
 enableGlobalVirtualStore: false
 packageImportMethod: copy
+allowBuilds:
+  esbuild: true

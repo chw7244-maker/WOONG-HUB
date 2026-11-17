@@ -54,5 +54,6 @@ export function useNews(options:{category?:string;view?:NewsView;query?:string;d
     });
     queues.current.set(article.id,task);
   },[load]);
-  return {response,loading,error:mutationError||error,message,pending,refresh,reload:()=>load(false,undefined,true),more:()=>response?.nextCursor&&load(true,response.nextCursor),setArticleState};
+  const displayMessage=message.includes('확인하고 있어요')&&response&&!response.sync.running?'새 기사 확인을 마쳤어요.':message;
+  return {response,loading,error:mutationError||error,message:displayMessage,pending,refresh,reload:()=>load(false,undefined,true),more:()=>response?.nextCursor&&load(true,response.nextCursor),setArticleState};
 }

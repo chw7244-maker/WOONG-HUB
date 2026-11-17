@@ -1,0 +1,30 @@
+export type Kind = 'todo' | 'note' | 'bookmark' | 'audio' | 'games' | 'music' | 'event' | 'work';
+export type Entry = { id: string; kind: Kind; title: string; detail: string; category: string; status: string; url: string; date: string; done: boolean; createdAt: string };
+export type Preferences = { theme: 'dark' | 'light'; city: string; widgets: string[] };
+export type HubData = { version: 1; entries: Entry[]; preferences: Preferences };
+export const KEY = 'woong-hub:v1';
+export const kinds: Kind[] = ['todo','note','bookmark','audio','games','music','event','work'];
+export const widgets = ['weather','calendar','todos','bookmarks','news','interests','note'];
+export const cities: Record<string, {label: string; lat: number; lon: number}> = {
+  seoul: {label:'서울',lat:37.5665,lon:126.978}, busan: {label:'부산',lat:35.1796,lon:129.0756}, incheon: {label:'인천',lat:37.4563,lon:126.7052}, daegu:{label:'대구',lat:35.8714,lon:128.6014}, daejeon:{label:'대전',lat:36.3504,lon:127.3845}, gwangju:{label:'광주',lat:35.1595,lon:126.8526}, jeju:{label:'제주',lat:33.4996,lon:126.5312}
+};
+export const initial: HubData = {version:1, entries:[], preferences:{theme:'dark',city:'seoul',widgets}};
+export function safeUrl(value: string): string { try { const url = new URL(value); return ['https:','http:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } }
+export function validateData(input: unknown): HubData {
+  if (!input || typeof input !== 'object') throw new Error('올바른 HUB 백업 파일이 아닙니다.');
+  const d = input as HubData;
+  if(d.version !== 1 || !Array.isArray(d.entries) || d.entries.length > 10000 || !d.preferences) throw new Error('지원하지 않는 백업 형식입니다.');
+  const ids = new Set<string>();
+  for(const e of d.entries) {
+    if(!e || !kinds.includes(e.kind) || typeof e.done !== 'boolean' || ['id','title','detail','category','status','url','date','createdAt'].some(k=>typeof e[k as keyof Entry] !== 'string') || !e.id || !e.title.trim() || e.title.length > 200 || e.detail.length > 10000 || ids.has(e.id)) throw new Error('기록의 형식을 확인해주세요.');
+    if(e.url && !safeUrl(e.url)) throw new Error('허용되지 않는 링크가 포함되어 있습니다.');
+    if(e.date && !/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(e.date)) throw new Error('날짜의 형식을 확인해주세요.');
+    ids.add(e.id);
+  }
+  const p=d.preferences;
+  if(!['dark','light'].includes(p.theme) || !cities[p.city] || !Array.isArray(p.widgets) || p.widgets.some(w=>!widgets.includes(w))) throw new Error('설정의 형식이 올바르지 않습니다.');
+  // Keep the persisted shape explicit, including when importing untrusted JSON.
+  return { version:1, entries:d.entries.map(e=>({id:e.id,kind:e.kind,title:e.title,detail:e.detail,category:e.category,status:e.status,url:e.url,date:e.date,done:e.done,createdAt:e.createdAt})),preferences:{theme:p.theme,city:p.city,widgets:[...new Set(p.widgets)]} };
+}
+export function todayKST(date = new Date()) { return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(date); }
+export function koreanDate(value: string) { if(!value) return ''; const [y,m,d] = value.slice(0,10).split('-'); return `${Number(m)}월 ${Number(d)}일${value.includes('T') ? ` ${value.slice(11,16)}` : ''}`; }

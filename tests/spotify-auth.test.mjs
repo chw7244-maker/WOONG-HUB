@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createLocalDatabase,applyLocalMigrations} from '../scripts/local-db.mjs';
 import {handleSpotifyAuth,encryptToken,decryptToken,connection,accessToken,apiRequest} from '../worker/spotify-auth.mjs';
 import {handleApi} from '../worker/api.mjs';
+import {initial} from '../src/lib/store.ts';
 const owner='alice',scope='user-read-private';
 const token=(extra={})=>({access_token:'fixture-access',refresh_token:'fixture-refresh',token_type:'Bearer',expires_in:3600,scope,...extra});
 async function harness(t,override={}){
@@ -39,6 +40,9 @@ test('인증 state·브라우저 쿠키·HUB 계정·만료·재사용을 검증
 test('승인 취소는 기존 연결을 유지하고 기능 권한은 추가 요청한 것만 확장한다',async t=>{
   const h=await harness(t);await h.finish(await h.start());const before=await connection(h.env,owner);const flow=await h.start('library');const scopes=new Set(flow.url.searchParams.get('scope').split(' '));assert.ok(scopes.has('playlist-read-private'));assert.ok(scopes.has('user-read-recently-played'));assert.ok(!scopes.has('streaming'));assert.ok(!scopes.has('playlist-modify-public'));assert.match((await h.finish(flow,owner,{error:'access_denied'})).headers.get('Location'),/denied/);assert.equal((await connection(h.env,owner)).access_cipher,before.access_cipher);
 });
+test('선택한 재생·브라우저·라이브러리 권한만 합치며 편집 권한을 자동으로 추가하지 않는다',async t=>{
+  const h=await harness(t);const r=await h.run('connect',{features:['playback','browser','library']});assert.equal(r.status,200);const scopes=new Set(new URL((await r.json()).authorizationUrl).searchParams.get('scope').split(' '));assert.ok(scopes.has('streaming'));assert.ok(scopes.has('user-read-playback-state'));assert.ok(scopes.has('user-top-read'));assert.ok(!scopes.has('playlist-modify-private'));assert.ok(!scopes.has('playlist-modify-public'));assert.equal((await h.run('connect',{features:['library','unsupported']})).status,400);
+});
 test('연결 해제 중 늦게 도착한 OAuth 응답은 연결을 복구하지 않는다',async t=>{
   let release,entered;const waiting=new Promise(resolve=>{entered=resolve;});const h=await harness(t,{fetcher:async url=>{if(url.endsWith('/api/token')){entered();await new Promise(resolve=>{release=resolve;});return Response.json(token());}return Response.json({id:'spotify-alice',account_id:'stable-alice',display_name:'Alice'});}});
   const flow=await h.start(),pending=h.finish(flow);await waiting;assert.equal((await h.run('disconnect',{})).status,200);release();assert.match((await pending).headers.get('Location'),/failed/);assert.equal(await connection(h.env,owner),null);
@@ -63,5 +67,6 @@ test('중복 갱신을 잠그고 인증이 철회되면 다시 연결하도록 �
 test('SDK 단기 토큰은 권한과 동일 출처를 요구하고 연결 해제는 HUB 기록을 보존한다',async t=>{
   const h=await harness(t);await h.finish(await h.start());assert.equal((await h.run('sdk-token',{})).status,403);
   await h.DB.prepare('UPDATE spotify_connections SET scopes = ? WHERE user_id = ?').bind('streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state',owner).run();const r=await h.run('sdk-token',{});assert.equal(r.headers.get('Cache-Control'),'private, no-store');assert.deepEqual(Object.keys(await r.json()).sort(),['accessToken','expiresAt']);
-  const hub=await handleApi(new Request('https://hub.test/api/hub',{headers:{'oai-authenticated-user-id':owner}}),h.env);const before=await hub.json();assert.equal((await h.run('disconnect',{})).status,200);assert.equal((await h.run('status')).status,200);assert.equal((await connection(h.env,owner)),null);assert.deepEqual((await (await handleApi(new Request('https://hub.test/api/hub',{headers:{'oai-authenticated-user-id':owner}}),h.env)).json()).data,before.data);
+  const data={...structuredClone(initial),entries:[{id:'legacy-album',kind:'music',title:'기존 앨범',detail:'기존 감상',category:'CD',status:'컬렉션',url:'',date:'',done:false,createdAt:'2026-11-17T00:00:00Z'}]};await h.DB.prepare('INSERT INTO hub_documents (user_id,revision,data,mutation_id,updated_at) VALUES (?,?,?,?,?)').bind(owner,1,JSON.stringify(data),'legacy','2026-11-17T00:00:00Z').run();
+  const hub=await handleApi(new Request('https://hub.test/api/hub',{headers:{'oai-authenticated-user-id':owner}}),h.env);const before=await hub.json();assert.equal((await h.run('disconnect',{})).status,200);assert.equal((await h.run('status')).status,200);assert.equal((await connection(h.env,owner)),null);assert.deepEqual((await (await handleApi(new Request('https://hub.test/api/hub',{headers:{'oai-authenticated-user-id':owner}}),h.env)).json()).data,before.data);assert.equal(before.data.entries[0].detail,'기존 감상');
 });

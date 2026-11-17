@@ -33,6 +33,6 @@
 
 ## 검증
 
-자동 테스트는 실제 SQLite 마이그레이션과 가짜 Steam 응답으로 사용자 격리, OpenID 위조·만료·재사용·브라우저 바인딩, API 키 암호화, 헤더 전달, 실제 0과 누락 구분, 부분 실패, 403/429, 동시 갱신 및 늦은 응답, 기존 데이터·백업 보존을 확인합니다. 테스트 계정·응답은 운영 데이터로 배포하지 않습니다. 실제 보유 목록·시간 검증은 사용자의 Steam 로그인과 유효한 Web API 키 등록 후에 진행합니다.
+자동 테스트는 실제 SQLite 마이그레이션과 가짜 Steam 응답으로 사용자 격리, OpenID 위조·만료·재사용·브라우저 바인딩, API 키 암호화, 헤더 전달, 실제 0과 누락 구분, 부분 실패, 403/429, 동시 갱신 및 늦은 응답, 기존 데이터·백업 보존을 확인합니다. 테스트 계정·응답은 운영 데이터로 배포하지 않습니다. 운영에서 사용자의 직접 Steam 로그인·Web API 키 등록 후 실제 프로필·보유 목록·총 플레이 시간·최근 2주 조회 성공과 페이지 이동을 확인했습니다. 실제 개인 계정 ID·라이브러리·시간은 소스에 저장하지 않습니다. 여러 Steam 계정의 사용자 격리는 SQLite 모의 계정으로 검증했으며 실제 두 번째 계정 승인은 사용자가 추가 연결할 때 확인합니다.
 
 공식 근거: [Steam 커뮤니티 개발 안내](https://steamcommunity.com/dev), [OpenID 로그인](https://partner.steamgames.com/doc/features/auth), [IPlayerService](https://partner.steamgames.com/doc/webapi/IPlayerService), [ISteamUser](https://partner.steamgames.com/doc/webapi/ISteamUser), [Web API 인증](https://partner.steamgames.com/doc/webapi_overview/auth), [OpenID 2.0 명세](https://www.openid.net/specs/openid-authentication-2_0.html).

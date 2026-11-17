@@ -35,6 +35,11 @@ test('과도한 피드 응답과 HTTP 오류를 소스별로 거부한다',async
   await assert.rejects(()=>fetchFeed(feed,async()=>new Response('blocked',{status:429})),/http_429/);
   await assert.rejects(()=>fetchFeed(feed,async()=>new Response('x'.repeat(1500001))),/feed_too_large/);
 });
+test('Worker가 지원하는 수동 리다이렉트로 같은 소스만 따라간다',async()=>{
+  let calls=0;const response=await fetchFeed(feed,async(url,options)=>{assert.equal(options.redirect,'manual');calls++;return calls===1?new Response(null,{status:302,headers:{Location:'/updated-feed'}}):new Response(rss(item('redirect')));});
+  assert.equal(calls,2);assert.equal(response.length,1);
+  await assert.rejects(()=>fetchFeed(feed,async()=>new Response(null,{status:302,headers:{Location:'https://other.test/steal'}})),/invalid_redirect/);
+});
 test('수집 재실행은 중복을 만들지 않고 기존 개인 기록을 유지한다',async t=>{
   const {DB,fetcher,req}=await setup(t);
   const first=await (await req()).json();assert.equal(first.counts.all,FEEDS.length);

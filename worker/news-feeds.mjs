@@ -50,8 +50,18 @@ export async function parseFeed(xml,feed,now=new Date()){
 export async function fetchFeed(feed,fetcher=fetch,now=new Date()){
   const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);
   try{
-    const response=await fetcher(feed.url,{headers:{Accept:'application/rss+xml, application/atom+xml, application/xml, text/xml'},signal:controller.signal,redirect:'error'});
-    if(!response.ok)throw new Error(`http_${response.status}`);
+    const allowedHosts=new Set([new URL(feed.url).hostname,new URL(feed.website).hostname]);
+    let target=feed.url,response;
+    for(let hop=0;hop<3;hop++){
+      response=await fetcher(target,{headers:{Accept:'application/rss+xml, application/atom+xml, application/xml, text/xml'},signal:controller.signal,redirect:'manual'});
+      if(response.status<300||response.status>=400)break;
+      const location=response.headers.get('Location');if(!location)throw new Error('invalid_redirect');
+      const next=new URL(location,target);
+      if(next.protocol!=='https:'||next.username||next.password||!allowedHosts.has(next.hostname))throw new Error('invalid_redirect');
+      await response.body?.cancel();target=next.href;
+      if(hop===2)throw new Error('redirect_limit');
+    }
+    if(!response?.ok)throw new Error(`http_${response?.status??0}`);
     if(Number(response.headers.get('content-length'))>1500000)throw new Error('feed_too_large');
     const reader=response.body?.getReader();if(!reader)throw new Error('empty_feed');
     const decoder=new TextDecoder();let xml='';let bytes=0;

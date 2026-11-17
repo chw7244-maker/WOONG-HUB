@@ -23,6 +23,7 @@ export async function collectNews(env,lease,{fetcher=fetch,now=new Date()}={}){
     const collected=new Map(),sources=[];
     for(let i=0;i<results.length;i++){
       const feed=FEEDS[i],result=results[i];
+      if(result.status==='rejected')console.error('RSS source unavailable',feed.id,String(result.reason?.message??'unknown').slice(0,240));
       sources.push({id:feed.id,name:feed.name,website:feed.website,category:feed.category,language:feed.language,checkedAt,ok:result.status==='fulfilled',count:result.status==='fulfilled'?result.value.length:0,error:result.status==='rejected'?(result.reason?.message?.startsWith('http_')?result.reason.message:'feed_unavailable'):null});
       if(result.status==='fulfilled')for(const article of result.value){const current=collected.get(article.id);if(current)current.categories=[...new Set([...current.categories,...article.categories])];else collected.set(article.id,article);}
     }

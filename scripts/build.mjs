@@ -10,7 +10,13 @@ async function collect(dir) {
   for(const entry of (await readdir(dir,{withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))) {
     const file=path.join(dir,entry.name);
     if(entry.isDirectory())await collect(file);
-    else if(entry.isFile())assets['/'+path.relative('out',file).split(path.sep).join('/')]=(await readFile(file)).toString('base64');
+    else if(entry.isFile()){
+      const key='/'+path.relative('out',file).split(path.sep).join('/');
+      const bytes=(await readFile(file)).toString('base64');assets[key]=bytes;
+      // Next's segment prefetch uses a flat name for exported dynamic page segments.
+      const alias=key.replace(/(\/__next\.[^/]+)\/(__PAGE__\.txt)$/,'$1.$2');
+      if(alias!==key)assets[alias]=bytes;
+    }
     else throw new Error('Static assets must be regular files.');
   }
 }

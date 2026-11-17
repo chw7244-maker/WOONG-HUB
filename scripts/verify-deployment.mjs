@@ -22,5 +22,6 @@ const result=await health.json().catch(()=>({}));
 const unauthenticated=await fetch(new URL('/api/hub',origin),{headers,signal:AbortSignal.timeout(20000)});
 const news=await fetch(new URL('/api/news',origin),{headers,signal:AbortSignal.timeout(20000)});
 const calendar=await fetch(new URL('/api/calendar',origin),{headers,signal:AbortSignal.timeout(20000)});
-console.log(JSON.stringify({databaseHealth:health.status,schema:result.schema,storage:result.storage,userApiWithoutIdentity:unauthenticated.status,newsApiWithoutIdentity:news.status,calendarApiWithoutIdentity:calendar.status}));
-if(health.status!==200||result.ok!==true||result.schema!==3||unauthenticated.status!==401||news.status!==401||calendar.status!==401)process.exitCode=1;
+const steam=await fetch(new URL('/api/games/steam?appId=620',origin),{headers,signal:AbortSignal.timeout(20000)});
+console.log(JSON.stringify({databaseHealth:health.status,schema:result.schema,storage:result.storage,userApiWithoutIdentity:unauthenticated.status,newsApiWithoutIdentity:news.status,calendarApiWithoutIdentity:calendar.status,steamApiWithoutIdentity:steam.status}));
+if(health.status!==200||result.ok!==true||result.schema!==3||unauthenticated.status!==401||news.status!==401||calendar.status!==401||steam.status!==401)process.exitCode=1;

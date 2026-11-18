@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addCalendarDays, dashboardDay, dashboardEvents, dashboardTasks, pinnedSetup, recentListening, recentListeningGear } from '../src/lib/home-dashboard.ts';
+import { addCalendarDays, dashboardDay, dashboardEvents, dashboardTasks, dashboardWeekStart, nextDashboardEvent, pinnedSetup, recentListening, recentListeningGear } from '../src/lib/home-dashboard.ts';
 import { noteDraftKey, noteFields, noteNeedsCopy, parseNoteDraft } from '../src/lib/note-draft.ts';
 import { initial, validateData } from '../src/lib/store.ts';
 import { mergeData } from '../src/lib/merge.ts';
@@ -25,6 +25,30 @@ test('The weekly dashboard observes KST day boundaries, hidden sources and month
   assert.equal(dashboardEvents([local], snapshot, ['hub-local']).some(event => event.id === 'local'), false);
   const tasks = [record('later','todo',{date:'2027-01-01'}),record('open','todo'), record('due','todo',{date:'2026-12-31T09:00'}), record('done','todo',{done:true})];
   assert.deepEqual(dashboardTasks(tasks,'2026-12-31').map(task => task.id), ['due','open']);
+});
+
+test('Next schedule prioritizes active and remaining timed events and respects hidden sources and KST midnight', () => {
+  const timed = (id, sourceId, start, end = start) => ({ id, sourceId, start, end, allDay:false, title:id, url:'' });
+  const allDay = (id,start,end) => ({ id, sourceId:'notion', start, end, allDay:true, title:id, url:'' });
+  const now = Date.parse('2026-12-31T14:00:00Z');
+  const day = '2026-12-31';
+  const events = dashboardEvents([], {events:[
+    timed('finished','notion','2026-12-31T12:00:00Z'),
+    timed('hidden','google','2026-12-31T14:05:00Z'),
+    timed('later','notion','2026-12-31T14:10:00Z'),
+    timed('after-midnight','notion','2026-12-31T15:05:00Z'),
+    allDay('today','2026-12-31','2027-01-01'),
+    allDay('tomorrow','2027-01-01','2027-01-02'),
+  ]}, ['google']);
+  assert.equal(nextDashboardEvent(events,now,day).event.id,'later');
+  assert.equal(nextDashboardEvent(events,Date.parse('2026-12-31T14:20:00Z'),day).event.id,'today');
+  assert.equal(nextDashboardEvent(events.filter(e=>e.id!=='today'),Date.parse('2026-12-31T14:20:00Z'),day).event.id,'tomorrow');
+  const running = timed('running','notion','2026-12-31T13:55:00Z','2026-12-31T14:15:00Z');
+  assert.deepEqual(nextDashboardEvent([...events,running],now,day),{event:running,live:true});
+  assert.equal(nextDashboardEvent(events.filter(e=>e.id==='today'),Date.parse('2026-12-31T15:00:00Z'),'2027-01-01'),null);
+  assert.equal(dashboardWeekStart('2026-12-31','2027-01-02'),'2026-12-31');
+  assert.equal(dashboardWeekStart('2026-12-31','2026-12-30'),'2026-12-24');
+  assert.equal(dashboardWeekStart('2026-12-31','2027-01-08'),'2027-01-07');
 });
 
 test('Note drafts are scoped to account and record and recover concurrent changes as a copy', () => {

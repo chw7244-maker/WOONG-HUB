@@ -1,0 +1,96 @@
+.hub-home-layout.hub-priority-grid {
+  grid-template-columns: minmax(0,1.35fr) minmax(0,1fr);
+  gap: 14px;
+  align-items: start;
+}
+.hub-priority-grid:has(> :only-child) { grid-template-columns: minmax(0,1fr); }
+.hub-next-card, .hub-tasks-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  min-width: 0;
+  padding: 15px 17px;
+}
+.hub-next-card {
+  background: color-mix(in srgb,var(--panel) 72%,var(--blue-soft));
+  border-color: color-mix(in srgb,var(--border) 80%,var(--blue));
+}
+.hub-next-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 3px 12px; }
+.hub-next-heading h2 { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 17px; letter-spacing: -.025em; }
+.hub-next-heading h2 svg { color: var(--blue); flex-shrink: 0; }
+.hub-next-heading small { font-size: 12px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.hub-next-event { display: flex; align-items: center; margin: 12px 0 9px; gap: 8px 16px; }
+.hub-next-event > time {
+  flex: none;
+  font-size: clamp(26px,5.4vw,42px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -.055em;
+  line-height: 1;
+  color: var(--blue);
+}
+.hub-next-event > div { display: grid; gap: 2px; min-width: 0; }
+.hub-next-event small { color: var(--muted); font-size: 12px; }
+.hub-next-event div > :is(strong,button,a) {
+  color: var(--text);
+  text-align: start;
+  font-weight: 650;
+  font-size: 17px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.hub-next-event div > :is(button,a):hover { text-decoration: underline; }
+.hub-next-event a svg { display: inline; vertical-align: middle; margin-inline-start: 4px; color: var(--blue); }
+.hub-next-card > .text-button { color: var(--blue); font-size: 13px; min-height: 44px; }
+.hub-next-empty { color: var(--muted); font-size: 14px; margin: 12px 0 6px; }
+.hub-tasks-card .task-list { margin: 6px 0 0; }
+.hub-tasks-card .task-title { overflow-wrap: anywhere; }
+.hub-tasks-card-actions { display: flex; flex-wrap: wrap; gap: 0 15px; margin-top: 4px; }
+.hub-tasks-card-actions .text-button { min-height: 44px; font-size: 13px; }
+
+.hub-week-compact { margin-top: 18px; }
+.hub-week-compact .hub-section-heading { margin-bottom: 7px; }
+.hub-week-compact .hub-week-days button { min-height: 52px; gap: 1px; border-radius: 8px; }
+.hub-week-compact .hub-week-days button strong { font-size: 16px; }
+.hub-week-compact .hub-week-actions .icon-button { min-height: 44px; width: 44px; }
+.hub-week-summary { display: flex; justify-content: space-between; align-items: center; gap: 6px 12px; margin-top: 4px; }
+.hub-week-summary > button { min-width: 0; text-align: start; min-height: 44px; display: flex; align-items: center; gap: 6px; }
+.hub-week-summary > button svg { flex-shrink: 0; color: var(--blue); }
+.hub-week-summary > button[aria-expanded=true] svg { rotate: 180deg; }
+.hub-week-summary small { color: var(--muted); font-size: 12px; }
+.hub-week-summary > a, .hub-week-compact #home-week-agenda > button { flex-shrink: 0; min-height: 44px; }
+
+.hub-continuation { align-items: stretch; }
+.hub-continuation-item {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 11px;
+  background: var(--panel);
+  border-radius: 11px;
+}
+.hub-continuation-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 8px; background: var(--blue-soft); color: var(--blue); }
+.hub-continuation-copy { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.hub-continuation-copy :is(a,button) { text-align: start; font-weight: 650; font-size: 14px; overflow-wrap: anywhere; justify-self: start; }
+.hub-continuation-copy :is(a,button):hover { text-decoration: underline; }
+.hub-continuation-copy small, .hub-continuation-account { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.hub-continuation-copy .spotify-brand img { width: 58px; height: auto; }
+.hub-continuation-item > .icon-button { width: 44px; height: 44px; flex: none; }
+.hub-continuation-account summary { width: fit-content; cursor: pointer; padding-block: 4px; }
+.hub-continuation-account label { display: grid; gap: 3px; }
+.hub-continuation-account select { width: 100%; min-width: 0; }
+
+@media (max-width:760px) {
+  .hub-home-layout.hub-priority-grid { grid-template-columns: minmax(0,1fr); gap: 10px; }
+  .hub-next-card, .hub-tasks-card { padding: 12px 13px; border-radius: 13px; }
+  .hub-week-compact .hub-week-days button { min-height: 49px; }
+  .hub-continuation { gap: 6px; }
+  .hub-continuation-copy > :is(a,button):not(.spotify-brand) { min-height: 44px; display: inline-flex; align-items: center; }
+  .hub-continuation-account summary { min-height: 40px; display: flex; align-items: center; }
+  .hub-continuation-account select { font-size: 16px; }
+}

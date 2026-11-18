@@ -20,6 +20,26 @@ export function dashboardDay(events: CalendarEvent[], day: string) {
   );
 }
 
+export function dashboardWeekStart(today: string, selected: string) {
+  const days = (Date.parse(selected) - Date.parse(today)) / 86_400_000;
+  return addCalendarDays(today, Math.floor(days / 7) * 7);
+}
+
+export function nextDashboardEvent(events: CalendarEvent[], now: number, today: string) {
+  const tomorrow = Date.parse(addCalendarDays(today, 1) + 'T00:00:00+09:00');
+  const startsAt = (event: CalendarEvent) => Date.parse(event.allDay ? event.start + 'T00:00:00+09:00' : event.start);
+  const timed = events.filter(event => !event.allDay && (Date.parse(event.end) > now || startsAt(event) >= now))
+    .sort((a, b) => startsAt(a) - startsAt(b) || a.title.localeCompare(b.title, 'ko'));
+  const timedToday = timed.find(event => startsAt(event) < tomorrow);
+  if (timedToday) return { event: timedToday, live: startsAt(timedToday) <= now && Date.parse(timedToday.end) > now };
+
+  const allDay = events.filter(event => event.allDay && event.end > today)
+    .sort((a,b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title, 'ko'));
+  if (allDay[0] && allDay[0].start <= today) return { event: allDay[0], live: false };
+  const next = !timed[0] || (allDay[0] && startsAt(allDay[0]) <= startsAt(timed[0])) ? allDay[0] : timed[0];
+  return next ? { event: next, live: false } : null;
+}
+
 export function dashboardTasks(entries: Entry[], day: string) {
   return entries.filter(entry => entry.kind === 'todo' && !entry.done && (!entry.date || entry.date.slice(0, 10) <= day))
     .sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || b.createdAt.localeCompare(a.createdAt));

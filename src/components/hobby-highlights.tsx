@@ -6,7 +6,8 @@ import { isSetup, setupDevices } from '@/lib/audio';
 import { pinnedSetup, recentListening, recentListeningGear } from '@/lib/home-dashboard';
 import { lastListenedAt } from '@/lib/music';
 import type { Entry } from '@/lib/store';
-import { SpotifyLivePlayer, useSpotifyPlayback } from './spotify-playback';
+import { SpotifyBrand, SpotifyLivePlayer, useSpotifyPlayback } from './spotify-playback';
+import { useSpotify } from './spotify-provider';
 import SteamHome from './steam-home';
 
 export function AudioHighlights({ audio, music, pinned, onPin, onOpen }: {
@@ -45,21 +46,38 @@ export function GameHighlights({ entries, onOpen }: { entries: Entry[]; onOpen: 
   </div>;
 }
 
-export function MusicHighlights({ entries, onOpen, home = false, hideWhenPlaying = false }: {
-  entries: Entry[]; onOpen: (entry: Entry) => void; home?: boolean; hideWhenPlaying?: boolean;
+export function MusicHighlights({ entries, onOpen, hideWhenPlaying = false }: {
+  entries: Entry[]; onOpen: (entry: Entry) => void; hideWhenPlaying?: boolean;
 }) {
   const spotify = useSpotifyPlayback();
   if (spotify.playback?.item && spotify.playback.playing && !spotify.stale) return hideWhenPlaying ? null : <SpotifyLivePlayer compact/>;
   const recent = recentListening(entries).slice(0, 2);
   const favorite = entries.filter(entry => entry.music?.type === 'playlist' && entry.music.favorite && !recent.includes(entry)).slice(0, 1);
-  if (!recent.length && !favorite.length) return home ? <SpotifyLivePlayer compact/> : null;
+  if (!recent.length && !favorite.length) return null;
   return <section className="hub-highlight" aria-labelledby="music-highlight-title">
     <div className="hub-section-heading">
-      {home ? <h3 id="music-highlight-title"><Music2 size={16}/>다시 듣기</h3> : <h2 id="music-highlight-title"><Music2 size={18}/>다시 듣기</h2>}
+      <h2 id="music-highlight-title"><Music2 size={18}/>다시 듣기</h2>
       <Link href="/music/spotify/" className="text-button blue">Spotify<ArrowUpRight size={13}/></Link>
     </div>
     {[...recent, ...favorite].map(entry => <button type="button" key={entry.id} className="hub-highlight-row" onClick={() => onOpen(entry)}>
       <small>{favorite.includes(entry) ? '즐겨찾는 플레이리스트' : `최근 감상 · ${lastListenedAt(entry.music)}`}</small><strong>{entry.title}</strong><ArrowUpRight size={15}/>
     </button>)}
   </section>;
+}
+
+export function HomeMusic({ entries, onOpen }: { entries: Entry[]; onOpen: (entry: Entry) => void }) {
+  const { status } = useSpotify();
+  const { playback, stale } = useSpotifyPlayback();
+  const item = status?.connected && status.features.playback && playback?.playing && !stale ? playback.item : null;
+  const recent = item ? undefined : recentListening(entries)[0];
+  return <div className="hub-continuation-item">
+    <span className="hub-continuation-icon" aria-hidden="true"><Music2 size={17}/></span>
+    <div className="hub-continuation-copy">
+      <small>음악 · {item ? '지금 재생 중' : recent ? '최근 감상' : '컬렉션'}</small>
+      {item ? <a href={item.url} target="_blank" rel="noreferrer">{item.name}{item.explicit && <span className="spotify-explicit" title="만 19세 이상 성인용 콘텐츠">19</span>}</a> :
+        recent ? <button type="button" onClick={()=>onOpen(recent)}>{recent.title}</button> : <Link href="/music/">음악 컬렉션 열기</Link>}
+      {item && <SpotifyBrand/>}
+    </div>
+    {item && <Link href="/music/spotify/" className="icon-button" aria-label="Spotify 플레이어 열기"><ArrowUpRight size={16}/></Link>}
+  </div>;
 }

@@ -3,6 +3,7 @@ export type CalendarSource={id:string;name:string;provider:'notion'|'google'};
 export type CalendarEvent={id:string;sourceId:string;title:string;url:string;allDay:boolean;start:string;end:string};
 export type CalendarSnapshot={version:1;timeZone:'Asia/Seoul';syncedAt:string;rangeStart:string;rangeEnd:string;sources:CalendarSource[];events:CalendarEvent[]};
 export type CalendarResponse={revision:number;snapshot:CalendarSnapshot|null};
+export { validDay as isCalendarDay };
 const validDay=(v:unknown):v is string=>{if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(v))return false;const d=new Date(v+'T00:00:00Z');return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===v;};
 const validInstant=(v:unknown):v is string=>typeof v==='string'&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?(Z|[+-]\d\d:\d\d)$/.test(v)&&validDay(v.slice(0,10))&&Number(v.slice(11,13))<24&&Number.isFinite(Date.parse(v));
 export function calendarEventUrl(value:unknown){try{if(typeof value!=='string'||value.length>4000)return '';const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&(['calendar.notion.so','notion.so','www.notion.so','app.notion.com','calendar.google.com'].includes(u.hostname)||(u.hostname==='www.google.com'&&u.pathname.startsWith('/calendar/')))?u.href:'';}catch{return '';}}

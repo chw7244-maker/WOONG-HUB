@@ -2,7 +2,7 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {ArrowUpRight,CalendarDays,ChevronDown,ChevronLeft,ChevronRight,Clock3,Plus,RefreshCw} from 'lucide-react';
 import {type Entry} from '@/lib/store';
-import {calendarPeriod,eventOnDay,lastCalendarDay,type CalendarResponse} from '@/lib/calendar';
+import {calendarPeriod,eventOnDay,isCalendarDay,lastCalendarDay,type CalendarResponse} from '@/lib/calendar';
 import {addCalendarDays,dashboardDay,dashboardEvents} from '@/lib/home-dashboard';
 
 export function useCalendarSnapshot(enabled:boolean){
@@ -34,6 +34,10 @@ export default function CalendarHub({calendar,entries,today,hidden,onHiddenChang
   const monthPanel = useRef<HTMLElement>(null);
   const agendaHeading = useRef<HTMLHeadingElement>(null);
   const hasToday = Boolean(today);
+  useEffect(() => {
+    const date = new URLSearchParams(window.location.search).get('date');
+    if (isCalendarDay(date)) setSelectedDay(date);
+  }, []);
   useEffect(() => {
     if (!hasToday) return;
     const openSources = () => {

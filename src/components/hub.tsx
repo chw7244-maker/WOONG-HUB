@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowRight, ArrowUpRight, AudioLines, Bell, Bookmark, CalendarDays, Check, ChevronLeft, Gamepad2, Headphones, Layers3, ListTodo, Moon, Music2, Newspaper, Plus, SlidersHorizontal, StickyNote, Sun, Trash2, X, BriefcaseBusiness, Pencil, Link2, Database, type LucideIcon, SquarePen } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, AudioLines, Bell, CalendarDays, Check, ChevronDown, ChevronLeft, Gamepad2, Headphones, Moon, Newspaper, Plus, SlidersHorizontal, Sun, X, BriefcaseBusiness, Pencil, Link2, Database, type LucideIcon, SquarePen } from 'lucide-react';
 import WeatherCard from './weather';
 import NewsHub, { NewsBriefing } from './news-hub';
 import AudioHub, { AudioEntryModal } from './audio-hub';
@@ -17,7 +17,8 @@ import CalendarHub, { useCalendarSnapshot } from './calendar-hub';
 import HubNavigation from './hub-navigation';
 import WeekAgenda from './home-dashboard';
 import NoteEditor from './note-editor';
-import { AudioHighlights, GameHighlights, MusicHighlights } from './hobby-highlights';
+import { MusicHighlights } from './hobby-highlights';
+import RecordList from './record-list';
 import { dashboardTasks, pinnedSetup, recentListeningGear } from '@/lib/home-dashboard';
 import ConnectionSettings from './connection-settings';
 import Dialog from './dialog';
@@ -28,18 +29,17 @@ import { type Entry, type HubData, type Kind, cities, validateData, todayKST, ko
 
 const details: Record<string,{title:string;description:string;kind?:Kind}> = {
   news:{title:'뉴스 허브',description:'관심 있는 소식을 읽고, 오래 기억할 기사를 모으세요.'},
-  audio:{title:'나만의 오디오',description:'좋아하는 소리와 그 소리를 만들어주는 장비의 기록.',kind:'audio'},
+  audio:{title:'오디오',description:'장비 컬렉션과 청음 조합',kind:'audio'},
   steam:{title:'Steam 라이브러리',description:'계정별 보유 게임과 실제 플레이 시간을 한곳에서.'},
-  games:{title:'게임 라이브러리',description:'다음 모험부터 엔딩의 순간까지, 나만의 플레이 기록.',kind:'games'},
+  games:{title:'게임',description:'내 플레이 기록과 Steam 라이브러리',kind:'games'},
   spotify:{title:'Spotify 음악',description:'지금 듣는 음악부터 나의 플레이리스트까지.'},
-  music:{title:'음악 컬렉션',description:'오래 듣고 싶은 앨범과 오늘의 감상을 담아두세요.',kind:'music'},
+  music:{title:'음악',description:'앨범, 플레이리스트와 감상 기록',kind:'music'},
   calendar:{title:'캘린더',description:'노션과 구글 일정, 나의 약속을 한곳에서.',kind:'event'},
-  library:{title:'라이브러리',description:'스쳐 지나간 생각, 다시 찾고 싶은 링크, 작은 할 일.',kind:'note'},
-  work:{title:'업무 공간',description:'업무에 집중할 수 있도록, 필요한 도구와 기록을 모으세요.',kind:'work'},
+  library:{title:'기록',description:'메모, 할 일과 북마크',kind:'note'},
+  work:{title:'업무',description:'업무 기록과 자주 쓰는 도구',kind:'work'},
   settings:{title:'설정',description:'내 일상에 맞게, 나만의 HUB를 가꾸세요.'}
 };
 const kindLabels: Record<Kind,string> = {todo:'할 일',note:'메모',bookmark:'북마크',audio:'오디오 장비',games:'게임',music:'앨범',event:'일정',work:'업무 기록'};
-const kindIcons: Record<Kind,LucideIcon> = {todo:ListTodo,note:StickyNote,bookmark:Bookmark,audio:Headphones,games:Gamepad2,music:Music2,event:CalendarDays,work:BriefcaseBusiness};
 const categories: Partial<Record<Kind,string[]>> = {audio:['이어폰','헤드폰','DAP','DAC · 앰프','케이블 · 이어팁','기타'],games:['PC','PlayStation','Nintendo','Xbox','모바일','기타'],music:['디지털','FLAC','CD','LP','스트리밍'],bookmark:['일상','오디오','게임','음악','업무','기사'],note:['일상','아이디어','취미','업무'],work:['업무','매출','광고','기타']};
 const statuses: Partial<Record<Kind,string[]>> = {audio:['보유 중','위시리스트','판매 완료'],games:['플레이 예정','플레이 중','완료','위시리스트'],music:['컬렉션','위시리스트']};
 const shortcuts = [
@@ -86,7 +86,8 @@ export default function Hub({section}:{section:string}) {
   async function importFile(file?:File){if(!file)return;try{if(file.size>10*1024*1024)throw new Error('10MB 이하의 백업 파일을 선택해주세요.');setPendingImport(validateData(JSON.parse(await file.text())));}catch(e){notify(e instanceof Error?e.message:'백업을 읽지 못했어요.');}if(fileRef.current)fileRef.current.value='';}
   const currentInfo=details[section];
   const activeKind:Kind=section==='library'?libraryTab:currentInfo?.kind??'note';
-  const sectionEntries=entries(activeKind).filter(e=>filter==='전체'||e.status===filter||e.category===filter);
+  const workFilters=['전체',...new Set([...(categories.work??[]),...entries('work').map(e=>e.category).filter(Boolean)])];
+  const sectionEntries=entries(activeKind).filter(e=>filter==='전체'||e.status===filter||e.category===filter).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
 
   return <div className="app-shell">
     <HubNavigation section={section} dark={data.preferences.theme==='dark'} menuOpen={mobileMenu}
@@ -140,19 +141,29 @@ export default function Hub({section}:{section:string}) {
             {visible('news')&&<NewsBriefing/>}
           </div>
         </>:<>
-          {section!=='news'&&<div className="page-heading section-heading"><div><h1>{currentInfo?.title}</h1><p>{currentInfo?.description}</p></div>{currentInfo?.kind&&<button className="button primary" onClick={()=>setModal({kind:activeKind})}><Plus size={15}/>{kindLabels[activeKind]} 추가</button>}</div>}
-          {section==='settings'?<div className="settings-grid">
+          {section!=='news'&&<div className="page-heading section-heading"><div><h1>{currentInfo?.title}</h1><p>{currentInfo?.description}</p></div>{currentInfo?.kind&&!['audio','music','calendar'].includes(section)&&<button className="button primary" onClick={()=>setModal({kind:activeKind})}><Plus size={15}/>{kindLabels[activeKind]} 추가</button>}</div>}
+          {section==='settings'?<div className="settings-grid settings-sections">
+            <nav className="settings-jump" aria-label="설정 항목">
+              <a href="#connections">서비스 연결</a><a href="#appearance">표시와 테마</a><a href="#widgets">홈 위젯</a><a href="#sync">데이터와 백업</a>
+            </nav>
             <ConnectionSettings userId={sync.userId} ready={ready} calendar={calendar} hidden={data.preferences.calendarHiddenSources??[]} today={today}/>
-            <section className="panel settings-panel"><PanelHeading title="화면과 테마"/><p className="muted">지금의 분위기에 맞는 테마를 선택하세요.</p><div className="theme-choices">{(['dark','light'] as const).map(t=><button key={t} className={`theme-choice ${data.preferences.theme===t?'selected':''}`} onClick={()=>preference({theme:t})}><span className={`theme-preview ${t}`}><i/><i/><i/></span>{t==='dark'?<Moon size={15}/>:<Sun size={15}/>} {t==='dark'?'다크':'라이트'}{data.preferences.theme===t&&<Check size={15}/>}</button>)}</div></section>
+            <section className="panel settings-panel" id="appearance"><PanelHeading title="화면과 테마"/><p className="muted">지금의 분위기에 맞는 테마를 선택하세요.</p><div className="theme-choices">{(['dark','light'] as const).map(t=><button key={t} className={`theme-choice ${data.preferences.theme===t?'selected':''}`} aria-pressed={data.preferences.theme===t} onClick={()=>preference({theme:t})}><span className={`theme-preview ${t}`}><i/><i/><i/></span>{t==='dark'?<Moon size={15}/>:<Sun size={15}/>} {t==='dark'?'다크':'라이트'}{data.preferences.theme===t&&<Check size={15}/>}</button>)}</div></section>
             <section className="panel settings-panel" id="weather"><PanelHeading title="날씨 지역"/><p className="muted">선택한 도시의 현재 날씨를 홈에 표시합니다.</p><label className="field-label" htmlFor="city">도시</label><select id="city" value={data.preferences.city} onChange={e=>preference({city:e.target.value})}>{Object.entries(cities).map(([id,c])=><option value={id} key={id}>{c.label}</option>)}</select><small className="setting-caption">시간과 일정의 기준은 대한민국 표준시(KST)입니다.</small></section>
             <section className="panel settings-panel" id="widgets"><PanelHeading title="홈 위젯"/><p className="muted">매일 보고 싶은 정보만 남겨두세요.</p><div className="widget-toggles">{Object.entries(widgetLabels).map(([id,label])=><label key={id} className="toggle-row"><span>{label}</span><input type="checkbox" checked={visible(id)} onChange={e=>toggleWidget(id,e.target.checked)}/><span className="toggle-switch"/></label>)}</div></section>
             <CloudStorageSettings count={data.entries.length} onExport={exportData} onImport={()=>fileRef.current?.click()}/>
             <input ref={fileRef} hidden type="file" accept=".json,application/json" onChange={e=>importFile(e.target.files?.[0])}/>
-            <section className="panel settings-panel integration-settings"><PanelHeading title="기타 서비스"/>{[{name:'날씨 · Open-Meteo',desc:'선택한 지역의 날씨를 화면을 열 때 조회',state:'API 조회'},{name:'WOONG 뉴스 허브',desc:'공개 매체 RSS 직접 수집 · 읽음 · 스크랩 동기화',state:'연결됨'},{name:'음악 DB · MusicBrainz',desc:'앨범 정보 검색 · 별점과 감상은 직접 기록',state:'API 조회'},{name:'Steam 상점',desc:'상점 링크로 게임 정보 조회 · 플레이 기록은 직접 입력',state:'API 조회'},{name:'개인 서버 저장소',desc:'ChatGPT 로그인 · 사용자별 DB · 기기 간 동기화',state:sync.phase==='synced'?'연결됨':'동기화 확인'},{name:'AI 브리핑 · 가격 알림',desc:'별도 API와 수집 작업 연결 후 제공',state:'연결 전'}].map(x=><div className="integration-row" key={x.name}><div><strong>{x.name}</strong><small>{x.desc}</small></div><span className={`badge ${['API 조회','연결됨'].includes(x.state)?'blue':''}`}>{x.state}</span></div>)}</section>
-          </div>:section==='news'?<NewsHub/>:section==='audio'?<><AudioHighlights audio={entries('audio')} music={entries('music')} pinned={data.preferences.pinnedAudioSetup} onPin={id=>preference({pinnedAudioSetup:id||undefined})} onOpen={entry=>setModal({kind:'audio',entry})}/><AudioHub entries={entries('audio')} onAdd={()=>setModal({kind:'audio'})} onEdit={entry=>setModal({kind:'audio',entry})} onDelete={setDeleteEntry}/></>:section==='steam'?<><Link href="/games/" className="text-button muted steam-back"><ChevronLeft size={14}/>게임 기록으로 돌아가기</Link><SteamAccount detailed entries={entries('games')} onEdit={entry=>setModal({kind:'games',entry})} onSave={save}/></>:section==='games'?<><GameHighlights entries={entries('games')} onOpen={entry=>setModal({kind:'games',entry})}/><GamesHub onSave={save} entries={entries('games')} onAdd={()=>setModal({kind:'games'})} onEdit={entry=>setModal({kind:'games',entry})} onDelete={setDeleteEntry}/></>:section==='spotify'?<><Link href="/music/" className="text-button muted spotify-back"><ChevronLeft size={14}/>앨범 컬렉션으로 돌아가기</Link><SpotifyAccount detailed collections={entries('music')} onCollect={entity=>setModal({kind:'music',entry:spotifyMusicDraft(entity)})}/></>:section==='music'?<><MusicHighlights entries={entries('music')} onOpen={entry=>setModal({kind:'music',entry})}/><MusicHub onSave={save} entries={entries('music')} onAdd={()=>setModal({kind:'music'})} onEdit={entry=>setModal({kind:'music',entry})} onDelete={setDeleteEntry}/></>:section==='calendar'?<CalendarHub calendar={calendar} entries={entries('event')} today={today} hidden={data.preferences.calendarHiddenSources??[]} onHiddenChange={ids=>preference({calendarHiddenSources:ids})} onAdd={addCalendarEvent} onEdit={entry=>setModal({kind:'event',entry})}/>:<>
-            {section==='work'&&<a href={shortcuts[3].url} target="_blank" rel="noreferrer" className="work-banner panel"><span className="shortcut-icon green"><BriefcaseBusiness size={24}/></span><div><h3>스토어 인사이트</h3><p>네이버 매출 · 광고 분석 사이트 열기</p></div><ArrowUpRight size={23}/></a>}
-            <div className="section-toolbar"><div className="tabs">{section==='library'?(['note','todo','bookmark'] as Kind[]).map(t=><button key={t} className={libraryTab===t?'selected':''} onClick={()=>{setLibraryTab(t);setFilter('전체');}}>{kindLabels[t]}<span>{entries(t).length}</span></button>):['전체',...(statuses[activeKind]??[])].map(t=><button key={t} className={filter===t?'selected':''} onClick={()=>setFilter(t)}>{t}{t==='전체'&&<span>{entries(activeKind).length}</span>}</button>)}</div><span className="record-count">{sectionEntries.length}개의 기록</span></div>
-            <RecordGrid entries={sectionEntries} onEdit={e=>setModal({kind:e.kind,entry:e})} onDelete={setDeleteEntry} onToggle={toggle} emptyTitle={filter==='전체'?`첫 ${kindLabels[activeKind]}${['note','audio','event','work'].includes(activeKind)?'를':'을'} 기록해보세요`:'이 분류에는 아직 기록이 없어요'} emptyDescription={activeKind==='audio'?'보유한 장비와 청음 메모로 나만의 오디오 이야기를 시작하세요.':activeKind==='games'?'플레이 중인 게임과 다음에 즐기고 싶은 게임을 등록하세요.':activeKind==='music'?'좋아하는 앨범, 나의 감상과 포맷을 함께 기록하세요.':'작은 기록 하나부터, 이 공간을 나답게 채워보세요.'} onAdd={()=>setModal({kind:activeKind})}/>
+            <details className="panel settings-panel integration-settings settings-services"><summary>공개 정보와 기타 서비스<ChevronDown size={16}/></summary>{[{name:'날씨 · Open-Meteo',desc:'선택한 지역의 날씨를 화면을 열 때 조회',state:'API 조회'},{name:'WOONG 뉴스 허브',desc:'공개 매체 RSS 직접 수집 · 읽음 · 스크랩 동기화',state:'연결됨'},{name:'음악 DB · MusicBrainz',desc:'앨범 정보 검색 · 별점과 감상은 직접 기록',state:'API 조회'},{name:'Steam 상점',desc:'상점 링크로 게임 정보 조회 · 플레이 기록은 직접 입력',state:'API 조회'},{name:'개인 서버 저장소',desc:'ChatGPT 로그인 · 사용자별 DB · 기기 간 동기화',state:sync.phase==='synced'?'연결됨':'동기화 확인'},{name:'AI 브리핑 · 가격 알림',desc:'별도 API와 수집 작업 연결 후 제공',state:'연결 전'}].map(x=><div className="integration-row" key={x.name}><div><strong>{x.name}</strong><small>{x.desc}</small></div><span className={`badge ${['API 조회','연결됨'].includes(x.state)?'blue':''}`}>{x.state}</span></div>)}</details>
+          </div>:section==='news'?<NewsHub/>:section==='audio'?<AudioHub entries={entries('audio')} music={entries('music')} pinned={data.preferences.pinnedAudioSetup} onPin={id=>preference({pinnedAudioSetup:id||undefined})} onAdd={()=>setModal({kind:'audio'})} onEdit={entry=>setModal({kind:'audio',entry})} onDelete={setDeleteEntry}/>:section==='steam'?<><Link href="/games/" className="text-button muted steam-back"><ChevronLeft size={14}/>게임 기록으로 돌아가기</Link><SteamAccount detailed entries={entries('games')} onEdit={entry=>setModal({kind:'games',entry})} onSave={save}/></>:section==='games'?<GamesHub entries={entries('games')} onAdd={()=>setModal({kind:'games'})} onEdit={entry=>setModal({kind:'games',entry})} onDelete={setDeleteEntry}/>:section==='spotify'?<><Link href="/music/" className="text-button muted spotify-back"><ChevronLeft size={14}/>앨범 컬렉션으로 돌아가기</Link><SpotifyAccount detailed collections={entries('music')} onCollect={entity=>setModal({kind:'music',entry:spotifyMusicDraft(entity)})}/></>:section==='music'?<MusicHub onSave={save} entries={entries('music')} onAdd={()=>setModal({kind:'music'})} onEdit={entry=>setModal({kind:'music',entry})} onDelete={setDeleteEntry}/>:section==='calendar'?<CalendarHub calendar={calendar} entries={entries('event')} today={today} hidden={data.preferences.calendarHiddenSources??[]} onHiddenChange={ids=>preference({calendarHiddenSources:ids})} onAdd={addCalendarEvent} onEdit={entry=>setModal({kind:'event',entry})}/>:<>
+            {section==='work'&&<a href={shortcuts[3].url} target="_blank" rel="noreferrer" className="work-tool-link"><BriefcaseBusiness size={20}/><span><strong>스토어 인사이트</strong><small>네이버 매출과 광고 실적</small></span><ArrowUpRight size={16}/></a>}
+            <div className="section-toolbar records-toolbar">
+              <div className="tabs" role="group" aria-label={section==='library'?'기록 종류':'업무 분류'}>
+                {section==='library'?(['note','todo','bookmark'] as const).map(kind=><button key={kind} type="button" aria-pressed={libraryTab===kind} className={libraryTab===kind?'selected':''} onClick={()=>{setLibraryTab(kind);setFilter('전체');}}>{kindLabels[kind]}<span>{entries(kind).length}</span></button>):
+                  workFilters.map(category=><button key={category} type="button" aria-pressed={filter===category} className={filter===category?'selected':''} onClick={()=>setFilter(category)}>{category}</button>)}
+              </div>
+              <span className="record-count">{sectionEntries.length}개의 기록</span>
+            </div>
+            <RecordList entries={sectionEntries} filtered={filter!=='전체'} label={kindLabels[activeKind]}
+              onAdd={()=>setModal({kind:activeKind})} onOpen={entry=>setModal({kind:entry.kind,entry})} onDelete={setDeleteEntry} onToggle={toggle}/>
           </>}
         </>}
         <footer className="footer"><span><span className="footer-wordmark">W.</span>조금 더 나다운 일상을 위해.</span><span>WOONG HUB<span className="footer-separator">/</span>Made for your everyday</span></footer>
@@ -168,7 +179,6 @@ export default function Hub({section}:{section:string}) {
 
 function TaskRow({entry,toggle,edit}:{entry:Entry;toggle:()=>void;edit:()=>void}) {return <div className={`task-row ${entry.done?'done':''}`}><button className="task-checkbox" role="checkbox" aria-checked={entry.done} aria-label={`${entry.title} ${entry.done?'완료 취소':'완료'}`} onClick={toggle}>{entry.done&&<Check size={12}/>}</button><button className="task-title" onClick={edit}>{entry.title}{entry.date&&<small>{koreanDate(entry.date)}</small>}</button><button className="icon-button edit-task" aria-label={`${entry.title} 수정`} onClick={edit}><Pencil size={12}/></button></div>;}
 
-function RecordGrid({entries,onEdit,onDelete,onToggle,emptyTitle,emptyDescription,onAdd}:{entries:Entry[];onEdit:(e:Entry)=>void;onDelete:(e:Entry)=>void;onToggle:(e:Entry)=>void;emptyTitle:string;emptyDescription:string;onAdd:()=>void}) {return entries.length?<div className="records-grid">{entries.map(e=>{const Icon=kindIcons[e.kind];return <article className={`panel record-card ${e.done?'record-done':''}`} key={e.id}><div className="record-top"><span className="record-icon"><Icon size={23} strokeWidth={1.5}/></span><span className="badge">{e.status||e.category||kindLabels[e.kind]}</span><div className="record-actions"><button className="icon-button" aria-label={`${e.title} 수정`} onClick={()=>onEdit(e)}><Pencil size={14}/></button><button className="icon-button" aria-label={`${e.title} 삭제`} onClick={()=>onDelete(e)}><Trash2 size={14}/></button></div></div><button className="record-title" onClick={()=>onEdit(e)}>{e.title}</button>{e.detail&&<p className="record-detail">{e.detail}</p>}<div className="record-bottom"><span>{e.date?koreanDate(e.date):e.category||kindLabels[e.kind]}</span>{e.kind==='todo'?<button className={`text-button ${e.done?'blue':'muted'}`} onClick={()=>onToggle(e)}><Check size={14}/>{e.done?'완료됨':'완료하기'}</button>:e.url?<a className="text-button blue" href={safeUrl(e.url)} target="_blank" rel="noreferrer">링크 열기<ArrowUpRight size={13}/></a>:<button className="text-button muted" onClick={()=>onEdit(e)}>자세히<ArrowUpRight size={13}/></button>}</div></article>;})}</div>:<section className="panel records-empty"><Empty icon={Layers3} title={emptyTitle} description={emptyDescription} action={onAdd}/></section>;}
 
 function EntryModal({kind,entry,onClose,onSave}:{kind:Kind;entry?:Entry;onClose:()=>void;onSave:(e:Entry)=>void}) {
   const [title,setTitle]=useState(entry?.title??''),[detail,setDetail]=useState(entry?.detail??''),[category,setCategory]=useState(entry?.category||categories[kind]?.[0]||''),[status,setStatus]=useState(entry?.status||statuses[kind]?.[0]||''),[url,setUrl]=useState(entry?.url??''),[date]=useState(entry?.date?(kind==='event'&&!entry.date.includes('T')?`${entry.date}T09:00`:entry.date):''),[error,setError]=useState('');

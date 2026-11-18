@@ -11,6 +11,7 @@ import '../components/steam-account.css';
 import '../components/hub-discovery.css';
 import '../components/connection-settings.css';
 import '../components/hub-redesign.css';
+import '../components/hub-sections.css';
 import { SyncProvider } from '@/components/sync-provider';
 import { SpotifyProvider } from '@/components/spotify-provider';
 import { SpotifyPlaybackProvider } from '@/components/spotify-playback';

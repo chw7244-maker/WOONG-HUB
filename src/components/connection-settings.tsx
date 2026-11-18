@@ -40,31 +40,24 @@ function SpotifyConnection() {
       </div>
       {connected && <>
         {status?.account?.displayName && <p className="connection-account">{status.account.displayName}</p>}
-        <ul className="connection-permissions" aria-label="Spotify 기능별 권한">
-          {spotifyFeatures.map(({ id, label }) => (
-            <li key={id}>
-              <span>{label}</span>
-              <span className={status?.features[id] ? 'blue' : 'muted'}>
-                {status?.features[id] ? '승인됨' : '미승인'}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <details className="connection-detail">
+          <summary>승인 권한과 다시 연결</summary>
+          <ul className="connection-permissions" aria-label="Spotify 기능별 권한">
+            {spotifyFeatures.map(({ id, label }) => (
+              <li key={id}><span>{label}</span><span className={status?.features[id] ? 'blue' : 'muted'}>{status?.features[id] ? '승인됨' : '미승인'}</span></li>
+            ))}
+          </ul>
+          {status?.configured&&<button type="button" className="text-button blue" disabled={busy||loading} onClick={()=>void connect()}>{busy?'승인 준비 중':'Spotify 다시 연결'}</button>}
+        </details>
       </>}
       {!loading && !error && !connected && <p className="muted">
         {status?.configured ? 'Spotify 계정을 연결하면 재생과 라이브러리 권한을 설정할 수 있어요.' : spotifyMessage(status?.configurationError || 'spotify_not_configured')}
       </p>}
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="connection-actions">
-        <Link className="text-button blue" href="/music/spotify/">Spotify 관리<ArrowRight size={14} /></Link>
-        {status?.configured && <button
-          type="button"
-          className="button secondary small"
-          disabled={busy || loading}
-          onClick={() => void connect()}
-        >
-          {busy ? '승인 준비 중' : connected ? 'Spotify 다시 연결' : 'Spotify 연결'}
-        </button>}
+        {status?.configured&&!connected?<button type="button" className="text-button blue" disabled={busy||loading} onClick={()=>void connect()}>
+          {busy?'승인 준비 중':'Spotify 연결'}<ArrowRight size={14}/>
+        </button>:<Link className="text-button blue" href="/music/spotify/">Spotify 관리<ArrowRight size={14}/></Link>}
       </div>
     </article>
   );
@@ -107,11 +100,14 @@ function SteamConnection({ ready }: { ready: boolean }) {
       </div>
       {status && account && <>
         <p className="connection-account">{account.name} <small>· 선택 계정</small></p>
-        <dl className="connection-details">
-          <div><dt>연결 계정</dt><dd>{status.accounts.length}개</dd></div>
-          <div><dt>보유 게임 조회</dt><dd>{account.ownedAt ? `${kst.format(new Date(account.ownedAt))} KST` : '조회 전'}</dd></div>
-          <div><dt>최근 플레이 조회</dt><dd>{account.recentAt ? `${kst.format(new Date(account.recentAt))} KST` : '조회 전'}</dd></div>
-        </dl>
+        <p className="connection-last-read muted">{account.ownedAt ? `보유 게임 · ${kst.format(new Date(account.ownedAt))} KST` : '보유 게임 조회 전'}</p>
+        <details className="connection-detail">
+          <summary>계정 및 조회 정보</summary>
+          <dl className="connection-details">
+            <div><dt>연결 계정</dt><dd>{status.accounts.length}개</dd></div>
+            <div><dt>최근 플레이 조회</dt><dd>{account.recentAt ? `${kst.format(new Date(account.recentAt))} KST` : '조회 전'}</dd></div>
+          </dl>
+        </details>
       </>}
       {!loading && !error && !account && <p className="muted">
         {status?.configured ? 'Steam 계정을 연결하면 보유 게임과 플레이 시간을 확인할 수 있어요.' : steamMessage('steam_not_configured')}

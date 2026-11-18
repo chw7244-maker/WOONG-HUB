@@ -153,8 +153,21 @@ export default function Hub({section}:{section:string}) {
             <div className="hub-section-heading"><h2 id="home-recent-title">최근 기록</h2><Link href="/library/" className="text-button blue">모든 메모<ArrowUpRight size={13}/></Link></div>
             <div className="hub-records-strip">{recentRecords.map(entry=><button key={entry.id} type="button" onClick={()=>setModal({kind:entry.kind,entry})}><small>{kindLabels[entry.kind]}</small><strong>{entry.title}</strong><ArrowUpRight size={13}/></button>)}</div>
           </section>}
-          <div className="hub-secondary-grid">
-            {visible('bookmarks')&&<section className="quick-links-section"><PanelHeading title="즐겨찾는 곳"><button className="text-button muted" onClick={()=>setModal({kind:'bookmark'})}><Plus size={14}/>추가</button></PanelHeading><div className="quick-links">{shortcuts.map(({title,subtitle,url,icon:Icon,color})=><a className="quick-link" key={title} href={url} target={url.startsWith('/')?undefined:'_blank'} rel="noreferrer"><span className={`shortcut-icon ${color}`}><Icon size={21} strokeWidth={1.7}/></span><strong>{title}</strong><small>{subtitle}</small><ArrowUpRight className="shortcut-arrow" size={13}/></a>)}</div>{entries('bookmark').length>0&&<div className="personal-links">{entries('bookmark').slice(0,6).map(e=><a href={safeUrl(e.url)} target="_blank" rel="noreferrer" key={e.id}><Link2 size={12}/>{e.title}<ArrowUpRight size={12}/></a>)}</div>}</section>}
+          <div className="hub-utility-stack">
+            {visible('bookmarks')&&<section className="quick-links-section">
+              <PanelHeading title="즐겨찾는 곳">
+                <button type="button" className="text-button muted" onClick={()=>setModal({kind:'bookmark'})}><Plus size={14}/>추가</button>
+              </PanelHeading>
+              <div className="quick-links">
+                {shortcuts.map(({title,subtitle,url,icon:Icon,color})=><a className="quick-link" key={title} href={url} target={url.startsWith('/')?undefined:'_blank'} rel="noreferrer">
+                  <span className={`shortcut-icon ${color}`}><Icon size={20} strokeWidth={1.7} aria-hidden="true"/></span>
+                  <span className="quick-link-copy"><strong>{title}</strong><small>{subtitle}</small></span>
+                </a>)}
+              </div>
+              {entries('bookmark').length>0&&<div className="personal-links">
+                {entries('bookmark').slice(0,6).map(e=><a href={safeUrl(e.url)} target="_blank" rel="noreferrer" key={e.id}><Link2 size={12}/>{e.title}<ArrowUpRight size={12}/></a>)}
+              </div>}
+            </section>}
             {visible('weather')&&<WeatherCard city={data.preferences.city} onCityChange={city=>preference({city})}/>}
             {visible('news')&&<NewsBriefing/>}
           </div>

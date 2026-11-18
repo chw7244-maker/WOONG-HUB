@@ -1,5 +1,6 @@
-.weather-card { min-width: 0; }
-.weather-card .panel-heading { gap: 8px; }
+.weather-card { min-width: 0; padding-bottom: 16px; }
+.weather-card .panel-heading { gap: 8px; margin-bottom: 12px; }
+.weather-card .panel-heading h2 { font-size: 17px; }
 .weather-location { position: relative; max-width: 65%; }
 .weather-location label {
   position: absolute;
@@ -11,7 +12,15 @@
 }
 .weather-location label span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .weather-location select { min-height: 40px; padding: 6px 9px 6px 30px; background: var(--panel-soft); }
-.weather-card .weather-meta { margin-bottom: 14px; }
+.weather-layout { display: grid; grid-template-columns: minmax(0,1fr); gap: 14px; }
+.weather-forecast { min-width: 0; }
+.weather-card .weather-main { justify-content: start; gap: 12px; }
+.weather-card .weather-symbol { height: 64px; width: 64px; margin: 0 0 0 auto; }
+.weather-card .weather-main p { margin-top: 4px; font-size: 13px; }
+.weather-card .weather-main p > span { display: inline; margin-inline-start: 8px; font-size: 11px; }
+.weather-card .weather-highlow { font-size: 12px; margin-top: 7px; }
+.weather-card .weather-highlow > span { color: var(--muted); }
+.weather-card .weather-meta { flex-wrap: wrap; gap: 5px 12px; margin: 10px 0 0; padding-top: 8px; }
 .weather-card .weather-meta span, .weather-card .weather-source { font-size: 11px; }
 .weather-card .weather-retry { min-height: 44px; }
 
@@ -36,6 +45,20 @@
 .weather-range { color: var(--muted); text-align: end; white-space: nowrap; }
 .weather-range strong { margin-inline-start: 4px; }
 .weather-empty { margin: 12px 0; color: var(--muted); }
+
+@media (min-width: 900px) {
+  .weather-layout { grid-template-columns: minmax(0,clamp(180px,21vw,250px)) minmax(0,1fr); gap: 24px; }
+  .weather-forecast { border-inline-start: 1px solid var(--border); padding-inline-start: 20px; }
+}
+
+@media (min-width: 640px) {
+  .weather-period { width: min(100%,240px); }
+  .weather-days { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0,1fr); gap: 3px; margin: 0; padding-block: 8px 6px; }
+  .weather-days li { grid-template-columns: 1fr; justify-items: center; align-content: center; gap: 4px; padding: 7px 2px; border-radius: 9px; }
+  .weather-days li + li { border-top: 0; }
+  .weather-days li:first-child { background: var(--panel-soft); }
+  .weather-range { grid-row: 3; }
+}
 
 @media (max-width: 760px) {
   .weather-location select, #weather #city { min-height: 44px; font-size: 16px; }

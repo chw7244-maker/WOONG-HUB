@@ -149,25 +149,31 @@ export default function WeatherCard({ city, onCityChange }: { city: string; onCi
         <button type="button" className="text-button blue weather-retry" onClick={() => setRetry(value => value + 1)}><RefreshCw size={13}/>다시 시도</button>
       </div>
       : <>
-        <div className="weather-main">
-          <div>
-            <div className="temperature">{Math.round(weather.current.temperature)}<span>°</span></div>
-            <p>{label}{weather.current.feelsLike !== null && <span>체감 {degrees(weather.current.feelsLike)}</span>}</p>
+        <div className="weather-layout">
+          <div className="weather-overview">
+            <div className="weather-main">
+              <div>
+                <div className="temperature">{Math.round(weather.current.temperature)}<span>°</span></div>
+                <p>{label}{weather.current.feelsLike !== null && <span>체감 {degrees(weather.current.feelsLike)}</span>}</p>
+              </div>
+              <Icon className="weather-symbol" size={68} strokeWidth={1.25} aria-hidden="true"/>
+            </div>
+            {today && <div className="weather-highlow">최고 {degrees(today.high)}<span>최저 {degrees(today.low)}</span></div>}
+            <div className="weather-meta">
+              {today?.rain != null && <span><Droplets size={14}/>오늘 강수 {probability(today.rain)}</span>}
+              {weather.current.wind !== null && <span><Wind size={14}/>{weather.current.wind} km/h</span>}
+            </div>
           </div>
-          <Icon className="weather-symbol" size={83} strokeWidth={1.25} aria-hidden="true"/>
+          <div className="weather-forecast">
+            <div className="weather-period" role="group" aria-label="예보 보기">
+              <button type="button" aria-pressed={period === 'hourly'} onClick={() => setPeriod('hourly')}>시간별</button>
+              <button type="button" aria-pressed={period === 'daily'} onClick={() => setPeriod('daily')}>일별</button>
+            </div>
+            {!hasForecast ? <p className="weather-empty">예보 데이터를 받지 못했어요.</p>
+              : period === 'hourly' ? <HourlyForecast forecast={weather}/>
+              : <DailyForecast forecast={weather}/>}
+          </div>
         </div>
-        {today && <div className="weather-highlow">최고 {degrees(today.high)}<span>최저 {degrees(today.low)}</span></div>}
-        <div className="weather-meta">
-          {today?.rain != null && <span><Droplets size={14}/>오늘 강수 {probability(today.rain)}</span>}
-          {weather.current.wind !== null && <span><Wind size={14}/>{weather.current.wind} km/h</span>}
-        </div>
-        <div className="weather-period" role="group" aria-label="예보 보기">
-          <button type="button" aria-pressed={period === 'hourly'} onClick={() => setPeriod('hourly')}>시간별</button>
-          <button type="button" aria-pressed={period === 'daily'} onClick={() => setPeriod('daily')}>일별</button>
-        </div>
-        {!hasForecast ? <p className="weather-empty">예보 데이터를 받지 못했어요.</p>
-          : period === 'hourly' ? <HourlyForecast forecast={weather}/>
-          : <DailyForecast forecast={weather}/>}
         <a className="weather-source" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo · {weather.current.time.slice(11, 16)} 기준 (KST)</a>
       </>}
   </section>;

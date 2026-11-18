@@ -31,7 +31,7 @@ export function mergeData(base: HubData, local: HubData, remote: HubData): { dat
     }
   }
   const preferences = { ...remote.preferences };
-  for (const key of ['theme','city','widgets','calendarHiddenSources','mediaWidgets'] as const) {
+  for (const key of ['theme','city','widgets','calendarHiddenSources','mediaWidgets','pinnedAudioSetup'] as const) {
     if (!same(local.preferences[key], base.preferences[key])) Object.assign(preferences, { [key]: local.preferences[key] });
   }
   return { data: validateData({version:1,entries:[...output.values()],preferences}), conflicts };

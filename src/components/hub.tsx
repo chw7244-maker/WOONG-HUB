@@ -2,40 +2,41 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowDownToLine, ArrowUpFromLine, ArrowRight, ArrowUpRight, AudioLines, Bell, Bookmark, CalendarDays, Check, CheckCheck, ChevronLeft, ChevronRight, CircleHelp, Clock3, Cloud, Cpu, ExternalLink, Gamepad2, Headphones, House, Layers3, LayoutGrid, ListTodo, Menu, Moon, MoreHorizontal, Music2, Newspaper, Plus, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, StickyNote, Sun, Trash2, X, BriefcaseBusiness, Pencil, Link2, Database, type LucideIcon } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, AudioLines, Bell, Bookmark, CalendarDays, Check, ChevronLeft, Gamepad2, Headphones, Layers3, ListTodo, Moon, Music2, Newspaper, Plus, SlidersHorizontal, StickyNote, Sun, Trash2, X, BriefcaseBusiness, Pencil, Link2, Database, type LucideIcon, SquarePen } from 'lucide-react';
 import WeatherCard from './weather';
 import NewsHub, { NewsBriefing } from './news-hub';
 import AudioHub, { AudioEntryModal } from './audio-hub';
 import GamesHub, { GameEntryModal } from './games-hub';
 import MusicHub, { MusicEntryModal } from './music-hub';
-import {SpotifyLivePlayer} from './spotify-playback';
 import SpotifyAccount from './spotify-account';
 import SteamAccount from './steam-account';
 import SteamHome from './steam-home';
 import UnifiedSearch from './unified-search';
 import {spotifyMusicDraft} from '@/lib/music';
 import CalendarHub, { useCalendarSnapshot } from './calendar-hub';
+import HubNavigation from './hub-navigation';
+import WeekAgenda from './home-dashboard';
+import NoteEditor from './note-editor';
+import { AudioHighlights, GameHighlights, MusicHighlights } from './hobby-highlights';
+import { dashboardTasks, pinnedSetup, recentListeningGear } from '@/lib/home-dashboard';
 import ConnectionSettings from './connection-settings';
 import Dialog from './dialog';
 import { isSetup } from '@/lib/audio';
 import { useHubSync } from './sync-provider';
 import { CloudStorageSettings, SyncIndicator, SyncNotice } from './sync-status';
-import { type Entry, type HubData, type Kind, KEY, initial, cities, validateData, todayKST, koreanDate, safeUrl, mediaWidgets, mediaWidgetVisible } from '@/lib/store';
+import { type Entry, type HubData, type Kind, cities, validateData, todayKST, koreanDate, safeUrl, mediaWidgets, mediaWidgetVisible } from '@/lib/store';
 
-const navigation: {id:string;label:string;icon:LucideIcon}[] = [
-  {id:'home',label:'대시보드',icon:House},{id:'news',label:'뉴스 허브',icon:Newspaper},{id:'audio',label:'오디오',icon:Headphones},{id:'games',label:'게임',icon:Gamepad2},{id:'music',label:'음악',icon:Music2},{id:'calendar',label:'캘린더',icon:CalendarDays},{id:'library',label:'라이브러리',icon:Layers3},{id:'work',label:'업무',icon:BriefcaseBusiness}
-];
-const details: Record<string,{eyebrow:string;title:string;description:string;kind?:Kind;icon:LucideIcon}> = {
-  news:{eyebrow:'YOUR DAILY PERSPECTIVE',title:'뉴스 허브',description:'관심 있는 소식을 읽고, 오래 기억할 기사를 모으세요.',icon:Newspaper},
-  audio:{eyebrow:'A BETTER WAY TO LISTEN',title:'나만의 오디오',description:'좋아하는 소리와 그 소리를 만들어주는 장비의 기록.',kind:'audio',icon:Headphones},
-  steam:{eyebrow:'YOUR GAMES, YOUR ACCOUNTS',title:'Steam 라이브러리',description:'계정별 보유 게임과 실제 플레이 시간을 한곳에서.',icon:Gamepad2},
-  games:{eyebrow:'PRESS START',title:'게임 라이브러리',description:'다음 모험부터 엔딩의 순간까지, 나만의 플레이 기록.',kind:'games',icon:Gamepad2},
-  spotify:{eyebrow:'YOUR SPOTIFY, IN YOUR SPACE',title:'Spotify 음악',description:'지금 듣는 음악부터 나의 플레이리스트까지.',icon:Music2},
-  music:{eyebrow:'SOUNDTRACK OF YOUR LIFE',title:'음악 컬렉션',description:'오래 듣고 싶은 앨범과 오늘의 감상을 담아두세요.',kind:'music',icon:Music2},
-  calendar:{eyebrow:'MAKE ROOM FOR WHAT MATTERS',title:'캘린더',description:'노션과 구글 일정, 나의 약속을 한곳에서.',kind:'event',icon:CalendarDays},
-  library:{eyebrow:'A PLACE FOR YOUR IDEAS',title:'라이브러리',description:'스쳐 지나간 생각, 다시 찾고 싶은 링크, 작은 할 일.',kind:'note',icon:Layers3},
-  work:{eyebrow:'YOUR WORKSPACE',title:'업무 공간',description:'업무에 집중할 수 있도록, 필요한 도구와 기록을 모으세요.',kind:'work',icon:BriefcaseBusiness},
-  settings:{eyebrow:'MAKE IT YOURS',title:'설정',description:'내 일상에 맞게, 나만의 HUB를 가꾸세요.',icon:Settings2}
+const details: Record<string,{title:string;description:string;kind?:Kind}> = {
+  news:{title:'뉴스 허브',description:'관심 있는 소식을 읽고, 오래 기억할 기사를 모으세요.'},
+  audio:{title:'나만의 오디오',description:'좋아하는 소리와 그 소리를 만들어주는 장비의 기록.',kind:'audio'},
+  steam:{title:'Steam 라이브러리',description:'계정별 보유 게임과 실제 플레이 시간을 한곳에서.'},
+  games:{title:'게임 라이브러리',description:'다음 모험부터 엔딩의 순간까지, 나만의 플레이 기록.',kind:'games'},
+  spotify:{title:'Spotify 음악',description:'지금 듣는 음악부터 나의 플레이리스트까지.'},
+  music:{title:'음악 컬렉션',description:'오래 듣고 싶은 앨범과 오늘의 감상을 담아두세요.',kind:'music'},
+  calendar:{title:'캘린더',description:'노션과 구글 일정, 나의 약속을 한곳에서.',kind:'event'},
+  library:{title:'라이브러리',description:'스쳐 지나간 생각, 다시 찾고 싶은 링크, 작은 할 일.',kind:'note'},
+  work:{title:'업무 공간',description:'업무에 집중할 수 있도록, 필요한 도구와 기록을 모으세요.',kind:'work'},
+  settings:{title:'설정',description:'내 일상에 맞게, 나만의 HUB를 가꾸세요.'}
 };
 const kindLabels: Record<Kind,string> = {todo:'할 일',note:'메모',bookmark:'북마크',audio:'오디오 장비',games:'게임',music:'앨범',event:'일정',work:'업무 기록'};
 const kindIcons: Record<Kind,LucideIcon> = {todo:ListTodo,note:StickyNote,bookmark:Bookmark,audio:Headphones,games:Gamepad2,music:Music2,event:CalendarDays,work:BriefcaseBusiness};
@@ -48,7 +49,6 @@ const shortcuts = [
   {title:'스토어 인사이트',subtitle:'매출 · 광고 분석',url:'https://naver-sales-insight.woong22222.chatgpt.site',icon:BriefcaseBusiness,color:'green'}
 ];
 const widgetLabels: Record<string,string>={weather:'날씨',calendar:'캘린더',todos:'오늘의 할 일',bookmarks:'즐겨찾기',news:'오늘의 브리핑',interests:'나의 관심사',note:'빠른 메모',spotify:'Spotify 음악 플레이어',steam:'Steam 최근 플레이'};
-const href=(id:string)=>id==='home'?'/':`/${id}/`;
 
 function Empty({icon:Icon,title,description,action,label='추가하기'}:{icon:LucideIcon;title:string;description?:string;action?:()=>void;label?:string}) {return <div className="empty"><div className="empty-icon"><Icon size={24} strokeWidth={1.5}/></div><h3>{title}</h3>{description&&<p>{description}</p>}{action&&<button className="text-button blue" onClick={action}><Plus size={14}/>{label}</button>}</div>;}
 function PanelHeading({title,sub,children}:{title:string;sub?:string;children?:React.ReactNode}){return <div className="panel-heading"><h2>{title}{sub&&<span className="heading-count">{sub}</span>}</h2>{children}</div>;}
@@ -58,13 +58,13 @@ export default function Hub({section}:{section:string}) {
   const {data,ready}=sync;
   const calendar=useCalendarSnapshot(ready&&['home','calendar','settings'].includes(section));
   const [now,setNow]=useState<Date|null>(null);
-  const [modal,setModal]=useState<{kind:Kind;entry?:Entry}|null>(null),[searchOpen,setSearchOpen]=useState(false),[query,setQuery]=useState(''),[toast,setToast]=useState(''),[mobileMenu,setMobileMenu]=useState(false),[libraryTab,setLibraryTab]=useState<Kind>('note'),[filter,setFilter]=useState('전체'),[quickNote,setQuickNote]=useState(''),[pendingImport,setPendingImport]=useState<HubData|null>(null),[deleteEntry,setDeleteEntry]=useState<Entry|null>(null),[notificationOpen,setNotificationOpen]=useState(false);
+  const [modal,setModal]=useState<{kind:Kind;entry?:Entry}|null>(null),[searchOpen,setSearchOpen]=useState(false),[query,setQuery]=useState(''),[toast,setToast]=useState(''),[mobileMenu,setMobileMenu]=useState(false),[libraryTab,setLibraryTab]=useState<Kind>('note'),[filter,setFilter]=useState('전체'),[pendingImport,setPendingImport]=useState<HubData|null>(null),[deleteEntry,setDeleteEntry]=useState<Entry|null>(null),[notificationOpen,setNotificationOpen]=useState(false);
   const fileRef=useRef<HTMLInputElement>(null);
   useEffect(()=>{setNow(new Date());const timer=setInterval(()=>setNow(new Date()),60000);return()=>clearInterval(timer);},[]);
   useEffect(()=>{if(!ready)return;document.documentElement.dataset.theme=data.preferences.theme;},[ready,data.preferences.theme]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),4500);return()=>clearTimeout(t);},[toast]);
   useEffect(()=>{setFilter('전체');setMobileMenu(false);},[section]);
-  useEffect(()=>{const handle=(e:KeyboardEvent)=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setSearchOpen(v=>!v);}if(e.key==='Escape'){setSearchOpen(false);setModal(null);setMobileMenu(false);setPendingImport(null);setDeleteEntry(null);setNotificationOpen(false);}};document.addEventListener('keydown',handle);return()=>document.removeEventListener('keydown',handle);},[]);
+  useEffect(()=>{const handle=(event:KeyboardEvent)=>{if(document.querySelector('[role="dialog"]'))return;if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'){event.preventDefault();setSearchOpen(true);}if(event.key==='Escape')setNotificationOpen(false);};document.addEventListener('keydown',handle);return()=>document.removeEventListener('keydown',handle);},[]);
   function persist(next:HubData) {return sync.client.change(next);}
   function notify(message:string){setToast(message);}
   function addCalendarEvent(date:string){setModal({kind:'event',entry:{id:crypto.randomUUID(),kind:'event',title:'',detail:'',category:'',status:'',url:'',date:date+'T09:00',done:false,createdAt:new Date().toISOString()}});}
@@ -73,51 +73,74 @@ export default function Hub({section}:{section:string}) {
   function remove(){if(deleteEntry&&persist({...data,entries:data.entries.filter(e=>e.id!==deleteEntry.id)})){setDeleteEntry(null);notify('기록을 삭제했어요.');}}
   function preference(update:Partial<HubData['preferences']>){persist({...data,preferences:{...data.preferences,...update}});}
   const entries=(kind:Kind)=>data.entries.filter(e=>e.kind===kind);
-  const tasks=entries('todo'),done=tasks.filter(e=>e.done).length,today=now?todayKST(now):'',events=entries('event').filter(e=>e.date.slice(0,10)>=today).sort((a,b)=>a.date.localeCompare(b.date));
+  const today=now?todayKST(now):'',events=entries('event').filter(e=>e.date.slice(0,10)>=today).sort((a,b)=>a.date.localeCompare(b.date));
+  const tasks=today?dashboardTasks(data.entries,today):[];
+  const selectedSetup=pinnedSetup(entries('audio'),data.preferences.pinnedAudioSetup);
+  const homeAudio=section==='home'&&(selectedSetup??recentListeningGear(entries('audio'),entries('music'))[0]?.entry);
+  const recentRecords=section==='home'?data.entries.filter(e=>['note','audio','games','music'].includes(e.kind)).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).slice(0,4):[];
   const visible=(w:string)=>mediaWidgets.includes(w)?mediaWidgetVisible(data.preferences,w):data.preferences.widgets.includes(w);
   function toggleWidget(id:string,enabled:boolean){if(mediaWidgets.includes(id)){const current=data.preferences.mediaWidgets??mediaWidgets;preference({mediaWidgets:enabled?[...current,id]:current.filter(w=>w!==id)});}else preference({widgets:enabled?[...data.preferences.widgets,id]:data.preferences.widgets.filter(w=>w!==id)});}
   const dateLabel=now?new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'long',day:'numeric',weekday:'long'}).format(now):'오늘의 공간을 준비하고 있어요';
-  const hour=now?Number(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Seoul',hour:'numeric',hourCycle:'h23'}).format(now)):9;
-  const greeting=hour<6?'Hello, night owl.':hour<12?'Good morning,':hour<18?'Good afternoon,':'Good evening,';
   function exportData(){const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`woong-hub-${today}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notify('HUB 백업 파일을 내보냈어요.');}
   function exportLegacy(){if(!sync.migration)return;const url=URL.createObjectURL(new Blob([JSON.stringify(sync.migration,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`woong-hub-before-migration-${today}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   async function importFile(file?:File){if(!file)return;try{if(file.size>10*1024*1024)throw new Error('10MB 이하의 백업 파일을 선택해주세요.');setPendingImport(validateData(JSON.parse(await file.text())));}catch(e){notify(e instanceof Error?e.message:'백업을 읽지 못했어요.');}if(fileRef.current)fileRef.current.value='';}
-  function quickSave(){if(!quickNote.trim())return;if(save({id:crypto.randomUUID(),kind:'note',title:quickNote.trim().split('\n')[0].slice(0,80),detail:quickNote.trim(),category:'일상',status:'',url:'',date:'',done:false,createdAt:new Date().toISOString()}))setQuickNote('');}
   const currentInfo=details[section];
   const activeKind:Kind=section==='library'?libraryTab:currentInfo?.kind??'note';
   const sectionEntries=entries(activeKind).filter(e=>filter==='전체'||e.status===filter||e.category===filter);
-  const searchResults=data.entries.filter(e=>`${e.title} ${e.detail} ${e.category} ${kindLabels[e.kind]}`.toLowerCase().includes(query.toLowerCase())).slice(0,30);
 
   return <div className="app-shell">
-    {mobileMenu&&<button className="sidebar-scrim" aria-label="메뉴 닫기" onClick={()=>setMobileMenu(false)}/>}
-    <aside className={`sidebar ${mobileMenu?'mobile-open':''}`}>
-      <Link className="brand" href="/"><span className="brand-symbol"><AudioLines size={21}/></span><span>WOONG<span className="brand-thin"> HUB</span><small>YOUR PERSONAL SPACE</small></span></Link>
-      <div className="sidebar-label">MY WORKSPACE</div>
-      <nav aria-label="주 메뉴">{navigation.map(({id,label,icon:Icon})=><Link key={id} className={`nav-item ${(section===id||section==='spotify'&&id==='music'||section==='steam'&&id==='games')?'active':''}`} href={href(id)} onClick={()=>setMobileMenu(false)}><Icon size={18} strokeWidth={1.7}/><span>{label}</span>{(section===id||section==='spotify'&&id==='music'||section==='steam'&&id==='games')&&<span className="nav-dot"/>}{id==='library'&&data.entries.filter(e=>['todo','note','bookmark'].includes(e.kind)).length>0&&<small>{data.entries.filter(e=>['todo','note','bookmark'].includes(e.kind)).length}</small>}</Link>)}</nav>
-      <div className="sidebar-bottom"><div className="space-card"><div><span className="live-dot"/>MY LITTLE UNIVERSE</div><p>좋아하는 것들로 채우는<br/>나만의 작은 공간.</p><span className="space-orbit" aria-hidden="true"/></div><Link href="/settings/" className={`nav-item ${section==='settings'?'active':''}`}><Settings2 size={18}/><span>설정</span></Link><div className="profile"><span className="avatar">W</span><div><strong>WOONG</strong><small>Personal workspace</small></div><ShieldCheck size={16}/></div></div>
-    </aside>
-    <div className="workspace"><header className="topbar"><div className="breadcrumbs"><button className="icon-button menu-button" aria-label="메뉴 열기" onClick={()=>setMobileMenu(true)}><Menu size={19}/></button><House size={15}/><ChevronRight size={13}/><span>{section==='home'?'대시보드':currentInfo?.title}</span></div><div className="topbar-actions"><button className="search-trigger" aria-label="내 공간 검색" onClick={()=>setSearchOpen(true)}><Search size={15}/><span>내 공간 검색</span><kbd>Ctrl K</kbd></button><span className="top-divider"/><button className="icon-button" aria-label={data.preferences.theme==='dark'?'라이트 테마로 전환':'다크 테마로 전환'} onClick={()=>preference({theme:data.preferences.theme==='dark'?'light':'dark'})}>{data.preferences.theme==='dark'?<Sun size={18}/>:<Moon size={18}/>}</button><button className="icon-button notification-button" aria-label="알림 보기" onClick={()=>setNotificationOpen(v=>!v)}><Bell size={18}/>{events.some(e=>e.date.startsWith(today))&&<i/>}</button><span className="top-avatar">W</span></div></header>
+    <HubNavigation section={section} dark={data.preferences.theme==='dark'} menuOpen={mobileMenu}
+      hasNotifications={events.some(event=>event.date.startsWith(today))} notificationOpen={notificationOpen}
+      onMenu={setMobileMenu} onSearch={()=>setSearchOpen(true)} onTheme={()=>preference({theme:data.preferences.theme==='dark'?'light':'dark'})}
+      onNotifications={()=>setNotificationOpen(value=>!value)}/>
+    <div className="workspace hub-workspace">
       {notificationOpen&&<section className="notification-popover panel"><PanelHeading title="오늘의 알림"><button className="icon-button" aria-label="알림 닫기" onClick={()=>setNotificationOpen(false)}><X size={16}/></button></PanelHeading>{events.filter(e=>e.date.startsWith(today)).length?events.filter(e=>e.date.startsWith(today)).map(e=><button key={e.id} className="notification-row" onClick={()=>{setNotificationOpen(false);setModal({kind:'event',entry:e});}}><CalendarDays size={16}/><span>{e.title}<small>{koreanDate(e.date)}</small></span></button>):<Empty icon={Bell} title="지금은 새 알림이 없어요" description="오늘 등록한 일정이 여기에 표시돼요."/>}</section>}
       <main className="main-content">
-        <div className="page-top"><span className="date-kicker"><span className="live-dot"/>{dateLabel}<span className="kst">KST</span></span><span className="private-label"><ShieldCheck size={12}/>나만의 공간</span></div>
         <div className="sync-status-row"><SyncIndicator/></div>
         <SyncNotice onLegacyBackup={exportLegacy}/>
         {!ready?<div className="loading-state"><AudioLines size={36}/><p>{sync.phase==='connecting'?'나의 서버 저장소를 확인하고 있어요.':'서버에 다시 연결하면 기록을 불러옵니다.'}</p>{sync.phase!=='connecting'&&<button className="button secondary" onClick={()=>void sync.client.retry()}>다시 연결</button>}</div>:section==='home'?<>
-          <div className="page-heading"><div><h1>오늘도, 나의 속도로<span className="blue">.</span></h1><p>일상과 취향이 만나는 곳, WOONG HUB에 오신 걸 환영해요.</p></div><Link href="/settings/#widgets" className="button secondary"><SlidersHorizontal size={14}/>위젯 설정</Link></div>
-          <div className="dashboard-grid"><div className="main-column">
-            <section className="welcome-card"><div className="welcome-copy"><span className="eyebrow"><span/>EVERY DAY, A LITTLE MORE YOU</span><h2>{greeting}<br/><strong>WOONG<span> ✦</span></strong></h2><p>오늘은 어떤 즐거움을 발견할까요?<br/>좋아하는 것들과 함께, 더 좋은 하루를 만들어보세요.</p><Link href="/library/" className="welcome-link">나의 기록 둘러보기<ArrowRight size={15}/></Link></div><div className="orbital-art" aria-hidden="true"><div className="orbital-glow"/><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="orbit orbit-three"/><div className="planet"><span>W</span></div><span className="satellite satellite-a"><Headphones size={20}/></span><span className="satellite satellite-b"><Gamepad2 size={20}/></span><span className="satellite satellite-c"><Music2 size={17}/></span><span className="art-star star-a">✦</span><span className="art-star star-b">+</span><span className="art-dot"/></div><span className="hero-corner">A SPACE THAT FEELS LIKE YOU</span></section>
+          <header className="hub-today-heading">
+            <div><p className="hub-date">{dateLabel} <small>KST</small></p><h1>오늘</h1></div>
+            <div className="hub-today-actions">
+              <Link href="/settings/#widgets" className="icon-button" aria-label="홈 위젯 설정"><SlidersHorizontal size={18}/></Link>
+              {visible('note')&&<button type="button" className="button primary" onClick={()=>setModal({kind:'note'})}><SquarePen size={16}/>메모 쓰기</button>}
+            </div>
+          </header>
+          <div className="hub-home-layout">
+            {visible('calendar')&&<WeekAgenda today={today} entries={entries('event')} hidden={data.preferences.calendarHiddenSources??[]} calendar={calendar}
+              onEdit={entry=>setModal({kind:'event',entry})} onAdd={addCalendarEvent}/>}
+            {visible('todos')&&<section className="hub-tasks" aria-labelledby="home-tasks-title">
+              <div className="hub-section-heading"><div><h2 id="home-tasks-title">오늘 할 일</h2><p>{tasks.length}개 남음</p></div>
+                <button type="button" onClick={()=>setModal({kind:'todo'})} className="text-button blue"><Plus size={15}/>할 일 추가</button>
+              </div>
+              {tasks.length?<div className="task-list">{tasks.slice(0,5).map(entry=><TaskRow key={entry.id} entry={entry} toggle={()=>toggle(entry)} edit={()=>setModal({kind:'todo',entry})}/>)}</div>:<p className="hub-agenda-empty">오늘 남은 할 일이 없어요.</p>}
+              <Link href="/library/" className="text-button muted hub-all-tasks">기록에서 전체 보기<ArrowRight size={13}/></Link>
+            </section>}
+          </div>
+          {(visible('interests')||visible('spotify')||visible('steam'))&&<section className="hub-home-section" aria-labelledby="home-resume-title">
+            <div className="hub-section-heading"><h2 id="home-resume-title">이어서 하기</h2></div>
+            <div className="hub-resume-grid">
+              {visible('interests')&&<section className="hub-resume-audio">
+                <div className="hub-section-heading"><h3><Headphones size={16}/>오디오</h3><Link href="/audio/" className="text-button blue">컬렉션<ArrowUpRight size={13}/></Link></div>
+                {homeAudio?<button type="button" className="hub-resume-entry" onClick={()=>setModal({kind:'audio',entry:homeAudio})}>
+                  <small>{selectedSetup?'고정한 청음 조합':'최근 감상에서 사용한 장비'}</small><strong>{homeAudio.title}</strong>
+                </button>:<p className="muted">오디오 메뉴에서 청음 조합을 고정할 수 있어요.</p>}
+              </section>}
+              {visible('spotify')&&<MusicHighlights home entries={entries('music')} onOpen={entry=>setModal({kind:'music',entry})}/>}
+              {visible('steam')&&<SteamHome key={sync.userId}/>}
+            </div>
+          </section>}
+          {visible('note')&&recentRecords.length>0&&<section className="hub-home-section" aria-labelledby="home-recent-title">
+            <div className="hub-section-heading"><h2 id="home-recent-title">최근 기록</h2><Link href="/library/" className="text-button blue">모든 메모<ArrowUpRight size={13}/></Link></div>
+            <div className="hub-records-strip">{recentRecords.map(entry=><button key={entry.id} type="button" onClick={()=>setModal({kind:entry.kind,entry})}><small>{kindLabels[entry.kind]}</small><strong>{entry.title}</strong><ArrowUpRight size={13}/></button>)}</div>
+          </section>}
+          <div className="hub-secondary-grid">
             {visible('bookmarks')&&<section className="quick-links-section"><PanelHeading title="즐겨찾는 곳"><button className="text-button muted" onClick={()=>setModal({kind:'bookmark'})}><Plus size={14}/>추가</button></PanelHeading><div className="quick-links">{shortcuts.map(({title,subtitle,url,icon:Icon,color})=><a className="quick-link" key={title} href={url} target={url.startsWith('/')?undefined:'_blank'} rel="noreferrer"><span className={`shortcut-icon ${color}`}><Icon size={21} strokeWidth={1.7}/></span><strong>{title}</strong><small>{subtitle}</small><ArrowUpRight className="shortcut-arrow" size={13}/></a>)}</div>{entries('bookmark').length>0&&<div className="personal-links">{entries('bookmark').slice(0,6).map(e=><a href={safeUrl(e.url)} target="_blank" rel="noreferrer" key={e.id}><Link2 size={12}/>{e.title}<ArrowUpRight size={12}/></a>)}</div>}</section>}
-            {visible('news')&&<NewsBriefing/>}
-            {visible('interests')&&<section><PanelHeading title="나의 관심사"><span className="micro muted">LITTLE THINGS, BIG JOY</span></PanelHeading><div className="interest-grid">{[{id:'audio',kind:'audio' as Kind,label:'오디오',sub:'더 좋은 소리를 찾아서',icon:Headphones,color:'purple'},{id:'games',kind:'games' as Kind,label:'게임',sub:'다음 모험의 시작',icon:Gamepad2,color:'blue'},{id:'music',kind:'music' as Kind,label:'음악',sub:'일상에 사운드트랙을',icon:Music2,color:'orange'}].map(({id,kind,label,sub,icon:Icon,color})=><Link href={href(id)} key={id} className={`interest-card ${color}`}><div className="interest-visual"><span className="interest-ring"/><Icon size={50} strokeWidth={1}/><span className="interest-spark">✧</span></div><div className="interest-copy"><span><strong>{label}</strong><ArrowUpRight size={15}/></span><p>{sub}</p><small>{entries(kind).length}개의 기록</small></div></Link>)}</div></section>}
-            {visible('note')&&<section className="panel quick-note"><PanelHeading title="빠른 메모"><Link className="text-button muted" href="/library/">모든 메모<ArrowUpRight size={14}/></Link></PanelHeading><textarea aria-label="빠른 메모" placeholder="문득 떠오른 생각을 남겨보세요." maxLength={10000} value={quickNote} onChange={e=>setQuickNote(e.target.value)}/><div className="note-footer"><span><StickyNote size={12}/>작은 생각도, 좋은 시작이 될 수 있어요.</span><button className="button small secondary" disabled={!quickNote.trim()} onClick={quickSave}>메모 저장<ArrowRight size={13}/></button></div></section>}
-          </div><aside className="right-column">{visible('spotify')&&<SpotifyLivePlayer compact/>}{visible('steam')&&<SteamHome key={sync.userId}/>}
             {visible('weather')&&<WeatherCard city={data.preferences.city} onSettings={()=>window.location.assign('/settings/#weather')}/>}
-            {visible('calendar')&&<CalendarHub compact calendar={calendar} entries={entries('event')} today={today} hidden={data.preferences.calendarHiddenSources??[]} onHiddenChange={ids=>preference({calendarHiddenSources:ids})} onAdd={addCalendarEvent} onEdit={entry=>setModal({kind:'event',entry})}/>}
-            {visible('todos')&&<section className="panel todo-panel"><PanelHeading title="오늘의 할 일" sub={`${tasks.filter(e=>!e.done).length}`}><button onClick={()=>setModal({kind:'todo'})} className="icon-button" aria-label="할 일 추가"><Plus size={17}/></button></PanelHeading>{tasks.length?<><div className="task-summary"><span>오늘도 하나씩, 차근차근</span><strong>{done}<span> / {tasks.length}</span></strong></div><div className="progress-track"><span style={{width:`${done/tasks.length*100}%`}}/></div><div className="task-list">{tasks.slice(0,5).map(e=><TaskRow key={e.id} entry={e} toggle={()=>toggle(e)} edit={()=>setModal({kind:'todo',entry:e})}/>)}</div><Link className="text-button muted all-tasks" href="/library/">라이브러리에서 전체 보기<ArrowRight size={12}/></Link></>:<Empty icon={CheckCheck} title="작은 목표로 시작해볼까요?" description="오늘 하고 싶은 일 하나를 적어보세요." action={()=>setModal({kind:'todo'})} label="할 일 추가"/>}</section>}
-            <div className="gentle-note"><Sparkles size={16}/><p>조금씩 쌓이는 기록이<br/>나만의 취향을 만들어갑니다.</p></div>
-          </aside></div>
+            {visible('news')&&<NewsBriefing/>}
+          </div>
         </>:<>
-          {section!=='news'&&<div className="page-heading section-heading"><div><span className="eyebrow muted">{currentInfo?.eyebrow}</span><h1>{currentInfo?.title}<span className="blue">.</span></h1><p>{currentInfo?.description}</p></div>{currentInfo?.kind&&<button className="button primary" onClick={()=>setModal({kind:activeKind})}><Plus size={15}/>{kindLabels[activeKind]} 추가</button>}</div>}
+          {section!=='news'&&<div className="page-heading section-heading"><div><h1>{currentInfo?.title}</h1><p>{currentInfo?.description}</p></div>{currentInfo?.kind&&<button className="button primary" onClick={()=>setModal({kind:activeKind})}><Plus size={15}/>{kindLabels[activeKind]} 추가</button>}</div>}
           {section==='settings'?<div className="settings-grid">
             <ConnectionSettings userId={sync.userId} ready={ready} calendar={calendar} hidden={data.preferences.calendarHiddenSources??[]} today={today}/>
             <section className="panel settings-panel"><PanelHeading title="화면과 테마"/><p className="muted">지금의 분위기에 맞는 테마를 선택하세요.</p><div className="theme-choices">{(['dark','light'] as const).map(t=><button key={t} className={`theme-choice ${data.preferences.theme===t?'selected':''}`} onClick={()=>preference({theme:t})}><span className={`theme-preview ${t}`}><i/><i/><i/></span>{t==='dark'?<Moon size={15}/>:<Sun size={15}/>} {t==='dark'?'다크':'라이트'}{data.preferences.theme===t&&<Check size={15}/>}</button>)}</div></section>
@@ -126,7 +149,7 @@ export default function Hub({section}:{section:string}) {
             <CloudStorageSettings count={data.entries.length} onExport={exportData} onImport={()=>fileRef.current?.click()}/>
             <input ref={fileRef} hidden type="file" accept=".json,application/json" onChange={e=>importFile(e.target.files?.[0])}/>
             <section className="panel settings-panel integration-settings"><PanelHeading title="기타 서비스"/>{[{name:'날씨 · Open-Meteo',desc:'선택한 지역의 날씨를 화면을 열 때 조회',state:'API 조회'},{name:'WOONG 뉴스 허브',desc:'공개 매체 RSS 직접 수집 · 읽음 · 스크랩 동기화',state:'연결됨'},{name:'음악 DB · MusicBrainz',desc:'앨범 정보 검색 · 별점과 감상은 직접 기록',state:'API 조회'},{name:'Steam 상점',desc:'상점 링크로 게임 정보 조회 · 플레이 기록은 직접 입력',state:'API 조회'},{name:'개인 서버 저장소',desc:'ChatGPT 로그인 · 사용자별 DB · 기기 간 동기화',state:sync.phase==='synced'?'연결됨':'동기화 확인'},{name:'AI 브리핑 · 가격 알림',desc:'별도 API와 수집 작업 연결 후 제공',state:'연결 전'}].map(x=><div className="integration-row" key={x.name}><div><strong>{x.name}</strong><small>{x.desc}</small></div><span className={`badge ${['API 조회','연결됨'].includes(x.state)?'blue':''}`}>{x.state}</span></div>)}</section>
-          </div>:section==='news'?<NewsHub/>:section==='audio'?<AudioHub entries={entries('audio')} onAdd={()=>setModal({kind:'audio'})} onEdit={entry=>setModal({kind:'audio',entry})} onDelete={setDeleteEntry}/>:section==='steam'?<><Link href="/games/" className="text-button muted steam-back"><ChevronLeft size={14}/>게임 기록으로 돌아가기</Link><SteamAccount detailed entries={entries('games')} onEdit={entry=>setModal({kind:'games',entry})} onSave={save}/></>:section==='games'?<GamesHub onSave={save} entries={entries('games')} onAdd={()=>setModal({kind:'games'})} onEdit={entry=>setModal({kind:'games',entry})} onDelete={setDeleteEntry}/>:section==='spotify'?<><Link href="/music/" className="text-button muted spotify-back"><ChevronLeft size={14}/>앨범 컬렉션으로 돌아가기</Link><SpotifyAccount detailed collections={entries('music')} onCollect={entity=>setModal({kind:'music',entry:spotifyMusicDraft(entity)})}/></>:section==='music'?<MusicHub onSave={save} entries={entries('music')} onAdd={()=>setModal({kind:'music'})} onEdit={entry=>setModal({kind:'music',entry})} onDelete={setDeleteEntry}/>:section==='calendar'?<CalendarHub calendar={calendar} entries={entries('event')} today={today} hidden={data.preferences.calendarHiddenSources??[]} onHiddenChange={ids=>preference({calendarHiddenSources:ids})} onAdd={addCalendarEvent} onEdit={entry=>setModal({kind:'event',entry})}/>:<>
+          </div>:section==='news'?<NewsHub/>:section==='audio'?<><AudioHighlights audio={entries('audio')} music={entries('music')} pinned={data.preferences.pinnedAudioSetup} onPin={id=>preference({pinnedAudioSetup:id||undefined})} onOpen={entry=>setModal({kind:'audio',entry})}/><AudioHub entries={entries('audio')} onAdd={()=>setModal({kind:'audio'})} onEdit={entry=>setModal({kind:'audio',entry})} onDelete={setDeleteEntry}/></>:section==='steam'?<><Link href="/games/" className="text-button muted steam-back"><ChevronLeft size={14}/>게임 기록으로 돌아가기</Link><SteamAccount detailed entries={entries('games')} onEdit={entry=>setModal({kind:'games',entry})} onSave={save}/></>:section==='games'?<><GameHighlights entries={entries('games')} onOpen={entry=>setModal({kind:'games',entry})}/><GamesHub onSave={save} entries={entries('games')} onAdd={()=>setModal({kind:'games'})} onEdit={entry=>setModal({kind:'games',entry})} onDelete={setDeleteEntry}/></>:section==='spotify'?<><Link href="/music/" className="text-button muted spotify-back"><ChevronLeft size={14}/>앨범 컬렉션으로 돌아가기</Link><SpotifyAccount detailed collections={entries('music')} onCollect={entity=>setModal({kind:'music',entry:spotifyMusicDraft(entity)})}/></>:section==='music'?<><MusicHighlights entries={entries('music')} onOpen={entry=>setModal({kind:'music',entry})}/><MusicHub onSave={save} entries={entries('music')} onAdd={()=>setModal({kind:'music'})} onEdit={entry=>setModal({kind:'music',entry})} onDelete={setDeleteEntry}/></>:section==='calendar'?<CalendarHub calendar={calendar} entries={entries('event')} today={today} hidden={data.preferences.calendarHiddenSources??[]} onHiddenChange={ids=>preference({calendarHiddenSources:ids})} onAdd={addCalendarEvent} onEdit={entry=>setModal({kind:'event',entry})}/>:<>
             {section==='work'&&<a href={shortcuts[3].url} target="_blank" rel="noreferrer" className="work-banner panel"><span className="shortcut-icon green"><BriefcaseBusiness size={24}/></span><div><h3>스토어 인사이트</h3><p>네이버 매출 · 광고 분석 사이트 열기</p></div><ArrowUpRight size={23}/></a>}
             <div className="section-toolbar"><div className="tabs">{section==='library'?(['note','todo','bookmark'] as Kind[]).map(t=><button key={t} className={libraryTab===t?'selected':''} onClick={()=>{setLibraryTab(t);setFilter('전체');}}>{kindLabels[t]}<span>{entries(t).length}</span></button>):['전체',...(statuses[activeKind]??[])].map(t=><button key={t} className={filter===t?'selected':''} onClick={()=>setFilter(t)}>{t}{t==='전체'&&<span>{entries(activeKind).length}</span>}</button>)}</div><span className="record-count">{sectionEntries.length}개의 기록</span></div>
             <RecordGrid entries={sectionEntries} onEdit={e=>setModal({kind:e.kind,entry:e})} onDelete={setDeleteEntry} onToggle={toggle} emptyTitle={filter==='전체'?`첫 ${kindLabels[activeKind]}${['note','audio','event','work'].includes(activeKind)?'를':'을'} 기록해보세요`:'이 분류에는 아직 기록이 없어요'} emptyDescription={activeKind==='audio'?'보유한 장비와 청음 메모로 나만의 오디오 이야기를 시작하세요.':activeKind==='games'?'플레이 중인 게임과 다음에 즐기고 싶은 게임을 등록하세요.':activeKind==='music'?'좋아하는 앨범, 나의 감상과 포맷을 함께 기록하세요.':'작은 기록 하나부터, 이 공간을 나답게 채워보세요.'} onAdd={()=>setModal({kind:activeKind})}/>
@@ -135,9 +158,8 @@ export default function Hub({section}:{section:string}) {
         <footer className="footer"><span><span className="footer-wordmark">W.</span>조금 더 나다운 일상을 위해.</span><span>WOONG HUB<span className="footer-separator">/</span>Made for your everyday</span></footer>
       </main>
     </div>
-    <nav className="mobile-bottom-nav" aria-label="모바일 주 메뉴">{navigation.filter(n=>['home','news','audio','library'].includes(n.id)).map(({id,label,icon:Icon})=><Link className={section===id?'active':''} href={href(id)} key={id}><Icon size={20}/><span>{label}</span></Link>)}<button onClick={()=>setMobileMenu(true)}><Menu size={20}/><span>전체</span></button></nav>
     {toast&&<div className="toast" role="status"><Check size={16}/>{toast}<button className="icon-button" aria-label="알림 닫기" onClick={()=>setToast('')}><X size={14}/></button></div>}
-    {modal&&(modal.kind==='audio'?<AudioEntryModal entry={modal.entry} entries={entries('audio')} onClose={()=>setModal(null)} onSave={save}/>:modal.kind==='games'?<GameEntryModal entry={modal.entry} isNew={!data.entries.some(e=>e.id===modal.entry?.id)} onClose={()=>setModal(null)} onSave={save}/>:modal.kind==='music'?<MusicEntryModal entry={modal.entry} onClose={()=>setModal(null)} onSave={save}/>:<EntryModal kind={modal.kind} entry={modal.entry} onClose={()=>setModal(null)} onSave={save}/>)}
+    {modal&&(modal.kind==='audio'?<AudioEntryModal entry={modal.entry} entries={entries('audio')} onClose={()=>setModal(null)} onSave={save}/>:modal.kind==='games'?<GameEntryModal entry={modal.entry} isNew={!data.entries.some(e=>e.id===modal.entry?.id)} onClose={()=>setModal(null)} onSave={save}/>:modal.kind==='music'?<MusicEntryModal entry={modal.entry} onClose={()=>setModal(null)} onSave={save}/>:modal.kind==='note'?<NoteEditor key={JSON.stringify([sync.userId,modal.entry?.id])} userId={sync.userId} entry={modal.entry} latest={data.entries.find(e=>e.id===modal.entry?.id)} onClose={()=>setModal(null)} onSave={save}/>:<EntryModal kind={modal.kind} entry={modal.entry} onClose={()=>setModal(null)} onSave={save}/>)}
     {searchOpen&&ready&&<UnifiedSearch key={sync.userId} entries={data.entries} query={query} onQuery={setQuery} onClose={()=>setSearchOpen(false)} onEdit={entry=>{setSearchOpen(false);setModal({kind:entry.kind,entry});}}/>}
     {pendingImport&&<Dialog title="백업을 가져올까요?" onClose={()=>setPendingImport(null)}><p className="dialog-description">현재 {data.entries.length}개의 기록을 백업 파일의 {pendingImport.entries.length}개 기록과 설정으로 교체합니다. 현재 데이터를 먼저 내보내두는 것을 권장합니다.</p><div className="button-row dialog-actions"><button className="button secondary" onClick={exportData}>현재 데이터 내보내기</button><button className="button primary" onClick={()=>{if(persist(pendingImport)){setPendingImport(null);notify('백업을 가져왔어요.');}}}>교체하여 가져오기</button></div></Dialog>}
     {deleteEntry&&<Dialog title="기록을 삭제할까요?" onClose={()=>setDeleteEntry(null)}><p className="dialog-description">“{deleteEntry.title}” 기록을 삭제합니다. 삭제한 기록은 백업 파일에서 복구할 수 있습니다.</p>{deleteEntry.kind==='audio'&&!isSetup(deleteEntry)&&entries('audio').some(e=>e.audio?.type==='setup'&&e.audio.deviceIds.includes(deleteEntry.id))&&<p className="dialog-description">이 장비를 사용하는 조합은 유지되며, 해당 연결에 ‘찾을 수 없는 장비’가 표시됩니다. 조합 수정에서 다른 장비로 바꿀 수 있어요.</p>}<div className="dialog-actions button-row"><button className="button secondary" onClick={()=>setDeleteEntry(null)}>취소</button><button className="button danger" onClick={remove}>삭제하기</button></div></Dialog>}

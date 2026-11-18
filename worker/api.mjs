@@ -53,7 +53,7 @@ export async function handleApi(request, env, ctx) {
     const [football,weather]=await Promise.all([
       footballSnapshot(request,ctx,false),weatherForecast(request,ctx,defaultWeatherCity)
     ]);
-    return json({...health,integrations:{fixtures:football.fixtures?.items.length??null,standings:football.standings?.items.length??null,results:football.results?.items.length??null,weather:!!weather}});
+    return json({...health,integrations:{fixtures:football.fixtures?.items.length??null,standings:football.standings?.items.length??null,results:football.results?.items.length??null,weather:!!weather,weatherSource:weather?(weather.source??'open-meteo'):null}});
   }
   if(path.startsWith('/api/news'))return handleNews(request,env,ctx);
   if(path==='/api/calendar'||path==='/api/calendar/sync')return handleCalendar(request,env);

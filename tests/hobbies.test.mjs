@@ -84,3 +84,21 @@ test('weather proxy uses the fixed forecast origin and validates the city before
   assert.equal((await valid.json()).current.temperature, 11);
   assert.equal((await handleWeather(request('/api/weather?city=constructor'), null, { fetcher })).status, 400);
 });
+
+test('weather fallback labels MET Norway data and keeps KST and rainfall units distinct', async () => {
+  const fetcher = async (url, options) => {
+    if (new URL(url).hostname === 'api.open-meteo.com') return new Response('', { status: 429 });
+    assert.equal(new URL(url).hostname, 'api.met.no');
+    assert.match(options.headers['User-Agent'], /WoongHub/);
+    return Response.json({ properties: { timeseries: [{ time: '2026-11-18T15:00:00Z', data: {
+      instant: { details: { air_temperature: 3, wind_speed: 5 } },
+      next_1_hours: { summary: { symbol_code: 'rain_night' }, details: { precipitation_amount: 0.4 } },
+    } }] } });
+  };
+  const forecast = await (await handleWeather(request('/api/weather?city=suwon'), null, { fetcher })).json();
+  assert.equal(forecast.source, 'met-norway');
+  assert.equal(forecast.current.time, '2026-11-19T00:00');
+  assert.equal(forecast.current.wind, 18);
+  assert.equal(forecast.hours[0].rainAmount, 0.4);
+  assert.equal(forecast.hours[0].rain, null);
+});

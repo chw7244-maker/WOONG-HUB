@@ -64,7 +64,7 @@ function WeatherCondition({ code, night }: { code: number | null; night?: boolea
   return <Icon size={21} role="img" aria-label={label}><title>{label}</title></Icon>;
 }
 
-function HourlyForecast({ forecast }: { forecast: Forecast }) {
+function HourlyForecast({ forecast }: { forecast: WeatherForecast }) {
   return <div className="weather-hour-scroll" role="region" aria-label="시간별 기온과 강수 확률" tabIndex={0}>
     <ol className="weather-hours">
       {forecast.hours.map((hour, index) => {
@@ -77,7 +77,9 @@ function HourlyForecast({ forecast }: { forecast: Forecast }) {
           </time>
           <WeatherCondition code={hour.code} night={hour.night}/>
           <strong>{degrees(hour.temperature)}</strong>
-          <span className="weather-probability" aria-label={`강수 확률 ${probability(hour.rain)}`}>{probability(hour.rain)}</span>
+          {hour.rain === null && hour.rainAmount != null
+            ? <span className="weather-probability" aria-label={`예상 강수량 ${hour.rainAmount}밀리미터`}>{hour.rainAmount} mm</span>
+            : <span className="weather-probability" aria-label={`강수 확률 ${probability(hour.rain)}`}>{probability(hour.rain)}</span>}
         </li>;
       })}
     </ol>
@@ -98,7 +100,8 @@ function DailyForecast({ forecast }: { forecast: Forecast }) {
   </ol>;
 }
 
-type RequestResult = { city: string; retry: number; forecast: Forecast | null };
+type WeatherForecast = Omit<Forecast,'hours'> & { hours: (Forecast['hours'][number] & { rainAmount?: number | null })[]; source?: 'met-norway' };
+type RequestResult = { city: string; retry: number; forecast: WeatherForecast | null };
 
 export default function WeatherCard({ city, onCityChange, compact = false }: { city: string; onCityChange: (city: string) => void; compact?: boolean }) {
   const [result, setResult] = useState<RequestResult>();
@@ -119,7 +122,7 @@ export default function WeatherCard({ city, onCityChange, compact = false }: { c
         const forecast = await fetch(`/api/weather?${new URLSearchParams({ city })}`, { signal: controller.signal })
           .then(response => {
             if (!response.ok) throw new Error('예보 요청 실패');
-            return response.json() as Promise<Forecast>;
+            return response.json() as Promise<WeatherForecast>;
           }).catch(fallback);
         if (active) setResult({ city, retry, forecast });
       } catch {
@@ -141,7 +144,10 @@ export default function WeatherCard({ city, onCityChange, compact = false }: { c
   const today = weather?.days.find(day => day.time === weather.current.time.slice(0, 10));
   const { Icon, label } = condition(weather?.current.code ?? null, weather?.current.night);
   const hasForecast = period === 'hourly' ? weather?.hours.length : weather?.days.length;
-  const wetHour = weather?.hours.find(hour => hour.time > weather.current.time && hour.rain !== null && hour.rain >= 40);
+  const wetHour = weather?.hours.find(hour => hour.time > weather.current.time && ((hour.rain ?? 0) >= 40 || (hour.rain === null && (hour.rainAmount ?? 0) >= 0.1)));
+  const weatherSummary = !settled ? '날씨 확인 중' : !weather ? '날씨 다시 확인' : wetHour
+    ? `${wetHour.time.slice(0, 10) === weather.current.time.slice(0, 10) ? '' : '내일 '}${wetHour.time.slice(11, 16)} 강수 ${wetHour.rain !== null ? probability(wetHour.rain) : `${wetHour.rainAmount} mm`}`
+    : today?.rain != null ? `오늘 강수 ${probability(today.rain)}` : label;
   const cityLabel = weatherRegions.flatMap(region => Object.entries(region.cities)).find(([name]) => name === city)?.[1].label;
 
   const panel = <section className="panel weather-card" aria-label="날씨 상세">
@@ -183,14 +189,16 @@ export default function WeatherCard({ city, onCityChange, compact = false }: { c
               : <DailyForecast forecast={weather}/>}
           </div>
         </div>
-        <a className="weather-source" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo · {weather.current.time.slice(11, 16)} 기준 (KST)</a>
+        <a className="weather-source" href={weather.source === 'met-norway' ? 'https://www.met.no/en' : 'https://open-meteo.com/'} target="_blank" rel="noreferrer">
+          {weather.source === 'met-norway' ? 'MET Norway 예보' : 'Open-Meteo'} · {weather.current.time.slice(11, 16)} 기준 (KST)
+        </a>
       </>}
   </section>;
 
   if (!compact) return panel;
   return <details className="hub-weather-summary">
     <summary><Icon size={20} aria-hidden="true"/><strong>{cityLabel}{weather && ` · ${degrees(weather.current.temperature)}`}</strong>
-      <span>{!settled ? '날씨 확인 중' : !weather ? '날씨 다시 확인' : wetHour ? `${wetHour.time.slice(0, 10) === weather.current.time.slice(0, 10) ? '' : '내일 '}${wetHour.time.slice(11, 16)} 강수 ${probability(wetHour.rain)}` : today?.rain != null ? `오늘 강수 ${probability(today.rain)}` : label}</span>
+      <span>{weatherSummary}</span>
       <span className="hub-weather-toggle">예보</span>
     </summary>
     {panel}

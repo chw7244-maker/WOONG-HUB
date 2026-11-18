@@ -7,6 +7,8 @@ import { handleAlbums } from './music.mjs';
 import { handleSpotify } from './spotify.mjs';
 import { handleSpotifyAuth } from './spotify-auth.mjs';
 import { handleSpotifyData } from './spotify-data.mjs';
+import { handleFootball } from './football.mjs';
+import { handleWatchSearch } from './watch.mjs';
 
 const MAX_BYTES = 1024 * 1024;
 function json(body, status = 200) {
@@ -48,6 +50,8 @@ export async function handleApi(request, env, ctx) {
   }
   if(path.startsWith('/api/news'))return handleNews(request,env,ctx);
   if(path==='/api/calendar'||path==='/api/calendar/sync')return handleCalendar(request,env);
+  if(path==='/api/football')return handleFootball(request,ctx);
+  if(path==='/api/watch/search')return handleWatchSearch(request,env);
   if(path==='/api/games/steam')return handleSteam(request,env,ctx);
   if(path.startsWith('/api/steam/'))return handleSteamAccounts(request,env,ctx);
   if(path==='/api/music/albums')return handleAlbums(request,env,ctx);

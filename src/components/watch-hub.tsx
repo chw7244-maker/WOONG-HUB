@@ -1,0 +1,222 @@
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { ArrowUpRight, BookOpen, Check, Clapperboard, Pencil, Plus, Search, Star, Trash2, Tv } from 'lucide-react';
+import { safeUrl, type Entry } from '@/lib/store';
+import { matchesSearch, searchTerms } from '@/lib/search';
+import { advanceWatch, isWatchEntry, koreanWeekday, progressLabel, watchDays, watchingNow, watchStatuses, watchTypes, type WatchCatalogItem, type WatchEntry, type WatchStatus, type WatchType } from '@/lib/watch';
+import Dialog from './dialog';
+
+const icons = { movie: Clapperboard, tv: Tv, webtoon: BookOpen };
+const types = Object.keys(watchTypes) as WatchType[];
+const statuses = Object.keys(watchStatuses) as WatchStatus[];
+const posterUrl = (item: WatchCatalogItem) => `https://image.tmdb.org/t/p/w342${item.posterPath}`;
+const tmdbTitle = (type: WatchType, item: WatchCatalogItem) => `https://www.themoviedb.org/${type}/${item.id}?language=ko-KR`;
+
+function TmdbCredit() {
+  return <section className="watch-source" aria-label="작품 데이터 출처">
+    <a href="https://www.themoviedb.org/" target="_blank" rel="noreferrer">
+      <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_long_2-9665a76b1ae401a510ec1e0ca40ddcb3b0cfe45f1d51b77a308fea0845885648.svg" alt="TMDB" width={84} height={12}/>
+    </a>
+    <span>This product uses the TMDB API but is not endorsed or certified by TMDB.</span>
+  </section>;
+}
+
+function Cover({ entry, featured = false }: { entry: WatchEntry; featured?: boolean }) {
+  const { watch } = entry;
+  const [failed, setFailed] = useState(false);
+  const Icon = icons[watch.type];
+  return <div className={`watch-cover watch-cover-${watch.type}${featured ? ' watch-cover-feature' : ''}`} aria-hidden="true">
+    {watch.catalog?.posterPath && !failed
+      ? <img src={posterUrl(watch.catalog)} alt="" loading={featured ? 'eager' : 'lazy'} referrerPolicy="no-referrer" onError={() => setFailed(true)}/>
+      : <Icon strokeWidth={1.25}/>}
+  </div>;
+}
+
+function progressAction(entry: WatchEntry, onSave: (entry: Entry) => boolean) {
+  if (entry.watch.status === 'completed') return null;
+  if (entry.watch.type === 'movie') return <button type="button" className="button secondary" onClick={() => onSave({ ...entry, watch: { ...entry.watch, status: 'completed', updatedAt: new Date().toISOString() } })}><Check size={15}/>감상 완료</button>;
+  if ((entry.watch.progress ?? 0) >= 99999) return null;
+  return <button type="button" className="button secondary" onClick={() => onSave(advanceWatch(entry))} aria-label={`${entry.title} 다음 회차 기록`}><Plus size={15}/>다음 회차</button>;
+}
+
+function WatchItem({ entry, onEdit, onDelete, onSave, featured = false }: {
+  entry: WatchEntry; onEdit: (entry: Entry) => void; onDelete: (entry: Entry) => void; onSave: (entry: Entry) => boolean; featured?: boolean;
+}) {
+  const { watch } = entry;
+  const href = safeUrl(entry.url);
+  return <article className={featured ? 'watch-feature' : 'watch-entry'}>
+    <Cover key={watch.catalog?.posterPath ?? watch.type} entry={entry} featured={featured}/>
+    <div className="watch-entry-copy">
+      <p className="watch-kicker">{featured ? '이어서 보기 · ' : ''}{watchTypes[watch.type]}{watch.catalog?.year && ` · ${watch.catalog.year}`}</p>
+      <h2><button type="button" onClick={() => onEdit(entry)}>{entry.title}</button></h2>
+      <p className="watch-entry-meta"><span>{progressLabel(watch)}</span>{watch.weekday !== undefined && <span>{watchDays[watch.weekday]}요일 연재</span>}{watch.rating !== undefined && <span><Star size={13}/> {watch.rating}/5</span>}</p>
+      {entry.detail && <p className="watch-entry-note">{entry.detail}</p>}
+      <div className="watch-entry-actions">
+        {progressAction(entry, onSave)}
+        {href && <a className="text-button" href={href} target="_blank" rel="noreferrer">작품 열기<ArrowUpRight size={14}/></a>}
+        <button type="button" className="icon-button" onClick={() => onEdit(entry)} aria-label={`${entry.title} 수정`}><Pencil size={16}/></button>
+        <button type="button" className="icon-button" onClick={() => onDelete(entry)} aria-label={`${entry.title} 삭제`}><Trash2 size={16}/></button>
+      </div>
+    </div>
+  </article>;
+}
+
+export function HomeWatch({ entries, onEdit }: { entries: Entry[]; onEdit: (entry: Entry) => void }) {
+  const recent = watchingNow(entries)[0];
+  const href = recent && safeUrl(recent.url);
+  const Icon = recent ? icons[recent.watch.type] : Clapperboard;
+  return <div className="hub-continuation-item watch-home-item">
+    <span className="hub-continuation-icon" aria-hidden="true"><Icon size={17}/></span>
+    <div className="hub-continuation-copy">
+      <small>{recent ? `${watchTypes[recent.watch.type]} · ${progressLabel(recent.watch)}` : '영화 · 드라마 · 웹툰'}</small>
+      {recent ? <button type="button" onClick={() => onEdit(recent)}>{recent.title}</button> : <Link href="/watch/">작품 보관함 열기</Link>}
+    </div>
+    {href && <a className="icon-button" href={href} target="_blank" rel="noreferrer" aria-label={`${recent.title} 작품 링크 열기`}><ArrowUpRight size={16}/></a>}
+  </div>;
+}
+
+export default function WatchHub({ entries, now, onAdd, onEdit, onDelete, onSave }: {
+  entries: Entry[]; now: Date | null; onAdd: (type: WatchType) => void; onEdit: (entry: Entry) => void; onDelete: (entry: Entry) => void; onSave: (entry: Entry) => boolean;
+}) {
+  const [type, setType] = useState<WatchType | 'all'>('all');
+  const [status, setStatus] = useState<WatchStatus | 'all'>('all');
+  const [query, setQuery] = useState('');
+  const collection = entries.filter(isWatchEntry).sort((a, b) => Date.parse(b.watch.updatedAt) - Date.parse(a.watch.updatedAt));
+  const browsing = type === 'all' && status === 'all' && !query.trim();
+  const featured = browsing ? watchingNow(collection)[0] : undefined;
+  const today = now ? koreanWeekday(now) : -1;
+  const airing = collection.filter(item => item.watch.type === 'webtoon' && item.watch.weekday === today && item.watch.status !== 'completed');
+  const matches = collection.filter(item => (type === 'all' || item.watch.type === type) && (status === 'all' || item.watch.status === status) &&
+    matchesSearch([item.title, item.detail, watchTypes[item.watch.type]], searchTerms(query)));
+  const lists = status === 'all' ? ['watching', 'planned', 'completed'] as const : [status];
+
+  return <div className="watch-hub">
+    {featured && <WatchItem entry={featured} onEdit={onEdit} onSave={onSave} onDelete={onDelete} featured/>}
+    <div className="watch-toolbar">
+      <div className="tabs" role="group" aria-label="작품 종류">
+        <button type="button" aria-pressed={type === 'all'} className={type === 'all' ? 'selected' : ''} onClick={() => setType('all')}>전체</button>
+        {types.map(value => <button key={value} type="button" aria-pressed={type === value} className={type === value ? 'selected' : ''} onClick={() => setType(value)}>{watchTypes[value]}</button>)}
+      </div>
+      <label className="watch-search"><Search size={15} aria-hidden="true"/><input type="search" aria-label="내 작품 검색" placeholder="내 작품 검색" value={query} onChange={event => setQuery(event.target.value)}/></label>
+      <select aria-label="감상 상태" value={status} onChange={event => setStatus(event.target.value as typeof status)}>
+        <option value="all">모든 상태</option>{statuses.map(value => <option key={value} value={value}>{watchStatuses[value]}</option>)}
+      </select>
+      <button type="button" className="button primary" onClick={() => onAdd(type === 'all' ? 'movie' : type)}><Plus size={16}/>작품 추가</button>
+    </div>
+    {today >= 0 && status === 'all' && !query.trim() && (type === 'webtoon' || (browsing && airing.length > 0)) && <section className="panel airing-webtoons" aria-label="오늘 연재 예정 웹툰">
+      <h2><BookOpen size={17}/> {watchDays[today]}요일 연재 예정</h2>
+      {airing.length ? <ul>{airing.map(item => <li key={item.id}><button type="button" className="text-button" onClick={() => onEdit(item)}>{item.title}<ArrowUpRight size={13}/></button></li>)}</ul> : <p>오늘 연재로 등록한 웹툰이 없어요.</p>}
+      <div><a className="text-button muted" href="https://comic.naver.com/webtoon" target="_blank" rel="noreferrer">네이버웹툰<ArrowUpRight size={12}/></a><a className="text-button muted" href="https://webtoon.kakao.com/" target="_blank" rel="noreferrer">카카오웹툰<ArrowUpRight size={12}/></a></div>
+    </section>}
+    {matches.length === 0 && <section className="watch-empty panel">
+      <Clapperboard size={28} aria-hidden="true"/>
+      <h2>{collection.length ? '조건에 맞는 작품이 없어요' : '보고 싶은 작품부터 모아보세요'}</h2>
+      {!collection.length && <p>영화·드라마·웹툰을 저장하고, 본 회차와 감상을 남길 수 있어요.</p>}
+    </section>}
+    {lists.map(group => {
+      const items = matches.filter(item => item.watch.status === group && item.id !== featured?.id);
+      return items.length > 0 && <section className="watch-list" key={group} aria-label={watchStatuses[group]}>
+        <h2>{watchStatuses[group]} <span>{items.length}</span></h2>
+        <div>{items.map(entry => <WatchItem entry={entry} key={entry.id} onEdit={onEdit} onSave={onSave} onDelete={onDelete}/>)}</div>
+      </section>;
+    })}
+    {collection.some(item => item.watch.catalog) && <TmdbCredit/>}
+  </div>;
+}
+
+export function WatchEntryModal({ entry, defaultType = 'movie', onClose, onSave }: {
+  entry?: Entry; defaultType?: WatchType; onClose: () => void; onSave: (entry: Entry) => boolean;
+}) {
+  const old = entry?.watch;
+  const [type, setType] = useState<WatchType>(old?.type ?? defaultType);
+  const [status, setStatus] = useState<WatchStatus>(old?.status ?? 'planned');
+  const [title, setTitle] = useState(entry?.title ?? '');
+  const [url, setUrl] = useState(entry?.url ?? '');
+  const [catalog, setCatalog] = useState(old?.catalog);
+  const [items, setItems] = useState<WatchCatalogItem[]>([]);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [manual, setManual] = useState(false);
+  const request = useRef<AbortController | null>(null);
+  useEffect(() => () => request.current?.abort(), []);
+
+  function clearSearch() {
+    request.current?.abort();
+    setItems([]);
+    setBusy(false);
+    setMessage('');
+  }
+
+  async function search() {
+    if (!title.trim() || type === 'webtoon') return;
+    clearSearch();
+    const controller = new AbortController();
+    request.current = controller;
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/watch/search?${new URLSearchParams({ type, q: title.trim().slice(0, 100) })}`, { signal: controller.signal });
+      const result = await response.json();
+      if (controller.signal.aborted) return;
+      if (!response.ok) {
+        const missing = result.error === 'catalog_not_connected';
+        setManual(missing);
+        setMessage(missing ? 'TMDB 연결이 필요해요. 제목을 직접 저장하거나 TMDB에서 작품을 찾아볼 수 있어요.' : '검색 결과를 불러오지 못했어요. 제목을 직접 저장할 수 있어요.');
+      } else {
+        setItems(result.items);
+        if (!result.items.length) setMessage('일치하는 작품이 없어요. 다른 제목으로 검색해보세요.');
+      }
+    } catch { if (!controller.signal.aborted) setMessage('검색 중 연결이 끊어졌어요.'); }
+    finally { if (!controller.signal.aborted) setBusy(false); }
+  }
+
+  function select(item: WatchCatalogItem) {
+    setTitle(item.title);
+    setCatalog(item);
+    if (!url.trim() || (old?.catalog && url === tmdbTitle(old.type, old.catalog))) setUrl(tmdbTitle(type, item));
+    setItems([]);
+    setMessage('TMDB 작품 정보를 적용했어요.');
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = title.trim(), link = safeUrl(url.trim());
+    if (!name) { setError('작품 제목을 입력해주세요.'); return; }
+    if (url.trim() && !link) { setError('http:// 또는 https:// 주소를 입력해주세요.'); return; }
+    const form = new FormData(event.currentTarget);
+    const optionalNumber = (key: string) => form.get(key) ? Number(form.get(key)) : undefined;
+    const updatedAt = new Date().toISOString();
+    onSave({ id: entry?.id ?? crypto.randomUUID(), kind: 'watch', title: name, detail: String(form.get('detail') ?? '').trim(),
+      category: '', status: '', url: link, date: '', done: false, createdAt: entry?.createdAt ?? updatedAt,
+      watch: { type, status, catalog, updatedAt, progress: optionalNumber('progress'), season: optionalNumber('season'), rating: optionalNumber('rating'), weekday: optionalNumber('weekday') } });
+  }
+
+  return <Dialog title={entry ? '작품 수정' : '작품 추가'} onClose={onClose} className="watch-dialog">
+    <form onSubmit={submit}><div className="entry-form">
+      <div className="form-two-columns"><label>종류<select value={type} onChange={event => {
+        const nextType = event.target.value as WatchType;
+        if (catalog && url === tmdbTitle(type, catalog)) setUrl('');
+        setCatalog(undefined); clearSearch(); setType(nextType);
+      }}>{types.map(value => <option key={value} value={value}>{watchTypes[value]}</option>)}</select></label>
+      <label>상태<select value={status} onChange={event => setStatus(event.target.value as WatchStatus)}>{statuses.map(value => <option key={value} value={value}>{watchStatuses[value]}</option>)}</select></label></div>
+      <div className="watch-title-fields"><label>작품 제목 <input required maxLength={200} value={title} onChange={event => { clearSearch(); setTitle(event.target.value); }}/></label>
+        {type !== 'webtoon' && <button type="button" className="button secondary" disabled={busy || !title.trim() || manual} onClick={() => void search()}><Search size={15}/>{busy ? '검색 중' : 'TMDB 검색'}</button>}
+      </div>
+      {message && <p className="watch-feedback" role="status">{message}</p>}
+      {manual && type !== 'webtoon' && <a className="text-button blue" target="_blank" rel="noreferrer" href={`https://www.themoviedb.org/search?${new URLSearchParams({ query: title.trim(), language: 'ko-KR' })}`}>TMDB에서 검색<ArrowUpRight size={13}/></a>}
+      {!!items.length && <ul className="watch-search-results" aria-label="TMDB 검색 결과">{items.map(item => <li key={item.id}><button type="button" onClick={() => select(item)}>{item.title}{item.year && ` · ${item.year}`}<Plus size={14}/></button></li>)}</ul>}
+      <div className="form-two-columns" key={type}>
+        {type === 'tv' && <label>시즌<input name="season" type="number" min={1} max={999} defaultValue={old?.type === type ? old.season : undefined}/></label>}
+        {type !== 'movie' && <label>마지막으로 본 회차<input name="progress" type="number" min={0} max={99999} defaultValue={old?.type === type ? old.progress : undefined}/></label>}
+        {type === 'webtoon' && <label>연재 요일<select name="weekday" defaultValue={old?.type === type ? old.weekday ?? '' : ''}><option value="">미지정</option>{watchDays.map((day, index) => <option key={day} value={index}>{day}요일</option>)}</select></label>}
+        <label>별점<select name="rating" defaultValue={old?.rating ?? ''}><option value="">미평가</option>{[5, 4, 3, 2, 1, 0].map(value => <option key={value} value={value}>{value}점</option>)}</select></label>
+      </div>
+      <label>{type === 'webtoon' ? '공식 작품 링크' : '작품 링크'} <input type="url" maxLength={2000} placeholder="https://" value={url} onChange={event => setUrl(event.target.value)}/></label>
+      <label>감상 메모<textarea name="detail" maxLength={10000} rows={3} defaultValue={entry?.detail}/></label>
+      {error && <p role="alert" className="form-error">{error}</p>}
+      {(catalog || items.length > 0) && <TmdbCredit/>}
+    </div><div className="dialog-footer"><button type="button" className="button secondary" onClick={onClose}>취소</button><button type="submit" className="button primary"><Check size={15}/>저장하기</button></div></form>
+  </Dialog>;
+}

@@ -18,9 +18,9 @@
 .hub-wordmark { display: inline-flex; align-items: center; gap: 9px; white-space: nowrap; font-size: 14px; font-weight: 700; letter-spacing: .045em; }
 .hub-wordmark > span { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--blue-soft); color: var(--blue); }
 .hub-desktop-nav, .hub-header-actions { display: flex; align-items: center; gap: 5px; }
-.hub-desktop-nav > a { display: inline-grid; place-items: center; min-height: 44px; padding: 0 11px; color: var(--muted); font-size: 13px; white-space: nowrap; border-radius: 8px; }
-.hub-desktop-nav > a:hover { background: var(--hover); color: var(--text); }
-.hub-desktop-nav [aria-current] { color: var(--blue); background: var(--blue-soft); font-weight: 650; }
+.hub-desktop-nav > :is(a,button) { display: inline-grid; place-items: center; min-height: 44px; padding: 0 14px; color: var(--muted); font-size: 14px; white-space: nowrap; border-radius: 8px; }
+.hub-desktop-nav > :is(a,button):hover { background: var(--hover); color: var(--text); }
+.hub-desktop-nav :is([aria-current],[data-active=true],[aria-expanded=true]) { color: var(--blue); background: var(--blue-soft); font-weight: 650; }
 .hub-header-actions > .icon-button { width: 36px; height: 40px; }
 .hub-header-actions .notification-button i { top: 10px; right: 8px; }
 .hub-bottom-nav { display: none; }
@@ -134,14 +134,8 @@
 .hub-note-writing { flex: 1 0 145px; min-height: 145px; font-size: 17px; line-height: 1.72; resize: none; overscroll-behavior-y: contain; }
 .hub-note-title:focus-visible, .hub-note-writing:focus-visible { outline: 1px solid var(--blue); outline-offset: 5px; }
 
-@media (761px <= width <= 900px) {
-  .hub-header-inner { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding-block-end: 7px; }
-  .hub-header-actions, .hub-wordmark { min-height: 52px; }
-  .hub-desktop-nav { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); }
-}
-
 @media (max-width: 760px) {
-  .app-shell { --hub-bottom-nav-height: calc(97px + env(safe-area-inset-bottom)); }
+  .app-shell { --hub-bottom-nav-height: calc(62px + env(safe-area-inset-bottom)); }
   .hub-workspace .main-content { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); padding-bottom: var(--hub-bottom-nav-height); }
   .app-shell .toast { bottom: calc(var(--hub-bottom-nav-height) + 12px); }
   .hub-desktop-nav { display: none; }
@@ -150,13 +144,12 @@
   .hub-header-actions > .icon-button { width: 44px; height: 44px; }
   .hub-header-actions .notification-button i { right: 11px; }
   .hub-bottom-nav {
-    position: fixed; z-index: 65; inset: auto 0 0; display: grid; grid-template-columns: repeat(10,minmax(0,1fr)); row-gap: 2px;
-    padding: 3px max(4px, env(safe-area-inset-right)) calc(3px + env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left));
+    position: fixed; z-index: 65; inset: auto 0 0; display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 4px;
+    padding: 5px max(6px, env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
     border-top: 1px solid var(--border); background: var(--sidebar);
   }
-  .hub-bottom-nav > a { grid-column: span 2; display: grid; place-content: center; justify-items: center; gap: 1px; min-height: 44px; border-radius: 10px; color: var(--muted); font-size: 11px; line-height: 1.3; }
-  .hub-bottom-nav > a:nth-child(6) { grid-column: 2 / span 2; }
-  .hub-bottom-nav [aria-current] { color: var(--blue); background: var(--blue-soft); font-weight: 650; }
+  .hub-bottom-nav > :is(a,button) { display: grid; place-content: center; justify-items: center; gap: 3px; min-height: 48px; min-width: 0; border-radius: 10px; color: var(--muted); font-size: 12px; line-height: 1.3; }
+  .hub-bottom-nav :is([aria-current],[data-active=true],[aria-expanded=true]) { color: var(--blue); background: var(--blue-soft); font-weight: 650; }
   .hub-workspace .page-heading { align-items: flex-start; }
   .hub-home-layout, .hub-game-highlights.has-playing, .hub-resume-grid, .hub-resume-grid:has(> :nth-child(2):last-child) { grid-template-columns: minmax(0,1fr); }
   .hub-tasks { border-top: 1px solid var(--border); padding-top: 15px; }

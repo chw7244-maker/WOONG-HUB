@@ -100,7 +100,7 @@ function DailyForecast({ forecast }: { forecast: Forecast }) {
 
 type RequestResult = { city: string; retry: number; forecast: Forecast | null };
 
-export default function WeatherCard({ city, onCityChange }: { city: string; onCityChange: (city: string) => void }) {
+export default function WeatherCard({ city, onCityChange, compact = false }: { city: string; onCityChange: (city: string) => void; compact?: boolean }) {
   const [result, setResult] = useState<RequestResult>();
   const [retry, setRetry] = useState(0);
   const [period, setPeriod] = useState<'hourly' | 'daily'>('hourly');
@@ -134,8 +134,10 @@ export default function WeatherCard({ city, onCityChange }: { city: string; onCi
   const today = weather?.days.find(day => day.time === weather.current.time.slice(0, 10));
   const { Icon, label } = condition(weather?.current.code ?? null, weather?.current.night);
   const hasForecast = period === 'hourly' ? weather?.hours.length : weather?.days.length;
+  const wetHour = weather?.hours.find(hour => hour.time > weather.current.time && hour.rain !== null && hour.rain >= 40);
+  const cityLabel = weatherRegions.flatMap(region => Object.entries(region.cities)).find(([name]) => name === city)?.[1].label;
 
-  return <section className="panel weather-card" aria-label="날씨">
+  const panel = <section className="panel weather-card" aria-label="날씨 상세">
     <div className="panel-heading">
       <h2>날씨</h2>
       <div className="weather-location">
@@ -177,4 +179,13 @@ export default function WeatherCard({ city, onCityChange }: { city: string; onCi
         <a className="weather-source" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo · {weather.current.time.slice(11, 16)} 기준 (KST)</a>
       </>}
   </section>;
+
+  if (!compact) return panel;
+  return <details className="hub-weather-summary">
+    <summary><Icon size={20} aria-hidden="true"/><strong>{cityLabel}{weather && ` · ${degrees(weather.current.temperature)}`}</strong>
+      <span>{!settled ? '날씨 확인 중' : !weather ? '날씨 다시 확인' : wetHour ? `${wetHour.time.slice(0, 10) === weather.current.time.slice(0, 10) ? '' : '내일 '}${wetHour.time.slice(11, 16)} 강수 ${probability(wetHour.rain)}` : today?.rain != null ? `오늘 강수 ${probability(today.rain)}` : label}</span>
+      <span className="hub-weather-toggle">예보</span>
+    </summary>
+    {panel}
+  </details>;
 }

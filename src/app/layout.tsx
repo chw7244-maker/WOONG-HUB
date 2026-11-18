@@ -14,6 +14,7 @@ import '../components/hub-redesign.css';
 import '../components/hub-sections.css';
 import '../components/home-priorities.css';
 import '../components/weather.css';
+import '../components/hobbies.css';
 import { SyncProvider } from '@/components/sync-provider';
 import { SpotifyProvider } from '@/components/spotify-provider';
 import { SpotifyPlaybackProvider } from '@/components/spotify-playback';

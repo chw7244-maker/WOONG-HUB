@@ -1,0 +1,105 @@
+.connection-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.connection-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 17px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+
+.connection-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.connection-title h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.connection-title svg {
+  flex-shrink: 0;
+  color: var(--blue);
+}
+
+.connection-title .badge {
+  max-width: none;
+  font-size: 10px;
+}
+
+.connection-card p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.connection-card .connection-account {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.connection-account small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.connection-permissions,
+.connection-details {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+}
+
+.connection-permissions li,
+.connection-details > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 10px;
+}
+
+.connection-details dt {
+  color: var(--muted);
+}
+
+.connection-details dd {
+  margin: 0;
+}
+
+.connection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.connection-actions > * {
+  min-height: 36px;
+}
+
+#calendar-sources {
+  scroll-margin-top: 16px;
+}
+
+@media (max-width: 1100px) {
+  .connection-grid { grid-template-columns: 1fr; }
+  .connection-actions > * { min-height: 44px; }
+}

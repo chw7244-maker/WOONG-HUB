@@ -21,9 +21,10 @@ export function validateCalendar(input:unknown):CalendarSnapshot{
 }
 export function eventOnDay(event:CalendarEvent,day:string){if(event.allDay)return day>=event.start&&day<event.end;const begin=Date.parse(day+'T00:00:00+09:00'),end=begin+86400000,start=Date.parse(event.start),finish=Date.parse(event.end);return start<end&&(finish===start?start>=begin:finish>begin);}
 export function eventStartDay(event:CalendarEvent){return event.allDay?event.start:new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(event.start));}
+export function lastCalendarDay(endExclusive:string){return new Date(Date.parse(endExclusive+'T00:00:00Z')-86400000).toISOString().slice(0,10);}
 export function localCalendarEvent(entry:Entry):CalendarEvent|null{if(entry.kind!=='event'||!entry.date)return null;const allDay=!entry.date.includes('T');return {id:entry.id,sourceId:'hub-local',title:entry.title,url:'',allDay,start:allDay?entry.date:entry.date+':00+09:00',end:allDay?new Date(Date.parse(entry.date+'T00:00:00Z')+86400000).toISOString().slice(0,10):entry.date+':00+09:00'};}
 export function calendarPeriod(event:CalendarEvent){
-  if(event.allDay){const last=new Date(Date.parse(event.end+'T00:00:00Z')-86400000).toISOString().slice(0,10);return last===event.start?'종일':`${event.start.slice(5)} ~ ${last.slice(5)} · 종일`;}
+  if(event.allDay){const last=lastCalendarDay(event.end);return last===event.start?'종일':`${event.start.slice(5)} ~ ${last.slice(5)} · 종일`;}
   const format=(v:string)=>new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(v));
   return `${eventStartDay(event).slice(5)} ${format(event.start)}${event.end!==event.start?' – '+format(event.end):''} KST`;
 }

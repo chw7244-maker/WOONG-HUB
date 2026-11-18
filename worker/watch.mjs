@@ -14,7 +14,7 @@ export async function handleWatchSearch(request, env, fetcher = fetch) {
   const search = new URLSearchParams({ query, language: 'ko-KR', include_adult: 'false' });
   try {
     const response = await fetcher(`https://api.themoviedb.org/3/search/${type}?${search}`, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(8000),
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, redirect: 'manual', signal: AbortSignal.timeout(8000),
     });
     if (!response.ok || Number(response.headers.get('Content-Length')) > 500_000) {
       await response.body?.cancel();

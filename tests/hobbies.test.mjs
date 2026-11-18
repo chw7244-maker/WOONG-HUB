@@ -6,6 +6,7 @@ import { mergeData } from '../src/lib/merge.ts';
 import { searchEntries } from '../src/lib/search.ts';
 import { clubFixtures, handleFootball, leagueTable, premierLeagueSeason } from '../worker/football.mjs';
 import { handleWatchSearch } from '../worker/watch.mjs';
+import { handleWeather } from '../worker/weather.mjs';
 
 const request = path => new Request(`https://hub.example${path}`, { headers: { 'oai-authenticated-user-id': 'owner' } });
 const day = Date.parse('2026-11-18T10:00:00Z');
@@ -42,7 +43,8 @@ test('club calendar uses the newest revision, retains all competitions and keeps
 
 test('home loads just the official schedule and league failures do not hide it', async () => {
   let calls = [];
-  const fetcher = async url => {
+  const fetcher = async (url, options) => {
+    assert.equal(options.redirect, 'manual');
     calls.push(url);
     if (url.startsWith('https://api-prod.mancity.com/')) return new Response(feed);
     if (url.endsWith('getbltable/pl/2026')) return Response.json(table);
@@ -64,7 +66,21 @@ test('TMDB lookup handles missing configuration and only returns validated poste
   const response = await handleWatchSearch(search, { TMDB_READ_TOKEN: 'test-token' }, async (url, options) => {
     assert.equal(new URL(url).searchParams.get('language'), 'ko-KR');
     assert.equal(options.headers.Authorization, 'Bearer test-token');
+    assert.equal(options.redirect, 'manual');
     return Response.json({ results: [{ id: 12, title: '콘택트', release_date: '1997-07-11', poster_path: '/poster.jpg' }, { id: 13, title: 'Invalid', poster_path: '/../../poster.jpg' }] });
   });
   assert.deepEqual((await response.json()).items, [{ id: 12, title: '콘택트', year: '1997', posterPath: '/poster.jpg' }]);
+  const redirect = await handleWatchSearch(search, { TMDB_READ_TOKEN: 'test-token' }, async () => Response.redirect('https://example.com/'));
+  assert.equal(redirect.status, 502);
+});
+
+test('weather proxy uses the fixed forecast origin and validates the city before requesting it', async () => {
+  const fetcher = async (url, options) => {
+    assert.equal(new URL(url).origin, 'https://api.open-meteo.com');
+    assert.equal(options.redirect, 'manual');
+    return Response.json({ current: { time: '2026-11-18T12:00', temperature_2m: 11 } });
+  };
+  const valid = await handleWeather(request('/api/weather?city=suwon'), null, { fetcher });
+  assert.equal((await valid.json()).current.temperature, 11);
+  assert.equal((await handleWeather(request('/api/weather?city=constructor'), null, { fetcher })).status, 400);
 });

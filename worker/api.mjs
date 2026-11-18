@@ -7,8 +7,10 @@ import { handleAlbums } from './music.mjs';
 import { handleSpotify } from './spotify.mjs';
 import { handleSpotifyAuth } from './spotify-auth.mjs';
 import { handleSpotifyData } from './spotify-data.mjs';
-import { handleFootball } from './football.mjs';
+import { footballSnapshot, handleFootball } from './football.mjs';
 import { handleWatchSearch } from './watch.mjs';
+import { handleWeather, weatherForecast } from './weather.mjs';
+import { defaultWeatherCity } from '../src/lib/weather-cities.ts';
 
 const MAX_BYTES = 1024 * 1024;
 function json(body, status = 200) {
@@ -37,7 +39,7 @@ async function boundedBody(request) {
 }
 
 export async function handleApi(request, env, ctx) {
-  const path=new URL(request.url).pathname;
+  const url=new URL(request.url),path=url.pathname;
   // Read-only readiness endpoint. The private Sites gate still protects this path.
   if(path==='/api/health' && request.method==='GET') {
     try {
@@ -45,13 +47,19 @@ export async function handleApi(request, env, ctx) {
       await env.DB.prepare('SELECT revision FROM hub_documents LIMIT 1').first();
       await env.DB.prepare('SELECT id FROM news_articles LIMIT 1').first();
       await env.DB.prepare('SELECT revision FROM notion_calendar_snapshots LIMIT 1').first();
-      return json({ok:true,storage:'d1',schema:3,news:true,calendar:true});
     } catch {return json({ok:false,error:'database_unavailable'},503);}
+    const health={ok:true,storage:'d1',schema:3,news:true,calendar:true};
+    if(url.searchParams.get('integrations')!=='1')return json(health);
+    const [football,weather]=await Promise.all([
+      footballSnapshot(request,ctx,false),weatherForecast(request,ctx,defaultWeatherCity)
+    ]);
+    return json({...health,integrations:{fixtures:football.fixtures?.items.length??null,standings:football.standings?.items.length??null,results:football.results?.items.length??null,weather:!!weather}});
   }
   if(path.startsWith('/api/news'))return handleNews(request,env,ctx);
   if(path==='/api/calendar'||path==='/api/calendar/sync')return handleCalendar(request,env);
   if(path==='/api/football')return handleFootball(request,ctx);
   if(path==='/api/watch/search')return handleWatchSearch(request,env);
+  if(path==='/api/weather')return handleWeather(request,ctx);
   if(path==='/api/games/steam')return handleSteam(request,env,ctx);
   if(path.startsWith('/api/steam/'))return handleSteamAccounts(request,env,ctx);
   if(path==='/api/music/albums')return handleAlbums(request,env,ctx);

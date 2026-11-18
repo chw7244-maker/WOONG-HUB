@@ -68,7 +68,7 @@ export function cityLeagueResults(matches) {
 }
 
 async function fetchText(fetcher, url, limit) {
-  const response = await fetcher(url, { redirect: 'error', signal: AbortSignal.timeout(9000) });
+  const response = await fetcher(url, { redirect: 'manual', signal: AbortSignal.timeout(9000) });
   if (!response.ok || Number(response.headers.get('Content-Length')) > limit || !response.body) {
     await response.body?.cancel();
     throw new Error('source_unavailable');
@@ -107,11 +107,7 @@ async function cachedSource(request, key, fetchData, { cache, ctx, now }) {
   catch { return previous ? { ...previous, stale: true } : null; }
 }
 
-export async function handleFootball(request, ctx, { fetcher = fetch, cache = globalThis.caches?.default, now = Date.now() } = {}) {
-  const user = request.headers.get('oai-authenticated-user-id');
-  if (!user || user.length > 200) return json({ error: 'authentication_required' }, 401);
-  if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
-  const home = new URL(request.url).searchParams.get('view') === 'home';
+export async function footballSnapshot(request, ctx, home, { fetcher = fetch, cache = globalThis.caches?.default, now = Date.now() } = {}) {
   const season = premierLeagueSeason(new Date(now));
   const options = { cache, ctx, now };
   const [fixtures, standings, results] = await Promise.all([
@@ -119,5 +115,13 @@ export async function handleFootball(request, ctx, { fetcher = fetch, cache = gl
     home ? null : cachedSource(request, `table-${season}`, async () => leagueTable(JSON.parse(await fetchText(fetcher, `${leagueApi}/getbltable/pl/${season}`, 1_000_000))), options),
     home ? null : cachedSource(request, `results-${season}`, async () => cityLeagueResults(JSON.parse(await fetchText(fetcher, `${leagueApi}/getmatchdata/pl/${season}`, 12_000_000))), options),
   ]);
-  return json({ season, fixtures: fixtures && { ...fixtures, items: fixtures.items.filter(match => Date.parse(match.kickOff) >= now).slice(0, home ? 5 : 24) }, standings, results });
+  return { season, fixtures: fixtures && { ...fixtures, items: fixtures.items.filter(match => Date.parse(match.kickOff) >= now).slice(0, home ? 5 : 24) }, standings, results };
+}
+
+export async function handleFootball(request, ctx, options) {
+  const user = request.headers.get('oai-authenticated-user-id');
+  if (!user || user.length > 200) return json({ error: 'authentication_required' }, 401);
+  if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
+  const home = new URL(request.url).searchParams.get('view') === 'home';
+  return json(await footballSnapshot(request, ctx, home, options));
 }

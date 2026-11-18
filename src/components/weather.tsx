@@ -111,9 +111,16 @@ export default function WeatherCard({ city, onCityChange, compact = false }: { c
     let active = true;
     async function loadForecast() {
       try {
-        const response = await fetch(forecastUrl(city), { signal: controller.signal });
-        if (!response.ok) throw new Error('예보 요청 실패');
-        const forecast = parseForecast(await response.json());
+        const fallback = async () => {
+          const response = await fetch(forecastUrl(city), { signal: controller.signal });
+          if (!response.ok) throw new Error('예보 요청 실패');
+          return parseForecast(await response.json());
+        };
+        const forecast = await fetch(`/api/weather?${new URLSearchParams({ city })}`, { signal: controller.signal })
+          .then(response => {
+            if (!response.ok) throw new Error('예보 요청 실패');
+            return response.json() as Promise<Forecast>;
+          }).catch(fallback);
         if (active) setResult({ city, retry, forecast });
       } catch {
         if (active) setResult({ city, retry, forecast: null });

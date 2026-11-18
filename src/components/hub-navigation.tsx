@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { AudioLines, Bell, BriefcaseBusiness, CalendarDays, Gamepad2, Headphones, House, Menu, Moon, Music2, Newspaper, Search, Settings2, StickyNote, Sun } from 'lucide-react';
-import Dialog from './dialog';
+import { AudioLines, Bell, BriefcaseBusiness, CalendarDays, Gamepad2, Headphones, House, Moon, Music2, Newspaper, Search, Settings2, StickyNote, Sun } from 'lucide-react';
 
 const pages = [
   { id: 'home', label: '홈', icon: House },
@@ -18,10 +17,10 @@ const pages = [
 const href = (id: string) => id === 'home' ? '/' : `/${id}/`;
 
 export default function HubNavigation({
-  section, dark, menuOpen, hasNotifications, notificationOpen, onMenu, onSearch, onTheme, onNotifications,
+  section, dark, hasNotifications, notificationOpen, onSearch, onTheme, onNotifications,
 }: {
-  section: string; dark: boolean; menuOpen: boolean; hasNotifications: boolean; notificationOpen: boolean;
-  onMenu: (open: boolean) => void; onSearch: () => void; onTheme: () => void; onNotifications: () => void;
+  section: string; dark: boolean; hasNotifications: boolean; notificationOpen: boolean;
+  onSearch: () => void; onTheme: () => void; onNotifications: () => void;
 }) {
   const active = section === 'spotify' ? 'music' : section === 'steam' ? 'games' : section;
   return <>
@@ -29,10 +28,9 @@ export default function HubNavigation({
       <div className="hub-header-inner">
         <Link href="/" className="hub-wordmark"><span><AudioLines size={19} aria-hidden="true" /></span>WOONG HUB</Link>
         <nav className="hub-desktop-nav" aria-label="주 메뉴">
-          {pages.slice(0, 6).map(({ id, label }) => (
+          {pages.map(({ id, label }) => (
             <Link key={id} href={href(id)} aria-current={active === id ? 'page' : undefined}>{label}</Link>
           ))}
-          <button type="button" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => onMenu(true)}>더보기</button>
         </nav>
         <div className="hub-header-actions">
           <button type="button" className="icon-button" aria-label="내 공간 검색" onClick={onSearch}><Search size={18}/></button>
@@ -42,17 +40,9 @@ export default function HubNavigation({
       </div>
     </header>
     <nav className="hub-bottom-nav" aria-label="모바일 주 메뉴">
-      {pages.filter(({ id }) => ['home', 'calendar', 'library'].includes(id)).map(({ id, label, icon: Icon }) => (
+      {pages.map(({ id, label, icon: Icon }) => (
         <Link key={id} href={href(id)} aria-current={active === id ? 'page' : undefined}><Icon size={20} aria-hidden="true"/><span>{id === 'library' ? '메모' : label}</span></Link>
       ))}
-      <button type="button" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => onMenu(true)}><Menu size={20} aria-hidden="true"/><span>더보기</span></button>
     </nav>
-    {menuOpen && <Dialog title="메뉴" className="hub-menu-dialog" onClose={() => onMenu(false)}>
-      <nav className="hub-menu-list" aria-label="전체 메뉴">
-        {pages.map(({ id, label, icon: Icon }) => (
-          <Link key={id} href={href(id)} aria-current={active === id ? 'page' : undefined} onClick={() => onMenu(false)}><Icon size={18} aria-hidden="true"/>{label}</Link>
-        ))}
-      </nav>
-    </Dialog>}
   </>;
 }

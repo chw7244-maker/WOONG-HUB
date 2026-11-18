@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, ArrowUpRight, AudioLines, Bell, CalendarDays, Check, ChevronDown, ChevronLeft, Gamepad2, Headphones, ListTodo, Moon, Newspaper, Plus, SlidersHorizontal, Sun, X, BriefcaseBusiness, Pencil, Link2, Database, type LucideIcon, SquarePen } from 'lucide-react';
-import WeatherCard from './weather';
+import WeatherCard, { WeatherCitySelect } from './weather';
 import NewsHub, { NewsBriefing } from './news-hub';
 import AudioHub, { AudioEntryModal } from './audio-hub';
 import GamesHub, { GameEntryModal } from './games-hub';
@@ -25,7 +25,7 @@ import Dialog from './dialog';
 import { isSetup } from '@/lib/audio';
 import { useHubSync } from './sync-provider';
 import { CloudStorageSettings, SyncIndicator, SyncNotice } from './sync-status';
-import { type Entry, type HubData, type Kind, cities, validateData, todayKST, koreanDate, safeUrl, mediaWidgets, mediaWidgetVisible } from '@/lib/store';
+import { type Entry, type HubData, type Kind, validateData, todayKST, koreanDate, safeUrl, mediaWidgets, mediaWidgetVisible } from '@/lib/store';
 
 const details: Record<string,{title:string;description:string;kind?:Kind}> = {
   news:{title:'뉴스 허브',description:'관심 있는 소식을 읽고, 오래 기억할 기사를 모으세요.'},
@@ -58,7 +58,7 @@ export default function Hub({section}:{section:string}) {
   const {data,ready}=sync;
   const calendar=useCalendarSnapshot(ready&&['home','calendar','settings'].includes(section));
   const [now,setNow]=useState<Date|null>(null);
-  const [modal,setModal]=useState<{kind:Kind;entry?:Entry}|null>(null),[searchOpen,setSearchOpen]=useState(false),[query,setQuery]=useState(''),[toast,setToast]=useState(''),[mobileMenu,setMobileMenu]=useState(false),[libraryTab,setLibraryTab]=useState<Kind>('note'),[filter,setFilter]=useState('전체'),[pendingImport,setPendingImport]=useState<HubData|null>(null),[deleteEntry,setDeleteEntry]=useState<Entry|null>(null),[notificationOpen,setNotificationOpen]=useState(false);
+  const [modal,setModal]=useState<{kind:Kind;entry?:Entry}|null>(null),[searchOpen,setSearchOpen]=useState(false),[query,setQuery]=useState(''),[toast,setToast]=useState(''),[libraryTab,setLibraryTab]=useState<Kind>('note'),[filter,setFilter]=useState('전체'),[pendingImport,setPendingImport]=useState<HubData|null>(null),[deleteEntry,setDeleteEntry]=useState<Entry|null>(null),[notificationOpen,setNotificationOpen]=useState(false);
   const fileRef=useRef<HTMLInputElement>(null);
   useEffect(()=>{
     const refresh=()=>setNow(new Date());
@@ -70,7 +70,7 @@ export default function Hub({section}:{section:string}) {
   },[]);
   useEffect(()=>{if(!ready)return;document.documentElement.dataset.theme=data.preferences.theme;},[ready,data.preferences.theme]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),4500);return()=>clearTimeout(t);},[toast]);
-  useEffect(()=>{setFilter('전체');setMobileMenu(false);},[section]);
+  useEffect(()=>{setFilter('전체');},[section]);
   useEffect(()=>{
     if(section!=='library')return;
     const tab=new URLSearchParams(window.location.search).get('tab');
@@ -106,9 +106,9 @@ export default function Hub({section}:{section:string}) {
   const sectionEntries=entries(activeKind).filter(e=>filter==='전체'||e.status===filter||e.category===filter).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
 
   return <div className="app-shell">
-    <HubNavigation section={section} dark={data.preferences.theme==='dark'} menuOpen={mobileMenu}
+    <HubNavigation section={section} dark={data.preferences.theme==='dark'}
       hasNotifications={events.some(event=>event.date.startsWith(today))} notificationOpen={notificationOpen}
-      onMenu={setMobileMenu} onSearch={()=>setSearchOpen(true)} onTheme={()=>preference({theme:data.preferences.theme==='dark'?'light':'dark'})}
+      onSearch={()=>setSearchOpen(true)} onTheme={()=>preference({theme:data.preferences.theme==='dark'?'light':'dark'})}
       onNotifications={()=>setNotificationOpen(value=>!value)}/>
     <div className="workspace hub-workspace">
       {notificationOpen&&<section className="notification-popover panel"><PanelHeading title="오늘의 알림"><button className="icon-button" aria-label="알림 닫기" onClick={()=>setNotificationOpen(false)}><X size={16}/></button></PanelHeading>{events.filter(e=>e.date.startsWith(today)).length?events.filter(e=>e.date.startsWith(today)).map(e=><button key={e.id} className="notification-row" onClick={()=>{setNotificationOpen(false);setModal({kind:'event',entry:e});}}><CalendarDays size={16}/><span>{e.title}<small>{koreanDate(e.date)}</small></span></button>):<Empty icon={Bell} title="지금은 새 알림이 없어요" description="오늘 등록한 일정이 여기에 표시돼요."/>}</section>}
@@ -155,7 +155,7 @@ export default function Hub({section}:{section:string}) {
           </section>}
           <div className="hub-secondary-grid">
             {visible('bookmarks')&&<section className="quick-links-section"><PanelHeading title="즐겨찾는 곳"><button className="text-button muted" onClick={()=>setModal({kind:'bookmark'})}><Plus size={14}/>추가</button></PanelHeading><div className="quick-links">{shortcuts.map(({title,subtitle,url,icon:Icon,color})=><a className="quick-link" key={title} href={url} target={url.startsWith('/')?undefined:'_blank'} rel="noreferrer"><span className={`shortcut-icon ${color}`}><Icon size={21} strokeWidth={1.7}/></span><strong>{title}</strong><small>{subtitle}</small><ArrowUpRight className="shortcut-arrow" size={13}/></a>)}</div>{entries('bookmark').length>0&&<div className="personal-links">{entries('bookmark').slice(0,6).map(e=><a href={safeUrl(e.url)} target="_blank" rel="noreferrer" key={e.id}><Link2 size={12}/>{e.title}<ArrowUpRight size={12}/></a>)}</div>}</section>}
-            {visible('weather')&&<WeatherCard city={data.preferences.city} onSettings={()=>window.location.assign('/settings/#weather')}/>}
+            {visible('weather')&&<WeatherCard city={data.preferences.city} onCityChange={city=>preference({city})}/>}
             {visible('news')&&<NewsBriefing/>}
           </div>
         </>:<>
@@ -166,7 +166,7 @@ export default function Hub({section}:{section:string}) {
             </nav>
             <ConnectionSettings userId={sync.userId} ready={ready} calendar={calendar} hidden={data.preferences.calendarHiddenSources??[]} today={today}/>
             <section className="panel settings-panel" id="appearance"><PanelHeading title="화면과 테마"/><p className="muted">지금의 분위기에 맞는 테마를 선택하세요.</p><div className="theme-choices">{(['dark','light'] as const).map(t=><button key={t} className={`theme-choice ${data.preferences.theme===t?'selected':''}`} aria-pressed={data.preferences.theme===t} onClick={()=>preference({theme:t})}><span className={`theme-preview ${t}`}><i/><i/><i/></span>{t==='dark'?<Moon size={15}/>:<Sun size={15}/>} {t==='dark'?'다크':'라이트'}{data.preferences.theme===t&&<Check size={15}/>}</button>)}</div></section>
-            <section className="panel settings-panel" id="weather"><PanelHeading title="날씨 지역"/><p className="muted">선택한 도시의 현재 날씨를 홈에 표시합니다.</p><label className="field-label" htmlFor="city">도시</label><select id="city" value={data.preferences.city} onChange={e=>preference({city:e.target.value})}>{Object.entries(cities).map(([id,c])=><option value={id} key={id}>{c.label}</option>)}</select><small className="setting-caption">시간과 일정의 기준은 대한민국 표준시(KST)입니다.</small></section>
+            <section className="panel settings-panel" id="weather"><PanelHeading title="날씨 지역"/><p className="muted">선택한 도시의 현재 날씨와 예보를 홈에 표시합니다.</p><label className="field-label" htmlFor="city">도시</label><WeatherCitySelect id="city" city={data.preferences.city} onChange={city=>preference({city})}/><small className="setting-caption">시간과 일정의 기준은 대한민국 표준시(KST)입니다.</small></section>
             <section className="panel settings-panel" id="widgets"><PanelHeading title="홈 위젯"/><p className="muted">매일 보고 싶은 정보만 남겨두세요.</p><div className="widget-toggles">{Object.entries(widgetLabels).map(([id,label])=><label key={id} className="toggle-row"><span>{label}</span><input type="checkbox" checked={visible(id)} onChange={e=>toggleWidget(id,e.target.checked)}/><span className="toggle-switch"/></label>)}</div></section>
             <CloudStorageSettings count={data.entries.length} onExport={exportData} onImport={()=>fileRef.current?.click()}/>
             <input ref={fileRef} hidden type="file" accept=".json,application/json" onChange={e=>importFile(e.target.files?.[0])}/>

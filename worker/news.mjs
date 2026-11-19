@@ -23,20 +23,34 @@ async function collectionFeeds(db) {
   const appIds=new Set([...followed,...starterNewsTopics].map(topic=>topic.steamAppId).filter(Boolean));
   return [...FEEDS,...[...appIds].slice(0,steamNewsLimit).map(steamNewsFeed)];
 }
+
+async function fetchNewsSources(feeds,fetcher,now){
+  const deadline=Date.now()+24_000;
+  const direct=[],publishers=[],results=new Array(feeds.length);
+  feeds.forEach((feed,index)=>(feed.publisher?publishers:direct).push(index));
+
+  async function consume(queue){
+    while(queue.length){
+      const index=queue.shift();
+      try{
+        const remaining=deadline-Date.now();
+        if(remaining<=0)throw new Error('collection_deadline');
+        results[index]={status:'fulfilled',value:await fetchFeed(feeds[index],fetcher,now,remaining)};
+      }catch(reason){
+        results[index]={status:'rejected',reason};
+      }
+    }
+  }
+
+  await Promise.all([consume(direct),consume(direct),consume(direct),consume(publishers),consume(publishers)]);
+  return results;
+}
+
 export async function collectNews(env,lease,{fetcher=fetch,now=new Date(),feeds}={}){
   const checkedAt=now.toISOString();
   try{
     const available=feeds??await collectionFeeds(env.DB);
-    const publisherQueues=[Promise.resolve(),Promise.resolve()];
-    let nextQueue=0;
-    const loads=available.map(feed=>{
-      if(!feed.publisher)return fetchFeed(feed,fetcher,now);
-      const queue=nextQueue++%publisherQueues.length;
-      const pending=publisherQueues[queue].then(()=>fetchFeed(feed,fetcher,now));
-      publisherQueues[queue]=pending.then(()=>{},()=>{});
-      return pending;
-    });
-    const results=await Promise.allSettled(loads);
+    const results=await fetchNewsSources(available,fetcher,now);
     const collected=new Map(),sources=[];
     for(let i=0;i<results.length;i++){
       const feed=available[i],result=results[i];

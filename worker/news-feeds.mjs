@@ -149,8 +149,8 @@ export async function parseLaunchCalendar(html,feed,now=new Date()){
   return articles.sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt)).slice(0,20);
 }
 
-export async function fetchFeed(feed,fetcher=fetch,now=new Date()){
-  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),feed.publisher?8000:12000);
+export async function fetchFeed(feed,fetcher=fetch,now=new Date(),remainingMs=Infinity){
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(remainingMs,feed.publisher?8000:12000));
   try{
     const allowedHosts=new Set([new URL(feed.url).hostname]);
     if(!feed.publisher)allowedHosts.add(new URL(feed.website).hostname);
@@ -164,7 +164,10 @@ export async function fetchFeed(feed,fetcher=fetch,now=new Date()){
       await response.body?.cancel();target=next.href;
       if(hop===2)throw new Error('redirect_limit');
     }
-    if(!response?.ok)throw new Error(`http_${response?.status??0}`);
+    if(!response?.ok){
+      if(response?.body)await response.body.cancel().catch(()=>{});
+      throw new Error('http_'+(response?.status??0));
+    }
     if(Number(response.headers.get('content-length'))>1500000)throw new Error('feed_too_large');
     const reader=response.body?.getReader();if(!reader)throw new Error('empty_feed');
     const decoder=new TextDecoder(feed.encoding);let body='';let bytes=0;

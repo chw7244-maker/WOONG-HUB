@@ -136,6 +136,20 @@ test('Google 뉴스 동시 요청을 두 개로 제한하고 일부 실패 후�
   assert.equal(result.sources.find(source=>source.id==='gamemeca').error,'http_503');
 });
 
+test('일반 출처가 많아도 요청 수를 제한하고 전체 결과를 저장한다',async t=>{
+  const {DB,fetcher}=await setup(t);
+  let active=0,peak=0;
+  const limited=async url=>{
+    peak=Math.max(peak,++active);
+    await Promise.resolve();
+    try{return await fetcher(url);}
+    finally{active--;}
+  };
+  const result=await collectNews({DB},{leaseUntil:0},{feeds,fetcher:limited});
+  assert.equal(peak,3);
+  assert.equal(result.count,feeds.length);
+});
+
 test('보드나라의 구형 한국어 인코딩을 바이트 경계에서도 올바르게 읽는다',async()=>{
   const publisher=FEEDS.find(source=>source.id==='bodnara');
   const encoder=new TextEncoder();

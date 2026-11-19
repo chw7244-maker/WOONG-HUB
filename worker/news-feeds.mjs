@@ -1,9 +1,9 @@
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 
-function googleNewsPublisher(id,label,website,site,category,{section,sourceLabel=label,days=7}={}){
+function googleNewsPublisher(id,label,website,site,category,{section,sourceLabel=label,days=7,scope}={}){
   const params=new URLSearchParams({q:'site:'+site+' when:'+days+'d',hl:'ko',gl:'KR',ceid:'KR:ko'});
   const host=new URL(website).hostname.replace(/^www\./,'');
-  return {id,name:label+' · Google 뉴스',website,url:'https://news.google.com/rss/search?'+params,category,language:'ko',publisher:{label:sourceLabel,host,section}};
+  return {id,name:label+' · Google 뉴스',website,url:'https://news.google.com/rss/search?'+params,category,language:'ko',scope,publisher:{label:sourceLabel,host,section}};
 }
 
 // Fixed public sources. Browser input cannot supply a fetch URL.
@@ -17,20 +17,21 @@ export const FEEDS=[
   googleNewsPublisher('quasarzone-news','퀘이사존','https://quasarzone.com/bbs/qn_hardware','quasarzone.com/bbs/qn_hardware/views','pc-it',{section:'하드웨어 뉴스'}),
   {id:'inven',name:'인벤',website:'https://www.inven.co.kr/webzine/news/',url:'https://feeds.feedburner.com/inven',category:'games',language:'ko'},
   {id:'gamedonga',name:'게임동아',website:'https://game.donga.com/',url:'https://game.donga.com/feeds/rss/news/',category:'games',language:'ko'},
+  {id:'ruliweb',name:'루리웹 · 게임 뉴스',website:'https://bbs.ruliweb.com/news',url:'https://bbs.ruliweb.com/news/rss',category:'games',language:'ko'},
   {id:'bodnara',name:'보드나라',website:'https://www.bodnara.co.kr/',url:'https://www.bodnara.co.kr/rss/rss_pc.xml',category:'pc-it',language:'ko',encoding:'euc-kr'},
   {id:'itdonga',name:'IT동아',website:'https://it.donga.com/',url:'https://it.donga.com/feeds/rss/news/',category:'pc-it',language:'ko'},
-  {id:'0db',name:'영디비 · 오디오 뉴스',website:'https://www.0db.co.kr/NEWS',url:'https://www.0db.co.kr/NEWS/rss',category:'audio-music',language:'ko',
-    scope:/이어폰|헤드폰|헤드셋|스피커|오디오|이어팁|앰프|음향|\b(?:iem|dac|dap|headphones?|earbuds?|earphones?|speakers?)\b/iu},
+  googleNewsPublisher('0db','영디비 · 오디오 뉴스','https://www.0db.co.kr/NEWS','0db.co.kr/NEWS','audio-music',
+    {sourceLabel:'영디비',days:14,scope:/이어폰|헤드폰|헤드셋|스피커|오디오|이어팁|앰프|음향|\b(?:iem|dac|dap|headphones?|earbuds?|earphones?|speakers?)\b/iu}),
   {id:'tonplein',name:'온음',website:'https://www.tonplein.com/',url:'https://www.tonplein.com/feed/',category:'music',language:'ko'},
   {id:'weiv',name:'웨이브 [weiv]',website:'https://www.weiv.co.kr/',url:'https://www.weiv.co.kr/feed',category:'music',language:'ko'},
   {id:'visla',name:'VISLA · 음악',website:'https://visla.kr/',url:'https://visla.kr/category/article/music/feed/',category:'music',language:'ko'},
   {id:'cineplay',name:'씨네플레이',website:'https://www.cineplay.co.kr/',url:'https://www.cineplay.co.kr/rss/category/code/S1N8',category:'screen',language:'ko'},
   {id:'moviepress',name:'무비프레스',website:'https://moviepress.kr/',url:'https://moviepress.kr/rss/ko-kr.xml',category:'screen',language:'ko'},
-  {id:'extmovie',name:'익스트림무비 · 영화수다',website:'https://extmovie.com/movietalk',url:'https://extmovie.com/movietalk/rss',category:'screen',language:'ko',
-    scope:/개봉|공개|예고편|상영|박스오피스|영화제|감독|인터뷰|속편|제작|넷플릭스|OTT/iu},
+  googleNewsPublisher('extmovie','익스트림무비 · 영화수다','https://extmovie.com/movietalk','extmovie.com/movietalk','screen',
+    {sourceLabel:'익스트림무비',scope:/개봉|공개|예고편|상영|박스오피스|영화제|감독|인터뷰|속편|제작|넷플릭스|OTT/iu}),
   {id:'webtoonguide',name:'웹툰가이드',website:'https://www.webtoonguide.com/ko/board/news-column',url:'https://www.webtoonguide.com/ko/board/news-column',category:'webtoon',language:'ko',format:'webtoon-news'},
-  {id:'footballist',name:'풋볼리스트',website:'https://www.footballist.co.kr/',url:'https://www.footballist.co.kr/rss/allArticle.xml',category:'football',language:'ko'},
-  {id:'fourfourtwo',name:'포포투 코리아',website:'https://www.fourfourtwo.co.kr/',url:'https://www.fourfourtwo.co.kr/rss/allArticle.xml',category:'football',language:'ko'},
+  {id:'footballist',name:'풋볼리스트',website:'https://www.footballist.co.kr/',url:'https://www.footballist.co.kr/rss/S1N1.xml',category:'football',language:'ko'},
+  {id:'fourfourtwo',name:'포포투 코리아',website:'https://www.fourfourtwo.co.kr/',url:'https://www.fourfourtwo.co.kr/rss/S1N2.xml',category:'football',language:'ko'},
   googleNewsPublisher('city-ko','맨체스터 시티 한국어','https://kr.mancity.com/news','kr.mancity.com/news','football',{sourceLabel:'Manchester City FC',days:14}),
 ];
 export function steamNewsFeed(appId) {
@@ -149,7 +150,7 @@ export async function parseLaunchCalendar(html,feed,now=new Date()){
 }
 
 export async function fetchFeed(feed,fetcher=fetch,now=new Date()){
-  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),feed.publisher?6500:12000);
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),feed.publisher?8000:12000);
   try{
     const allowedHosts=new Set([new URL(feed.url).hostname]);
     if(!feed.publisher)allowedHosts.add(new URL(feed.website).hostname);

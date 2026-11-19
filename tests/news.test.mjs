@@ -115,7 +115,7 @@ test('Google 뉴스는 지정한 매체·게시판에 속한 기사 제목과 �
   assert.deepEqual((await parseFeed(rss(quasarRows),quasar)).map(article=>article.title),['GPU 성능 소식']);
 });
 
-test('같은 Google 뉴스 호스트에 순서대로 요청하며 한 매체가 실패해도 다음 매체를 확인한다',async t=>{
+test('Google 뉴스 동시 요청을 두 개로 제한하고 일부 실패 후에도 다음 매체를 확인한다',async t=>{
   const {DB}=await setup(t);
   const googleFeeds=FEEDS.filter(source=>source.publisher);
   let outstanding=0, maxOutstanding=0;
@@ -126,12 +126,12 @@ test('같은 Google 뉴스 호스트에 순서대로 요청하며 한 매체가 
     outstanding--;
     if(feed.id==='gamemeca')return new Response('unavailable',{status:503});
     const suffix=feed.publisher.section?' > '+feed.publisher.section:'';
-    const rssItem=item(feed.id,'국내 새 소식'+suffix+' - '+feed.publisher.label,now().toUTCString(),'https://news.google.com/rss/articles/'+feed.id)
+    const rssItem=item(feed.id,'감독과 함께 신제품 헤드폰 공개'+suffix+' - '+feed.publisher.label,now().toUTCString(),'https://news.google.com/rss/articles/'+feed.id)
       .replace('</item>','<source url="https://'+feed.publisher.host+'">'+feed.publisher.label+'</source></item>');
     return new Response(rss(rssItem));
   };
   const result=await collectNews({DB},{leaseUntil:0},{feeds:googleFeeds,fetcher});
-  assert.equal(maxOutstanding,1);
+  assert.equal(maxOutstanding,2);
   assert.equal(result.count,googleFeeds.length-1);
   assert.equal(result.sources.find(source=>source.id==='gamemeca').error,'http_503');
 });

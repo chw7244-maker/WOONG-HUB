@@ -27,11 +27,13 @@ export async function collectNews(env,lease,{fetcher=fetch,now=new Date(),feeds}
   const checkedAt=now.toISOString();
   try{
     const available=feeds??await collectionFeeds(env.DB);
-    let googleNewsQueue=Promise.resolve();
+    const publisherQueues=[Promise.resolve(),Promise.resolve()];
+    let nextQueue=0;
     const loads=available.map(feed=>{
       if(!feed.publisher)return fetchFeed(feed,fetcher,now);
-      const pending=googleNewsQueue.then(()=>fetchFeed(feed,fetcher,now));
-      googleNewsQueue=pending.then(()=>{},()=>{});
+      const queue=nextQueue++%publisherQueues.length;
+      const pending=publisherQueues[queue].then(()=>fetchFeed(feed,fetcher,now));
+      publisherQueues[queue]=pending.then(()=>{},()=>{});
       return pending;
     });
     const results=await Promise.allSettled(loads);

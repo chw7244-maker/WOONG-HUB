@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {FEEDS,parseFeed,canonicalUrl,fetchFeed,parseGameMeca,parseLaunchCalendar,steamNewsFeed} from '../worker/news-feeds.mjs';
+import {FEEDS,parseFeed,canonicalUrl,fetchFeed,parseLaunchCalendar,steamNewsFeed} from '../worker/news-feeds.mjs';
 import {claimNewsSync,collectNews,handleNews} from '../worker/news.mjs';
 import {rankNews} from '../worker/news-interests.mjs';
 import {starterNewsTopics} from '../src/lib/news.ts';
@@ -8,7 +8,7 @@ import {createLocalDatabase,applyLocalMigrations} from '../scripts/local-db.mjs'
 
 const now=()=>new Date();
 const feed=FEEDS[0];
-const feeds=FEEDS.filter(source=>!source.format);
+const feeds=FEEDS.filter(source=>!source.format&&!source.publisher);
 const item=(id,title=`테스트 기사 ${id}`,date=now().toUTCString(),link=`https://publisher.test/story/${id}`)=>`<item><title><![CDATA[${title}]]></title><link>${link.replaceAll('&','&amp;')}</link><pubDate>${date}</pubDate><description><![CDATA[<p>테스트 전용 소개 <b>본문</b></p><script>alert(1)</script>]]></description></item>`;
 const rss=(items)=>`<?xml version="1.0"?><rss version="2.0"><channel><title>테스트 피드</title>${items}</channel></rss>`;
 async function setup(t){
@@ -98,20 +98,21 @@ test('국내 런칭 캘린더는 확인된 상품명·가격·청음과 한국 �
   await assert.rejects(()=>parseLaunchCalendar('<html>차단된 응답</html>',retailer),/unsupported_feed/);
 });
 
-test('게임메카 공개 목록은 헤드라인과 일반 기사의 제목·한국 발행일·원문 링크를 읽는다',async()=>{
-  const publisher=FEEDS.find(source=>source.id==='gamemeca');
-  const row=(className,gid,time,title)=>'<li class="'+className+'"><strong class="tit_thumb'+(className?'_h':'')+
-    '"><a href="/view.php?gid='+gid+'">'+title+'</a></strong><div class="desc_thumb">본문 미리보기</div><div class="day_news">'+time+'</div></li>';
-  const headline=row('item_headline',321,'2026.11.19 11:00','&quot;오늘&quot; 출시');
-  const regular=row('',322,'2026.11.19 10:00','지스타 새 소식');
-  const html='<ul class="list_news">'+headline+regular+regular+row('',323,'2026.11.20 10:00','미래 기사')+
-    row('',324,'2026.02.30 10:00','잘못된 발행일')+row('adsbygoogle-li',325,'2026.11.19 10:00','광고')+'</ul>';
-  const items=await parseGameMeca(html,publisher,new Date('2026-11-19T03:00:00Z'));
-  assert.deepEqual(items.map(({title,url,publishedAt,description})=>[title,url,publishedAt,description]),[
-    ['"오늘" 출시','https://www.gamemeca.com/view.php?gid=321','2026-11-19T02:00:00.000Z',''],
-    ['지스타 새 소식','https://www.gamemeca.com/view.php?gid=322','2026-11-19T01:00:00.000Z',''],
-  ]);
-  await assert.rejects(()=>parseGameMeca('<html>접근 제한 화면</html>',publisher),/unsupported_feed/);
+test('Google 뉴스는 지정한 매체·게시판에 속한 기사 제목과 배포 링크만 가져온다',async()=>{
+  const meca=FEEDS.find(source=>source.id==='gamemeca');
+  const quasar=FEEDS.find(source=>source.id==='quasarzone-news');
+  const google='https://news.google.com/rss/articles/';
+  const published=now().toUTCString();
+  const row=(title,link,host,label)=>item('source',title,published,link).replace('</item>','<source url="https://'+host+'">'+label+'</source></item>');
+  const mecaRows=row('지스타 새 소식 - 게임메카',google+'01','www.gamemeca.com','게임메카')+
+    row('다른 매체 기사 - 게임메카',google+'02','outside.example','게임메카')+
+    row('이름이 다른 항목',google+'03','www.gamemeca.com','다른 매체')+
+    row('다른 링크','https://outside.example/news','www.gamemeca.com','게임메카');
+  const results=await parseFeed(rss(mecaRows),meca);
+  assert.deepEqual(results.map(({title,url,description})=>[title,url,description]),[['지스타 새 소식',google+'01','']]);
+  const quasarRows=row('GPU 성능 소식 > 하드웨어 뉴스 - 퀘이사존',google+'11','quasarzone.com','퀘이사존')+
+    row('장착하기 > 질문 게시판 - 퀘이사존',google+'12','quasarzone.com','퀘이사존');
+  assert.deepEqual((await parseFeed(rss(quasarRows),quasar)).map(article=>article.title),['GPU 성능 소식']);
 });
 
 test('보드나라의 구형 한국어 인코딩을 바이트 경계에서도 올바르게 읽는다',async()=>{

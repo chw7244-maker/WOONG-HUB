@@ -1,5 +1,11 @@
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 
+function googleNewsPublisher(id,label,website,host,category,section){
+  const path=section?new URL(website).pathname+'/views':'';
+  const params=new URLSearchParams({q:'site:'+host+path+' when:7d',hl:'ko',gl:'KR',ceid:'KR:ko'});
+  return {id,name:label+' · Google 뉴스',website,url:'https://news.google.com/rss/search?'+params,category,language:'ko',publisher:{label,host,section}};
+}
+
 // Fixed public sources. Browser input cannot supply a fetch URL.
 export const FEEDS=[
   {id:'headfonia',name:'Headfonia',website:'https://www.headfonia.com/',url:'https://www.headfonia.com/feed/',category:'audio-music',language:'en'},
@@ -16,7 +22,9 @@ export const FEEDS=[
   {id:'verge',name:'The Verge',website:'https://www.theverge.com/',url:'https://www.theverge.com/rss/index.xml',category:'pc-it',language:'en'},
   {id:'bbc-city',name:'BBC Sport · 맨시티',website:'https://www.bbc.com/sport/football/teams/manchester-city',url:'https://feeds.bbci.co.uk/sport/football/teams/manchester-city/rss.xml',category:'football',language:'en',limit:20},
   {id:'schezade',name:'셰에라자드',website:'https://www.schezade.co.kr/pagegen/v2/custom/launch-calendar/index.php',url:'https://www.schezade.co.kr/pagegen/v2/custom/launch-calendar/index.php',category:'korean-audio',language:'ko',format:'launch-calendar'},
-  {id:'gamemeca',name:'게임메카',website:'https://www.gamemeca.com/news.php',url:'https://www.gamemeca.com/news.php',category:'games',language:'ko',format:'gamemeca'},
+  googleNewsPublisher('gamemeca','게임메카','https://www.gamemeca.com/news.php','gamemeca.com','games'),
+  googleNewsPublisher('thisisgame-news','디스이즈게임','https://www.thisisgame.com/','thisisgame.com','games'),
+  googleNewsPublisher('quasarzone-news','퀘이사존','https://quasarzone.com/bbs/qn_hardware','quasarzone.com','pc-it','하드웨어 뉴스'),
   {id:'inven',name:'인벤',website:'https://www.inven.co.kr/webzine/news/',url:'https://feeds.feedburner.com/inven',category:'games',language:'ko'},
   {id:'gamedonga',name:'게임동아',website:'https://game.donga.com/',url:'https://game.donga.com/feeds/rss/news/',category:'games',language:'ko'},
   {id:'bodnara',name:'보드나라',website:'https://www.bodnara.co.kr/',url:'https://www.bodnara.co.kr/rss/rss_pc.xml',category:'pc-it',language:'ko',encoding:'euc-kr'},
@@ -50,6 +58,20 @@ async function asArticle(feed,title,url,description,published){
   const id=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
   return {id,title,url,sourceName:feed.name,sourceUrl:feed.website,description,publishedAt:published.toISOString(),categories:[feed.category],language:feed.language};
 }
+
+function syndicatedTitle(item,url,publisher){
+  if(!url||!item.source||plainText(item.source,100)!==publisher.label)return '';
+  const source=canonicalUrl(item.source['@_url']);
+  if(!source)return '';
+  const sourceHost=new URL(source).hostname;
+  const link=new URL(url);
+  if((sourceHost!==publisher.host&&sourceHost!=='www.'+publisher.host)||
+    link.origin!=='https://news.google.com'||!link.pathname.startsWith('/rss/articles/'))return '';
+  const title=plainText(item.title,420);
+  const suffix=(publisher.section?' > '+publisher.section:'')+' - '+publisher.label;
+  if(title.endsWith(suffix))return title.slice(0,-suffix.length).trim().slice(0,300);
+  return publisher.section?'':title.slice(0,300);
+}
 export async function parseFeed(xml,feed,now=new Date()){
   if(typeof xml!=='string'||xml.length>1500000||/<!DOCTYPE|<!ENTITY/i.test(xml))throw new Error('invalid_feed');
   if(XMLValidator.validate(xml)!==true)throw new Error('invalid_xml');
@@ -57,7 +79,8 @@ export async function parseFeed(xml,feed,now=new Date()){
   if(!Array.isArray(items))throw new Error('unsupported_feed');
   const articles=[];const seen=new Set();
   for(const item of items.slice(0,150)){
-    const title=plainText(item.title,300),url=canonicalUrl(typeof item.link==='string'?item.link:atomLink(item.link),feed.website);
+    const url=canonicalUrl(typeof item.link==='string'?item.link:atomLink(item.link),feed.website);
+    const title=feed.publisher?syndicatedTitle(item,url,feed.publisher):plainText(item.title,300);
     const published=new Date(item.pubDate??item.published??item.updated??item['dc:date']??'');
     if(!title||!url||!Number.isFinite(published.getTime())||published>new Date(now.getTime()+24*3600000)||published<new Date(now.getTime()-90*86400000)||seen.has(url))continue;
     if(feed.appId){
@@ -65,7 +88,7 @@ export async function parseFeed(xml,feed,now=new Date()){
       if(articleUrl.origin!=='https://store.steampowered.com'||!articleUrl.pathname.startsWith('/news/app/'+feed.appId+'/view/'))continue;
     }
     seen.add(url);
-    const rawDescription=item.description??item.summary??'';
+    const rawDescription=feed.publisher?'':item.description??item.summary??'';
     let description=plainText(rawDescription,240).replace(/\s*The post\s[\s\S]*$/i,'').trim();
     if(description===title||description.startsWith('The post '))description='';
     articles.push(await asArticle(feed,title,url,description,published));
@@ -94,37 +117,14 @@ export async function parseLaunchCalendar(html,feed,now=new Date()){
   return articles.sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt)).slice(0,20);
 }
 
-export async function parseGameMeca(html,feed,now=new Date()){
-  const list=html.match(/<ul class="list_news">([\s\S]*?)<\/ul>/)?.[1];
-  if(!list)throw new Error('unsupported_feed');
-  const articles=[],seen=new Set();
-  for(const [,entry] of list.matchAll(/<li class="(?:item_headline)?">([\s\S]*?)<\/li>/g)){
-    const headline=entry.match(/<strong class="tit_thumb(?:_h)?">\s*<a href="(\/view\.php\?gid=\d+)">([\s\S]*?)<\/a>/);
-    const publishedDate=entry.match(/<div class="day_news">\s*(\d{4})\.(\d{2})\.(\d{2}) (\d{2}:\d{2})\s*<\/div>/);
-    if(!headline||!publishedDate)continue;
-    const [,year,month,day,clock]=publishedDate;
-    const timestamp=year+'-'+month+'-'+day+'T'+clock;
-    const published=new Date(timestamp+':00+09:00');
-    const title=plainText(headline[2],300);
-    const url=new URL(headline[1],feed.website).href;
-    if(!title||seen.has(url)||!Number.isFinite(published.getTime())||published>now||
-      published.getTime()<now.getTime()-90*86_400_000||
-      new Date(published.getTime()+32_400_000).toISOString().slice(0,16)!==timestamp)continue;
-    seen.add(url);
-    articles.push(await asArticle(feed,title,url,'',published));
-  }
-  if(!articles.length)throw new Error('unsupported_feed');
-  return articles.sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt)).slice(0,feed.limit??12);
-}
-
-const htmlParsers = { 'launch-calendar':parseLaunchCalendar, gamemeca:parseGameMeca };
 export async function fetchFeed(feed,fetcher=fetch,now=new Date()){
   const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);
   try{
-    const allowedHosts=new Set([new URL(feed.url).hostname,new URL(feed.website).hostname]);
+    const allowedHosts=new Set([new URL(feed.url).hostname]);
+    if(!feed.publisher)allowedHosts.add(new URL(feed.website).hostname);
     let target=feed.url,response;
     for(let hop=0;hop<3;hop++){
-      response=await fetcher(target,{headers:{Accept:feed.format?'text/html':'application/rss+xml, application/atom+xml, application/xml, text/xml'},signal:controller.signal,redirect:'manual'});
+      response=await fetcher(target,{headers:{Accept:feed.format==='launch-calendar'?'text/html':'application/rss+xml, application/atom+xml, application/xml, text/xml'},signal:controller.signal,redirect:'manual'});
       if(response.status<300||response.status>=400)break;
       const location=response.headers.get('Location');if(!location)throw new Error('invalid_redirect');
       const next=new URL(location,target);
@@ -138,7 +138,7 @@ export async function fetchFeed(feed,fetcher=fetch,now=new Date()){
     const decoder=new TextDecoder(feed.encoding);let body='';let bytes=0;
     while(true){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>1500000){await reader.cancel();throw new Error('feed_too_large');}body+=decoder.decode(value,{stream:true});}
     body+=decoder.decode();
-    const parse=htmlParsers[feed.format]??parseFeed;
+    const parse=feed.format==='launch-calendar'?parseLaunchCalendar:parseFeed;
     return await parse(body,feed,now);
   }finally{clearTimeout(timer);}
 }

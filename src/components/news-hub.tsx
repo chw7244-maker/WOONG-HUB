@@ -152,6 +152,7 @@ export default function NewsHub({ games }: { games: Entry[] }) {
         </div>)}</div>
         <div className="news-direct-sources">
           <span>웹 기사 바로가기</span>
+          <a href="https://www.gamemeca.com/news.php" target="_blank" rel="noreferrer">게임메카<ArrowUpRight size={13}/></a>
           <a href="https://www.thisisgame.com/" target="_blank" rel="noreferrer">디스이즈게임<ArrowUpRight size={13}/></a>
           <a href="https://quasarzone.com/bbs/qn_hardware" target="_blank" rel="noreferrer">퀘이사존 하드웨어 뉴스<ArrowUpRight size={13}/></a>
         </div>

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {FEEDS,parseFeed,canonicalUrl,fetchFeed,parseLaunchCalendar,steamNewsFeed} from '../worker/news-feeds.mjs';
+import {FEEDS,parseFeed,canonicalUrl,fetchFeed,parseGameMeca,parseLaunchCalendar,steamNewsFeed} from '../worker/news-feeds.mjs';
 import {claimNewsSync,collectNews,handleNews} from '../worker/news.mjs';
 import {rankNews} from '../worker/news-interests.mjs';
 import {starterNewsTopics} from '../src/lib/news.ts';
@@ -96,6 +96,32 @@ test('국내 런칭 캘린더는 확인된 상품명·가격·청음과 한국 �
   assert.equal(result.publishedAt,'2026-11-18T08:43:00.000Z');
   assert.match(result.description,/1,160,000원 · 청음 가능/);
   await assert.rejects(()=>parseLaunchCalendar('<html>차단된 응답</html>',retailer),/unsupported_feed/);
+});
+
+test('게임메카 공개 목록은 헤드라인과 일반 기사의 제목·한국 발행일·원문 링크를 읽는다',async()=>{
+  const publisher=FEEDS.find(source=>source.id==='gamemeca');
+  const row=(className,gid,time,title)=>'<li class="'+className+'"><strong class="tit_thumb'+(className?'_h':'')+
+    '"><a href="/view.php?gid='+gid+'">'+title+'</a></strong><div class="desc_thumb">본문 미리보기</div><div class="day_news">'+time+'</div></li>';
+  const headline=row('item_headline',321,'2026.11.19 11:00','&quot;오늘&quot; 출시');
+  const regular=row('',322,'2026.11.19 10:00','지스타 새 소식');
+  const html='<ul class="list_news">'+headline+regular+regular+row('',323,'2026.11.20 10:00','미래 기사')+
+    row('',324,'2026.02.30 10:00','잘못된 발행일')+row('adsbygoogle-li',325,'2026.11.19 10:00','광고')+'</ul>';
+  const items=await parseGameMeca(html,publisher,new Date('2026-11-19T03:00:00Z'));
+  assert.deepEqual(items.map(({title,url,publishedAt,description})=>[title,url,publishedAt,description]),[
+    ['"오늘" 출시','https://www.gamemeca.com/view.php?gid=321','2026-11-19T02:00:00.000Z',''],
+    ['지스타 새 소식','https://www.gamemeca.com/view.php?gid=322','2026-11-19T01:00:00.000Z',''],
+  ]);
+  await assert.rejects(()=>parseGameMeca('<html>접근 제한 화면</html>',publisher),/unsupported_feed/);
+});
+
+test('보드나라의 구형 한국어 인코딩을 바이트 경계에서도 올바르게 읽는다',async()=>{
+  const publisher=FEEDS.find(source=>source.id==='bodnara');
+  const encoder=new TextEncoder();
+  const prefix=encoder.encode('<rss><channel><item><title>');
+  const suffix=encoder.encode('</title><link>https://www.bodnara.co.kr/story</link><pubDate>'+now().toUTCString()+'</pubDate></item></channel></rss>');
+  const stream=new ReadableStream({start(controller){controller.enqueue(prefix);controller.enqueue(Uint8Array.of(0xb0));controller.enqueue(Uint8Array.of(0xa1));controller.enqueue(suffix);controller.close();}});
+  const [result]=await fetchFeed(publisher,async()=>new Response(stream));
+  assert.equal(result.title,'가');
 });
 
 test('팔로우한 Steam 앱의 공지 경로만 수집한다',async()=>{

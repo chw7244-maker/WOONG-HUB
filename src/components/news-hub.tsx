@@ -150,6 +150,11 @@ export default function NewsHub({ games }: { games: Entry[] }) {
           <a href={source.website} target="_blank" rel="noreferrer">{source.name}{source.id.startsWith('steam-') ? ` · 앱 ${source.id.slice(6)}` : ''}<ArrowUpRight size={12}/></a>
           <small>{source.ok ? `${source.count}개 확인` : source.error?.startsWith('http_') ? `연결 오류 (${source.error.slice(5)})` : '일시 연결 실패'}</small>
         </div>)}</div>
+        <div className="news-direct-sources">
+          <span>웹 기사 바로가기</span>
+          <a href="https://www.thisisgame.com/" target="_blank" rel="noreferrer">디스이즈게임<ArrowUpRight size={13}/></a>
+          <a href="https://quasarzone.com/bbs/qn_hardware" target="_blank" rel="noreferrer">퀘이사존 하드웨어 뉴스<ArrowUpRight size={13}/></a>
+        </div>
         <p>페이지를 열 때 마지막 확인 후 한 시간이 지났으면 새 기사를 수집합니다.</p>
       </div>}
     </section>

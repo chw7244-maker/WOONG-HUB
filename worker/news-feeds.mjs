@@ -1,6 +1,6 @@
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 
-// Public publisher feeds only. Browser input cannot supply a fetch URL.
+// Fixed public sources. Browser input cannot supply a fetch URL.
 export const FEEDS=[
   {id:'headfonia',name:'Headfonia',website:'https://www.headfonia.com/',url:'https://www.headfonia.com/feed/',category:'audio-music',language:'en'},
   {id:'pitchfork',name:'Pitchfork',website:'https://pitchfork.com/',url:'https://pitchfork.com/feed/feed-news/rss',category:'music',language:'en'},
@@ -16,6 +16,13 @@ export const FEEDS=[
   {id:'verge',name:'The Verge',website:'https://www.theverge.com/',url:'https://www.theverge.com/rss/index.xml',category:'pc-it',language:'en'},
   {id:'bbc-city',name:'BBC Sport · 맨시티',website:'https://www.bbc.com/sport/football/teams/manchester-city',url:'https://feeds.bbci.co.uk/sport/football/teams/manchester-city/rss.xml',category:'football',language:'en',limit:20},
   {id:'schezade',name:'셰에라자드',website:'https://www.schezade.co.kr/pagegen/v2/custom/launch-calendar/index.php',url:'https://www.schezade.co.kr/pagegen/v2/custom/launch-calendar/index.php',category:'korean-audio',language:'ko',format:'launch-calendar'},
+  {id:'gamemeca',name:'게임메카',website:'https://www.gamemeca.com/news.php',url:'https://www.gamemeca.com/news.php',category:'games',language:'ko',format:'gamemeca'},
+  {id:'inven',name:'인벤',website:'https://www.inven.co.kr/webzine/news/',url:'https://feeds.feedburner.com/inven',category:'games',language:'ko'},
+  {id:'gamedonga',name:'게임동아',website:'https://game.donga.com/',url:'https://game.donga.com/feeds/rss/news/',category:'games',language:'ko'},
+  {id:'bodnara',name:'보드나라',website:'https://www.bodnara.co.kr/',url:'https://www.bodnara.co.kr/rss/rss_pc.xml',category:'pc-it',language:'ko',encoding:'euc-kr'},
+  {id:'itdonga',name:'IT동아',website:'https://it.donga.com/',url:'https://it.donga.com/feeds/rss/news/',category:'pc-it',language:'ko'},
+  {id:'thisisgame-video',name:'디스이즈게임 · 공식 영상',website:'https://www.youtube.com/@THISISGAMECOM',url:'https://www.youtube.com/feeds/videos.xml?channel_id=UCpgfZSDjJLKuXVvobvpxx8g',category:'games',language:'ko'},
+  {id:'quasarzone-video',name:'퀘이사존 · 공식 영상',website:'https://www.youtube.com/@QUASARZONE',url:'https://www.youtube.com/feeds/videos.xml?channel_id=UC17_4RLogNieDO33smNlcWw',category:'pc-it',language:'ko'},
 ];
 export function steamNewsFeed(appId) {
   return { id:'steam-' + appId, name:'Steam 공식', website:'https://store.steampowered.com/app/' + appId + '/',
@@ -86,13 +93,38 @@ export async function parseLaunchCalendar(html,feed,now=new Date()){
   if(!cards.length||(!articles.length&&!html.includes('lcc__date')))throw new Error('unsupported_feed');
   return articles.sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt)).slice(0,20);
 }
+
+export async function parseGameMeca(html,feed,now=new Date()){
+  const list=html.match(/<ul class="list_news">([\s\S]*?)<\/ul>/)?.[1];
+  if(!list)throw new Error('unsupported_feed');
+  const articles=[],seen=new Set();
+  for(const [,entry] of list.matchAll(/<li class="(?:item_headline)?">([\s\S]*?)<\/li>/g)){
+    const headline=entry.match(/<strong class="tit_thumb(?:_h)?">\s*<a href="(\/view\.php\?gid=\d+)">([\s\S]*?)<\/a>/);
+    const publishedDate=entry.match(/<div class="day_news">\s*(\d{4})\.(\d{2})\.(\d{2}) (\d{2}:\d{2})\s*<\/div>/);
+    if(!headline||!publishedDate)continue;
+    const [,year,month,day,clock]=publishedDate;
+    const timestamp=year+'-'+month+'-'+day+'T'+clock;
+    const published=new Date(timestamp+':00+09:00');
+    const title=plainText(headline[2],300);
+    const url=new URL(headline[1],feed.website).href;
+    if(!title||seen.has(url)||!Number.isFinite(published.getTime())||published>now||
+      published.getTime()<now.getTime()-90*86_400_000||
+      new Date(published.getTime()+32_400_000).toISOString().slice(0,16)!==timestamp)continue;
+    seen.add(url);
+    articles.push(await asArticle(feed,title,url,'',published));
+  }
+  if(!articles.length)throw new Error('unsupported_feed');
+  return articles.sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt)).slice(0,feed.limit??12);
+}
+
+const htmlParsers = { 'launch-calendar':parseLaunchCalendar, gamemeca:parseGameMeca };
 export async function fetchFeed(feed,fetcher=fetch,now=new Date()){
   const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);
   try{
     const allowedHosts=new Set([new URL(feed.url).hostname,new URL(feed.website).hostname]);
     let target=feed.url,response;
     for(let hop=0;hop<3;hop++){
-      response=await fetcher(target,{headers:{Accept:feed.format==='launch-calendar'?'text/html':'application/rss+xml, application/atom+xml, application/xml, text/xml'},signal:controller.signal,redirect:'manual'});
+      response=await fetcher(target,{headers:{Accept:feed.format?'text/html':'application/rss+xml, application/atom+xml, application/xml, text/xml'},signal:controller.signal,redirect:'manual'});
       if(response.status<300||response.status>=400)break;
       const location=response.headers.get('Location');if(!location)throw new Error('invalid_redirect');
       const next=new URL(location,target);
@@ -103,9 +135,10 @@ export async function fetchFeed(feed,fetcher=fetch,now=new Date()){
     if(!response?.ok)throw new Error(`http_${response?.status??0}`);
     if(Number(response.headers.get('content-length'))>1500000)throw new Error('feed_too_large');
     const reader=response.body?.getReader();if(!reader)throw new Error('empty_feed');
-    const decoder=new TextDecoder();let xml='';let bytes=0;
-    while(true){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>1500000){await reader.cancel();throw new Error('feed_too_large');}xml+=decoder.decode(value,{stream:true});}
-    xml+=decoder.decode();
-    return feed.format==='launch-calendar'?await parseLaunchCalendar(xml,feed,now):await parseFeed(xml,feed,now);
+    const decoder=new TextDecoder(feed.encoding);let body='';let bytes=0;
+    while(true){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>1500000){await reader.cancel();throw new Error('feed_too_large');}body+=decoder.decode(value,{stream:true});}
+    body+=decoder.decode();
+    const parse=htmlParsers[feed.format]??parseFeed;
+    return await parse(body,feed,now);
   }finally{clearTimeout(timer);}
 }

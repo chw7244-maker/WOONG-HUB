@@ -63,3 +63,5 @@
   .news-game-add { grid-template-columns: minmax(0, 1fr) auto; }
   .news-hub .news-reading-row { flex-wrap: wrap; }
 }
+.news-direct-sources { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 12px; font-size: .8125rem; color: var(--muted); }
+.news-direct-sources a { display: inline-flex; align-items: center; gap: 3px; color: var(--blue); }

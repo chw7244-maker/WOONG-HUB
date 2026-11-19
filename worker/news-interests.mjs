@@ -7,12 +7,12 @@ const eventWords = /\b(?:launch(?:es|ed)?|release[ds]?|out now|announc(?:e[ds]?|
 const kindPatterns = {
   update: /\b(?:patch(?:es)?|hotfix|firmware|update[ds]?|changelog)\b|패치|업데이트|펌웨어/iu,
   availability: /\b(?:in stock|restock|pre.?order|audition)\b|입고|재입고|예약\s*판매|청음|공동\s*구매/iu,
-  deal: /\b(?:discount|free to keep|giveaway|on sale|sale ends|price drop|deals?)\b|할인|특가|무료\s*배포|가격\s*(?:인상|인하|변경)/iu,
+  deal: /\b(?:discount|free to keep|giveaway|on sale|sale ends|price drop|deals?)\b|할인|특가|무료\s*배포|가격\s*(?:인상|인하|변경|근황)/iu,
   music: /\b(?:new (?:album|single|ep|record)|reissue[ds]?|remaster(?:ed)?|releas(?:e[ds]?|ing)|debut album|album of the day|album arrives|announces (?:an? |the )?(?:album|single|ep))\b|신보|새\s*앨범|발매|재발매|리마스터/iu,
   squad: /\b(?:injur(?:y|ies|ed)|fitness|team news|back in training|ruled out|returns? to training|sidelined)\b|부상|훈련\s*복귀|출전\s*여부|결장/iu,
   transfer: /\b(?:transfer[rs]?|signs?|signed|signing|contract|loan deal)\b|이적|계약|영입/iu,
   fixture: /\b(?:fixture[rs]?|kick.?off|match preview|rescheduled|broadcast|how to watch|when is|game moved)\b|킥오프|경기\s*일정|일정\s*변경|경기\s*예고|중계/iu,
-  performance: /\b(?:\d+\s*fps|frame[ -]?rate|system requirements|graphics mode|performance mode)\b|프레임\s*레이트|요구\s*사양|성능\s*모드/iu,
+  performance: /\b(?:\d+\s*fps|frame[ -]?rate|system requirements|graphics mode|performance mode|benchmarks?)\b|프레임\s*레이트|요구\s*사양|성능\s*(?:모드|비교|테스트)|벤치마크/iu,
   release: eventWords,
   review: /\breview[rs]?\b|리뷰|사용기|청음기/iu,
 };

@@ -98,17 +98,32 @@ test('국내 런칭 캘린더는 확인된 상품명·가격·청음과 한국 �
   await assert.rejects(()=>parseLaunchCalendar('<html>차단된 응답</html>',retailer),/unsupported_feed/);
 });
 
-test('Google 뉴스는 지정한 매체·게시판에 속한 기사 제목과 배포 링크만 가져온다',async()=>{
+test('게임메카 공식 RSS는 한국어 기사와 발행일, 원문 링크를 가져온다',async()=>{
   const meca=FEEDS.find(source=>source.id==='gamemeca');
+  const published=now();
+  const directUrl='https://www.gamemeca.com/view.php?gid=123456';
+  const feedXml=rss(item('meca','새로운 국산 게임 출시',published.toUTCString(),directUrl)+
+    item('old','오래된 게임 출시','Mon, 01 Jan 2001 12:00:00 +0900',directUrl+'7')+
+    item('english','English game update',published.toUTCString(),directUrl+'8').replace('테스트 전용 소개 <b>본문</b>','English-only description'));
+  const results=await fetchFeed(meca,async url=>{
+    assert.equal(url,'https://www.gamemeca.com/rss.php');
+    return new Response(feedXml);
+  },published);
+  assert.deepEqual(results.map(({title,url,sourceName,publishedAt})=>[title,url,sourceName,publishedAt]),
+    [['새로운 국산 게임 출시',directUrl,'게임메카',new Date(published.toUTCString()).toISOString()]]);
+});
+
+test('Google 뉴스는 지정한 매체·게시판에 속한 기사 제목과 배포 링크만 가져온다',async()=>{
+  const tig=FEEDS.find(source=>source.id==='thisisgame-news');
   const quasar=FEEDS.find(source=>source.id==='quasarzone-news');
   const google='https://news.google.com/rss/articles/';
   const published=now().toUTCString();
   const row=(title,link,host,label)=>item('source',title,published,link).replace('</item>','<source url="https://'+host+'">'+label+'</source></item>');
-  const mecaRows=row('지스타 새 소식 - 게임메카',google+'01','www.gamemeca.com','게임메카')+
-    row('다른 매체 기사 - 게임메카',google+'02','outside.example','게임메카')+
-    row('이름이 다른 항목',google+'03','www.gamemeca.com','다른 매체')+
-    row('다른 링크','https://outside.example/news','www.gamemeca.com','게임메카');
-  const results=await parseFeed(rss(mecaRows),meca);
+  const tigRows=row('지스타 새 소식 - 디스이즈게임',google+'01','www.thisisgame.com','디스이즈게임')+
+    row('다른 매체 기사 - 디스이즈게임',google+'02','outside.example','디스이즈게임')+
+    row('이름이 다른 항목',google+'03','www.thisisgame.com','다른 매체')+
+    row('다른 링크','https://outside.example/news','www.thisisgame.com','디스이즈게임');
+  const results=await parseFeed(rss(tigRows),tig);
   assert.deepEqual(results.map(({title,url,description})=>[title,url,description]),[['지스타 새 소식',google+'01','']]);
   const quasarRows=row('GPU 성능 소식 > 하드웨어 뉴스 - 퀘이사존',google+'11','quasarzone.com','퀘이사존')+
     row('장착하기 > 질문 게시판 - 퀘이사존',google+'12','quasarzone.com','퀘이사존');
@@ -124,7 +139,7 @@ test('Google 뉴스 동시 요청을 두 개로 제한하고 일부 실패 후�
     maxOutstanding=Math.max(maxOutstanding,++outstanding);
     await Promise.resolve();
     outstanding--;
-    if(feed.id==='gamemeca')return new Response('unavailable',{status:503});
+    if(feed.id==='thisisgame-news')return new Response('unavailable',{status:503});
     const suffix=feed.publisher.section?' > '+feed.publisher.section:'';
     const rssItem=item(feed.id,'감독과 함께 신제품 헤드폰 공개'+suffix+' - '+feed.publisher.label,now().toUTCString(),'https://news.google.com/rss/articles/'+feed.id)
       .replace('</item>','<source url="https://'+feed.publisher.host+'">'+feed.publisher.label+'</source></item>');
@@ -133,7 +148,7 @@ test('Google 뉴스 동시 요청을 두 개로 제한하고 일부 실패 후�
   const result=await collectNews({DB},{leaseUntil:0},{feeds:googleFeeds,fetcher});
   assert.equal(maxOutstanding,2);
   assert.equal(result.count,googleFeeds.length-1);
-  assert.equal(result.sources.find(source=>source.id==='gamemeca').error,'http_503');
+  assert.equal(result.sources.find(source=>source.id==='thisisgame-news').error,'http_503');
 });
 
 test('일반 출처가 많아도 요청 수를 제한하고 전체 결과를 저장한다',async t=>{

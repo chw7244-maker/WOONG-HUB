@@ -12,7 +12,7 @@ export const FEEDS=[
   {id:'yonhap',name:'연합뉴스',website:'https://www.yna.co.kr/',url:'https://www.yna.co.kr/rss/news.xml',category:'korea',language:'ko'},
   {id:'yonhap-world',name:'연합뉴스 · 국제',website:'https://www.yna.co.kr/international/all',url:'https://www.yna.co.kr/rss/international.xml',category:'world',language:'ko'},
   {id:'schezade',name:'셰에라자드',website:'https://www.schezade.co.kr/pagegen/v2/custom/launch-calendar/index.php',url:'https://www.schezade.co.kr/pagegen/v2/custom/launch-calendar/index.php',category:'korean-audio',language:'ko',format:'launch-calendar'},
-  googleNewsPublisher('gamemeca','게임메카','https://www.gamemeca.com/news.php','www.gamemeca.com','games'),
+  {id:'gamemeca',name:'게임메카',website:'https://www.gamemeca.com/news.php',url:'https://www.gamemeca.com/rss.php',category:'games',language:'ko'},
   googleNewsPublisher('thisisgame-news','디스이즈게임','https://www.thisisgame.com/','thisisgame.com','games'),
   googleNewsPublisher('quasarzone-news','퀘이사존','https://quasarzone.com/bbs/qn_hardware','quasarzone.com/bbs/qn_hardware/views','pc-it',{section:'하드웨어 뉴스'}),
   {id:'inven',name:'인벤',website:'https://www.inven.co.kr/webzine/news/',url:'https://feeds.feedburner.com/inven',category:'games',language:'ko'},

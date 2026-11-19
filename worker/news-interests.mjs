@@ -12,6 +12,7 @@ const kindPatterns = {
   squad: /\b(?:injur(?:y|ies|ed)|fitness|team news|back in training|ruled out|returns? to training|sidelined)\b|부상|훈련\s*복귀|출전\s*여부|결장/iu,
   transfer: /\b(?:transfer[rs]?|signs?|signed|signing|contract|loan deal)\b|이적|계약|영입/iu,
   fixture: /\b(?:fixture[rs]?|kick.?off|match preview|rescheduled|broadcast|how to watch|when is|game moved)\b|킥오프|경기\s*일정|일정\s*변경|경기\s*예고|중계/iu,
+  performance: /\b(?:\d+\s*fps|frame[ -]?rate|system requirements|graphics mode|performance mode)\b|프레임\s*레이트|요구\s*사양|성능\s*모드/iu,
   release: eventWords,
   review: /\breview[rs]?\b|리뷰|사용기|청음기/iu,
 };
@@ -71,22 +72,33 @@ function recommend(article, topics) {
   const titleKinds = kindEntries.filter(([,pattern]) => pattern.test(article.title)).map(([kind]) => kind);
   const detailsKinds = kindEntries.filter(([,pattern]) => pattern.test(article.description)).map(([kind]) => kind);
   const kinds = [...new Set([...titleKinds,...detailsKinds])];
-  const routineGameGuide = article.categories.includes('games') && !official &&
+  const gameNews = article.categories.includes('games') && !official;
+  const routineGameGuide = gameNews &&
     /\b(?:walkthrough|beginner'?s guide|how to (?:find|get|unlock|fix|complete)|where to (?:find|get))\b|공략|얻는\s*법|찾는\s*법/iu.test(article.title);
+  const comparesReleaseDate = gameNews ? article.title.match(/^(.*?)\b(?:same (?:day|date|week) as|compared to)\b/iu)?.[1] : undefined;
+  const subject = comparesReleaseDate === undefined ? undefined : ' ' + normalized(comparesReleaseDate) + ' ';
   let best;
+  let mutedSpecificity = -1;
   for (const topic of topics) {
     if (topic.category !== 'all' && !article.categories.includes(topic.category)) continue;
     const matchedTitle = topic.matches.some(matches => matches(title));
     const direct = (steamApp && steamApp === topic.steamAppId) || (city && topic.id === 'city');
+    if (subject !== undefined && topic.matches.length && !topic.matches.some(matches => matches(subject))) continue;
     if (topic.matches.length && !direct && !matchedTitle && !topic.matches.some(matches => matches(text))) continue;
     const kind = kinds.find(value => topic.kinds.includes(value)) ?? (topic.kinds.length ? undefined : kinds[0]);
     if (routineGameGuide && topic.kinds.length && kind !== 'review') continue;
     if (topic.kinds.length && !kind) continue;
-    if (topic.muted) return null;
+    const specificity = direct ? 3 : matchedTitle ? 2 : topic.matches.length ? 1 : 0;
+    if (topic.muted) {
+      mutedSpecificity = Math.max(mutedSpecificity, specificity);
+      continue;
+    }
     const relevance = Number(Boolean(direct || matchedTitle)) + Number(Boolean(kind && titleKinds.includes(kind))) + Number(official) * 2;
-    if (!best || best.relevance < relevance) best = { topicId:topic.id, topicLabel:topic.label, kind, official, relevance };
+    if (!best || best.specificity < specificity || (best.specificity === specificity && best.relevance < relevance)) {
+      best = { topicId:topic.id, topicLabel:topic.label, kind, official, relevance, specificity };
+    }
   }
-  return best;
+  return best && best.specificity > mutedSpecificity ? best : null;
 }
 
 const stopWords = new Set(['the','this','with','from','that','their','will','now','says','about','into','after','gets','your','what','after']);
@@ -94,6 +106,7 @@ const versionTokens = title => (title.match(/\d+(?:\.\d+)*/gu) ?? []).join('|');
 function sameStory(a, b) {
   if (a.rec.topicId !== b.rec.topicId || a.rec.kind !== b.rec.kind ||
     Math.abs(a.time - b.time) > 36 * 3_600_000) return false;
+  if (a.steamApp && b.steamApp && a.steamApp !== b.steamApp) return false;
   if (a.title === b.title) return true;
   if (a.article.sourceName === b.article.sourceName || a.version !== b.version || a.words.size < 5 || b.words.size < 5) return false;
   const common = [...a.words].filter(word => b.words.has(word)).length;
@@ -107,7 +120,7 @@ export function rankNews(articles, topics) {
     if (!rec) return [];
     const time = Date.parse(article.publishedAt), title = normalized(article.title);
     const rank = Math.floor((time + koreaOffset) / dayMs) * 8 + rec.relevance;
-    return [{ article, rec, rank, time, title, version:versionTokens(article.title),
+    return [{ article, rec, rank, time, title, version:versionTokens(article.title), steamApp:steamNewsApp(article.sourceUrl),
       words:new Set(title.split(' ').filter(word => word.length > 2 && !stopWords.has(word))) }];
   });
   const groups = new Map();

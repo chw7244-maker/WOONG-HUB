@@ -119,14 +119,29 @@ test('주제와 유형을 함께 맞추고 가까운 중복은 공식 원문 아
     article('5','풋볼 매니저 새로운 패치 공개'),
     article('6','City fitness and team news','https://www.bbc.com/sport/football/teams/manchester-city','football'),
     article('7','Football Managers without the alias'),
+    article('8','Different game launches on the same day as GTA 6'),
+    article('9','GTA 6 has two graphics modes but no 60FPS option'),
   ];
   const ranked=rankNews(candidates,starterNewsTopics);
   assert.equal(ranked[0].id,'2');
   assert.equal(ranked[0].recommendation.official,true);
   assert.equal(ranked[0].recommendation.kind,'update');
   assert.equal(ranked[0].related[0].id,'1');
-  assert.deepEqual(ranked.map(a=>a.id).sort(),['2','3','5','6']);
-  assert.deepEqual(rankNews(candidates,starterNewsTopics.map(topic=>topic.id==='cyberpunk'?{...topic,muted:true}:topic)).map(a=>a.id).sort(),['5','6']);
+  assert.equal(ranked.find(a=>a.id==='9').recommendation.kind,'performance');
+  assert.deepEqual(ranked.map(a=>a.id).sort(),['2','3','5','6','9']);
+  assert.deepEqual(rankNews(candidates,starterNewsTopics.map(topic=>topic.id==='cyberpunk'?{...topic,muted:true}:topic)).map(a=>a.id).sort(),['5','6','9']);
+});
+
+test('넓은 분야를 덜 봐도 구체적으로 팔로우한 모델 소식은 표시한다',()=>{
+  const broad={...starterNewsTopics.find(topic=>topic.id==='iem'),muted:true};
+  const product={id:'van-gogh',label:'Van Gogh',terms:['Van Gogh'],category:'korean-audio',kinds:['availability'],muted:false};
+  const candidates=[
+    article('van','Noble Audio Van Gogh 국내 입고','https://www.schezade.co.kr/','korean-audio'),
+    article('other','다른 오디오 장비 국내 입고','https://www.schezade.co.kr/','korean-audio'),
+  ];
+  const results=rankNews(candidates,[broad,product]);
+  assert.deepEqual(results.map(a=>a.id),['van']);
+  assert.equal(results[0].recommendation.topicId,product.id);
 });
 
 test('관심 설정은 계정별 저장과 충돌 검증을 하고 전체 기사와 스크랩을 보존한다',async t=>{

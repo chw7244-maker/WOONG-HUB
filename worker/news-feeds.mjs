@@ -12,7 +12,7 @@ export const FEEDS=[
   {id:'eurogamer',name:'Eurogamer',website:'https://www.eurogamer.net/',url:'https://www.eurogamer.net/feed',category:'games',language:'en'},
   {id:'vgc',name:'VGC',website:'https://www.videogameschronicle.com/',url:'https://www.videogameschronicle.com/feed/',category:'games',language:'en'},
   {id:'majorhifi',name:'MajorHiFi',website:'https://majorhifi.com/',url:'https://majorhifi.com/feed/',category:'audio-music',language:'en'},
-  {id:'bandcamp',name:'Bandcamp Daily',website:'https://daily.bandcamp.com/',url:'https://daily.bandcamp.com/feed',category:'music',language:'en'},
+  {id:'stereogum',name:'Stereogum',website:'https://stereogum.com/',url:'https://stereogum.com/feed',category:'music',language:'en'},
   {id:'verge',name:'The Verge',website:'https://www.theverge.com/',url:'https://www.theverge.com/rss/index.xml',category:'pc-it',language:'en'},
   {id:'bbc-city',name:'BBC Sport · 맨시티',website:'https://www.bbc.com/sport/football/teams/manchester-city',url:'https://feeds.bbci.co.uk/sport/football/teams/manchester-city/rss.xml',category:'football',language:'en',limit:20},
   {id:'schezade',name:'셰에라자드',website:'https://www.schezade.co.kr/pagegen/v2/custom/launch-calendar/index.php',url:'https://www.schezade.co.kr/pagegen/v2/custom/launch-calendar/index.php',category:'korean-audio',language:'ko',format:'launch-calendar'},

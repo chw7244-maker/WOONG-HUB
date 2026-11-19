@@ -11,7 +11,7 @@ export const newsCategories = [
 export type NewsCategory = typeof newsCategories[number]['id'];
 export const newsKinds = {
   release:'출시·발표', update:'패치·펌웨어', deal:'할인·가격', availability:'입고·청음',
-  music:'신보·재발매', squad:'부상·복귀', transfer:'이적·계약', fixture:'경기 일정', review:'리뷰',
+  music:'신보·재발매', squad:'부상·복귀', transfer:'이적·계약', fixture:'경기 일정', performance:'성능·기술', review:'리뷰',
 } as const;
 export type NewsKind = keyof typeof newsKinds;
 export type NewsTopic = {
@@ -27,7 +27,7 @@ export type NewsPreferences = { revision: number; topics: NewsTopic[] };
 export const newsTopicLimit = 20;
 export const steamNewsLimit = 8;
 export const starterNewsTopics: NewsTopic[] = [
-  { id:'gta', label:'GTA VI', terms:['GTA VI','GTA 6','GTA6','Grand Theft Auto VI','그랜드 테프트 오토 6'], category:'games', kinds:['release','update'], muted:false },
+  { id:'gta', label:'GTA VI', terms:['GTA VI','GTA 6','GTA6','Grand Theft Auto VI','그랜드 테프트 오토 6'], category:'games', kinds:['release','update','performance'], muted:false },
   { id:'fm', label:'Football Manager', terms:['Football Manager','풋볼 매니저','풋볼매니저','FM27','FM26'], category:'games', kinds:['release','update','deal'], muted:false },
   { id:'cyberpunk', label:'사이버펑크 2077', terms:['Cyberpunk 2077','사이버펑크 2077'], category:'games', kinds:['release','update','deal'], muted:false, steamAppId:'1091500' },
   { id:'witcher', label:'위쳐', terms:['The Witcher','위쳐','더 위처'], category:'games', kinds:['release','update','deal'], muted:false, steamAppId:'292030' },

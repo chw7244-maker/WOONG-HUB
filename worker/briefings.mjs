@@ -2,9 +2,10 @@ import { briefingEditions, briefingSection, briefingSources, isBriefingDate, isB
 import { todayKST } from '../src/lib/store.ts';
 import { canonicalUrl } from './news-feeds.mjs';
 
-const maxBody = 64 * 1024;
+const maxBody = 128 * 1024;
 const dayMs = 86_400_000;
-const columns = 'edition_date,edition,section,title,summary,why,source,source_date,source_status,url,published_at';
+const columns = 'edition_date,edition,section,title,summary,why,source,source_date,source_status,url,published_at,briefing_markdown';
+const chatLink = /^https:\/\/chatgpt\.com\/c\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } });
 
 function field(value, max) {
@@ -14,9 +15,11 @@ function field(value, max) {
 
 export function validateBriefing(value, today) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid_briefing');
-  const { date, edition, overview, items } = value;
+  const { date, edition, overview, items, markdown, chatUrl } = value;
   if (typeof date !== 'string' || !isBriefingDate(date) || date > today ||
     typeof edition !== 'string' || !isBriefingEdition(edition) || !Array.isArray(items) || items.length > 15) throw new Error('invalid_briefing');
+  if (chatUrl !== undefined && (typeof chatUrl !== 'string' || !chatLink.test(chatUrl))) throw new Error('invalid_briefing');
+  const body = field(markdown, 32_000);
   const urls = new Set();
   const parsed = items.map(item => {
     if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error('invalid_briefing');
@@ -28,7 +31,7 @@ export function validateBriefing(value, today) {
     urls.add(url);
     return { section, status, title: field(item.title, 180), summary: field(item.summary, 600), why: field(item.why, 420), source: field(item.source, 100), url, ...(sourceDate && { sourceDate }) };
   });
-  return { date, edition, overview: field(overview, 450), items: parsed };
+  return { date, edition, overview: field(overview, 450), items: parsed, markdown: body, ...(chatUrl && { chatUrl }) };
 }
 
 async function readBody(request) {
@@ -57,8 +60,8 @@ function csvCell(value) {
 export function briefingCsv(issues) {
   const rows = issues.flatMap(issue => {
     const items = issue.items.length ? issue.items : [{ summary: issue.overview }];
-    return items.map(item => [issue.date, issue.edition, item.section && briefingSection(issue.edition, item.section), item.title, item.summary,
-      item.why, item.source, item.sourceDate, item.status, item.url, issue.publishedAt].map(csvCell).join(','));
+    return items.map((item, index) => [issue.date, issue.edition, item.section && briefingSection(issue.edition, item.section), item.title, item.summary,
+      item.why, item.source, item.sourceDate, item.status, item.url, issue.publishedAt, index === 0 ? issue.markdown : ''].map(csvCell).join(','));
   });
   return `\uFEFF${[columns, ...rows].join('\r\n')}\r\n`;
 }
@@ -81,7 +84,12 @@ export async function handleBriefings(request, env, { now = new Date() } = {}) {
       let draft;
       try { draft = validateBriefing(value, today); } catch (error) { return json({ error: error.message }, 400); }
       const publishedAt = now.toISOString();
-      const result = await env.DB.prepare('INSERT INTO daily_briefings(day,edition,document,published_at) VALUES (?,?,?,?) ON CONFLICT(day,edition) DO NOTHING')
+      const result = await env.DB.prepare(`
+        INSERT INTO daily_briefings(day,edition,document,published_at) VALUES (?,?,?,?)
+        ON CONFLICT(day,edition) DO UPDATE SET document=excluded.document, published_at=excluded.published_at
+        WHERE json_extract(daily_briefings.document, '$.markdown') IS NULL
+           OR (json_extract(daily_briefings.document, '$.chatUrl') IS NULL AND json_extract(excluded.document, '$.chatUrl') IS NOT NULL)
+      `)
         .bind(draft.date, draft.edition, JSON.stringify(draft), publishedAt).run();
       if (result.meta.changes === 1) return json({ status: 'published', date: draft.date, edition: draft.edition, count: draft.items.length, publishedAt }, 201);
       const prior = await env.DB.prepare('SELECT document,published_at FROM daily_briefings WHERE day=? AND edition=?').bind(draft.date, draft.edition).first();
@@ -100,17 +108,19 @@ export async function handleBriefings(request, env, { now = new Date() } = {}) {
     }
     if (service && url.searchParams.get('format') === 'contract') {
       return json({
-        revision: 1, today, editions: briefingEditions, sourceStatuses: briefingSources,
-        fields: { date: 'YYYY-MM-DD KST', edition: 'games | audio', overview: '1–450 characters', items: '0–15 items' },
+        revision: 2, today, editions: briefingEditions, sourceStatuses: briefingSources,
+        fields: { date: 'YYYY-MM-DD KST', edition: 'games | audio', overview: '1–450 characters for the home preview', items: '0–15 indexed items for home and CSV',
+          markdown: 'required full report Markdown, up to 32,000 characters', chatUrl: 'optional original ChatGPT chat link only when copying its full report' },
         itemFields: { section: 'edition section key', title: '1–180 characters', summary: '1–600 characters', why: '1–420 characters',
           source: '1–100 characters', url: 'unique direct HTTPS source URL', status: 'official | reported | rumor', sourceDate: 'optional original publication date YYYY-MM-DD' },
         rules: [
           'Read today and yesterday before researching. Publish only missing editions. Reuse the prior issue only for meaningful follow-ups.',
-          'Write in Korean. Verify direct sources, market, dates, prices and availability. Use primary sources first. Mark unconfirmed reporting as rumor.',
-          'Games: prioritize GTA VI, Cyberpunk, The Witcher and Football Manager when news changes. Check official game/platform stores, Korean studios and events, verified deals and the next seven days.',
-          'Audio: first check Scheherazade and major Korean dealers for confirmed IEM stock, prices and auditions. Then check international devices, firmware and music releases. Clearly label older items, overseas pricing and future releases.',
-          'Order items by usefulness. Leave out unsupported items. A verified quiet day can have an empty items array and an explicit overview. If source access fails, report it without writing that edition.',
-          'PUT each edition to this endpoint, then GET the same date to verify it. A concurrent or repeated write leaves the first published edition in place.',
+          'Write the complete Korean report in markdown with a title and KST date, one-line lead, up to five verified top stories, topical sections, a seven-day calendar table and three follow-up checks when supported. Aim for four to six minutes of reading on an active day.',
+          'For each story, include verified details, why it matters, its original date, and a direct HTTPS Markdown source link. Use primary sources first. Mark unconfirmed reporting, older items, overseas pricing and future releases.',
+          'Games: cover PC and console, Korean studios and events, mobile, confirmed deals and subscriptions, and the calendar. Prioritize GTA VI, Cyberpunk, The Witcher and Football Manager when news changes.',
+          'Audio: cover Scheherazade and major Korean dealers with available IEM stock, prices and auditions, followed by international hardware and firmware, music releases, and the calendar.',
+          'A quiet day can be shorter. Explain sections with no verified updates without filling them with repeat stories. If source access fails, report it without writing that edition.',
+          'PUT each edition, then GET the same date and verify the entire markdown. The first full report stays in place on retries. An original-chat import may replace an earlier standalone report.',
         ],
       });
     }

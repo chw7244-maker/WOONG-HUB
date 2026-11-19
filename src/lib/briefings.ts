@@ -20,7 +20,14 @@ export type BriefingItem = {
   status: keyof typeof briefingSources;
   sourceDate?: string;
 };
-export type BriefingDraft = { date: string; edition: BriefingEdition; overview: string; items: BriefingItem[] };
+export type BriefingDraft = {
+  date: string;
+  edition: BriefingEdition;
+  overview: string;
+  items: BriefingItem[];
+  markdown?: string;
+  chatUrl?: string;
+};
 export type BriefingIssue = BriefingDraft & { publishedAt: string };
 export type BriefingReadout = { date: string; today: string; dates: string[]; issues: BriefingIssue[] };
 
@@ -34,7 +41,14 @@ export function briefingSection(edition: BriefingEdition, section: string) {
 }
 
 export function isBriefingDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith('0000-')) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+export function adjacentBriefingDate(day: string, step: -1 | 1) {
+  const next = new Date(`${day}T00:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + step);
+  const value = next.toISOString().split('T')[0];
+  return isBriefingDate(value) ? value : undefined;
 }

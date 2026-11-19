@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+
 const origin = 'https://woong-personal-hub.woong22222.chatgpt.site';
 const endpoint = `${origin}/api/briefings/publish`;
 
@@ -23,7 +25,10 @@ async function readInput() {
 }
 
 async function publish() {
-  const { token, drafts = [] } = await readInput();
+  const { token, drafts: inputDrafts = [] } = await readInput();
+  const [flag, file, ...extra] = process.argv.slice(2);
+  if ((flag && (flag !== '--draft-file' || !file || extra.length || inputDrafts.length))) throw new Error('Invalid draft file arguments');
+  const drafts = file ? JSON.parse(await readFile(file, 'utf8')) : inputDrafts;
   if (typeof token !== 'string' || !token || /[\r\n]/.test(token) || !Array.isArray(drafts) || drafts.length > 2) throw new Error('Invalid publisher input');
   const headers = { 'OAI-Sites-Authorization': `Bearer ${token}` };
   async function request(suffix = '', options = {}) {
@@ -32,19 +37,20 @@ async function publish() {
     return response.json();
   }
   const contract = await request('?format=contract');
-  if (contract.revision !== 1) throw new Error('Unexpected briefing contract');
+  if (contract.revision !== 2) throw new Error('Unexpected briefing contract');
   if (!drafts.length) { console.log(JSON.stringify({ contract: contract.revision, today: contract.today, editions: Object.keys(contract.editions) })); return; }
-  if (!drafts.every(draft => draft.date === contract.today)) throw new Error('Publish to the current KST date');
-  const ext = `?${new URLSearchParams({ date: contract.today })}`;
   for (const draft of drafts) {
+    if (draft.date !== contract.today && !draft.chatUrl) throw new Error('Only chat reports may be imported for older dates');
     const saved = await request('', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft) });
     if (!['published', 'already_published'].includes(saved.status)) throw new Error('Unexpected publish result');
     console.log(JSON.stringify(saved));
+    const readback = await request(`?${new URLSearchParams({ date: draft.date })}`);
+    const issue = readback.issues.find(issue => issue.edition === draft.edition);
+    if (readback.date !== draft.date || !issue || issue.markdown !== draft.markdown.trim() || issue.chatUrl !== draft.chatUrl) {
+      throw new Error('Published report differs from the draft');
+    }
+    console.log(JSON.stringify({ verified: true, date: readback.date, edition: issue.edition, length: issue.markdown.length, chat: Boolean(issue.chatUrl) }));
   }
-  const readback = await request(ext);
-  const issues = readback.issues.map(({ edition, items }) => ({ edition, count: items.length }));
-  if (!drafts.every(draft => issues.some(issue => issue.edition === draft.edition))) throw new Error('Published issue missing from readback');
-  console.log(JSON.stringify({ verified: true, date: readback.date, issues }));
 }
 
 try { await publish(); }

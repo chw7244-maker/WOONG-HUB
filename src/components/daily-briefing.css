@@ -5,7 +5,7 @@
   border-radius: 16px;
   scroll-margin-top: 16px;
 }
-.daily-heading, .daily-date-controls, .daily-editions, .daily-item-meta, .daily-csv-range {
+.daily-heading, .daily-date-stepper, .daily-editions, .daily-item-meta, .daily-csv-range {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -14,8 +14,10 @@
 .daily-heading { justify-content: space-between; }
 .daily-heading h2 { margin: 0 0 4px; font-size: 1.35rem; }
 .daily-heading time { font-size: .875rem; color: var(--muted); }
-.daily-date-controls { align-items: end; }
-.daily-date-controls label, .daily-csv-range label { display: grid; gap: 3px; color: var(--muted); font-size: .875rem; }
+.daily-date-controls { display: grid; gap: 3px; }
+.daily-date-stepper { gap: 4px; }
+.daily-date-controls label, .daily-csv-range label { color: var(--muted); font-size: .875rem; }
+.daily-csv-range label { display: grid; gap: 3px; }
 .daily-date-controls input, .daily-csv-range input {
   color: var(--text);
   background: var(--panel);
@@ -27,6 +29,7 @@
   font-size: 1rem;
 }
 .daily-briefings :is(.button,.text-button) { min-height: 44px; font-size: .875rem; }
+.daily-briefings .daily-date-arrow { min-width: 44px; padding-inline: 8px; }
 .daily-editions { gap: 6px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
 .daily-editions button { padding: 0 14px; min-height: 44px; border-radius: 9px; color: var(--muted); font-size: .9375rem; }
 .daily-editions button[aria-pressed=true] { color: var(--blue); background: var(--blue-soft); font-weight: 650; }
@@ -43,6 +46,19 @@
 .daily-items .daily-why { color: var(--muted); }
 .daily-why strong { color: var(--text); }
 .daily-items .text-button { justify-self: start; }
+.daily-report { min-width: 0; max-width: 76ch; line-height: 1.7; overflow-wrap: anywhere; }
+.daily-report-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; color: var(--muted); font-size: .875rem; }
+.daily-report a { color: var(--blue); text-decoration: underline; text-underline-offset: 3px; }
+.daily-report h3 { margin: 12px 0 10px; font-size: clamp(1.3rem, 3vw, 1.75rem); line-height: 1.35; }
+.daily-report h4 { margin: 24px 0 6px; font-size: 1.175rem; line-height: 1.45; }
+.daily-report h5 { margin: 16px 0 6px; font-size: 1rem; }
+.daily-report p { margin: 0 0 10px; }
+.daily-report hr { margin: 16px 0; border: 0; border-top: 1px solid var(--border); }
+.daily-report :is(ol,ul) { padding-inline-start: 1.4em; }
+.daily-report-table { margin: 12px 0; overflow-x: auto; }
+.daily-report table { width: 100%; border-collapse: collapse; font-size: .9375rem; }
+.daily-report :is(th,td) { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; min-width: 4em; }
+.daily-report th { background: var(--blue-soft); text-align: start; }
 .daily-load { margin: 0; color: var(--muted); font-size: 1rem; }
 .daily-load p { margin: 0; }
 .daily-csv { border-top: 1px solid var(--border); }

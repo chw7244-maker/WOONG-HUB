@@ -22,6 +22,7 @@ export const FEEDS=[
   {id:'itdonga',name:'IT동아',website:'https://it.donga.com/',url:'https://it.donga.com/feeds/rss/news/',category:'pc-it',language:'ko'},
   googleNewsPublisher('0db','영디비 · 오디오 뉴스','https://www.0db.co.kr/NEWS','0db.co.kr/NEWS','audio-music',
     {sourceLabel:'영디비',days:14,scope:/이어폰|헤드폰|헤드셋|스피커|오디오|이어팁|앰프|음향|\b(?:iem|dac|dap|headphones?|earbuds?|earphones?|speakers?)\b/iu}),
+  {id:'monthly-audio',name:'월간 오디오 · 뉴스',website:'https://www.audioht.co.kr/',url:'https://www.audioht.co.kr/rss/S1N4.xml',category:'audio-music',language:'ko',localTime:true},
   {id:'tonplein',name:'온음',website:'https://www.tonplein.com/',url:'https://www.tonplein.com/feed/',category:'music',language:'ko'},
   {id:'weiv',name:'웨이브 [weiv]',website:'https://www.weiv.co.kr/',url:'https://www.weiv.co.kr/feed',category:'music',language:'ko'},
   {id:'visla',name:'VISLA · 음악',website:'https://visla.kr/',url:'https://visla.kr/category/article/music/feed/',category:'music',language:'ko'},
@@ -30,8 +31,11 @@ export const FEEDS=[
   googleNewsPublisher('extmovie','익스트림무비 · 영화수다','https://extmovie.com/movietalk','extmovie.com/movietalk','screen',
     {sourceLabel:'익스트림무비',scope:/개봉|공개|예고편|상영|박스오피스|영화제|감독|인터뷰|속편|제작|넷플릭스|OTT/iu}),
   {id:'webtoonguide',name:'웹툰가이드',website:'https://www.webtoonguide.com/ko/board/news-column',url:'https://www.webtoonguide.com/ko/board/news-column',category:'webtoon',language:'ko',format:'webtoon-news'},
+  {id:'naver-webtoon-press',name:'네이버웹툰 보도자료',website:'https://www.webtoonscorp.com/ko/media',url:'https://www.webtoonscorp.com/ko/media',category:'webtoon',language:'ko',format:'webtoon-press',scope:/웹툰|웹코믹|연재/u},
   {id:'footballist',name:'풋볼리스트',website:'https://www.footballist.co.kr/',url:'https://www.footballist.co.kr/rss/S1N1.xml',category:'football',language:'ko'},
   {id:'fourfourtwo',name:'포포투 코리아',website:'https://www.fourfourtwo.co.kr/',url:'https://www.fourfourtwo.co.kr/rss/S1N2.xml',category:'football',language:'ko'},
+  {id:'spotv-football',name:'스포티비뉴스 · 해외축구',website:'https://www.spotvnews.co.kr/category/S1N5/S2N83',url:'https://www.spotvnews.co.kr/category/S1N5/S2N83',category:'football',language:'ko',format:'spotv-football',
+    scope:/맨시티|맨체스터\s*시티|프리미어\s*리그|\b(?:EPL|Manchester City)\b/iu},
   googleNewsPublisher('city-ko','맨체스터 시티 한국어','https://kr.mancity.com/news','kr.mancity.com/news','football',{sourceLabel:'Manchester City FC',days:14}),
 ];
 export function steamNewsFeed(appId) {
@@ -89,13 +93,17 @@ function syndicatedTitle(item,url,publisher){
 export async function parseFeed(xml,feed,now=new Date()){
   if(typeof xml!=='string'||xml.length>1500000||/<!DOCTYPE|<!ENTITY/i.test(xml))throw new Error('invalid_feed');
   if(XMLValidator.validate(xml)!==true)throw new Error('invalid_xml');
-  const parsed=parser.parse(xml);const items=parsed.rss?.channel?.item??parsed.feed?.entry;
+  const parsed=parser.parse(xml);
+  const channel=parsed.rss?.channel??parsed.feed;
+  if(!channel||typeof channel!=='object')throw new Error('unsupported_feed');
+  const items=channel.item??channel.entry??[];
   if(!Array.isArray(items))throw new Error('unsupported_feed');
   const articles=[];const seen=new Set();
   for(const item of items.slice(0,150)){
     const url=canonicalUrl(typeof item.link==='string'?item.link:atomLink(item.link),feed.website);
     const title=feed.publisher?syndicatedTitle(item,url,feed.publisher):plainText(item.title,300);
-    const published=new Date(item.pubDate??item.published??item.updated??item['dc:date']??'');
+    const stamp=item.pubDate??item.published??item.updated??item['dc:date']??'';
+    const published=new Date(feed.localTime&&/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(stamp)?stamp.replace(' ','T')+'+09:00':stamp);
     if(!title||!url||isVideoLink(url)||!Number.isFinite(published.getTime())||published>new Date(now.getTime()+24*3600000)||published<new Date(now.getTime()-90*86400000)||seen.has(url))continue;
     if(feed.appId){
       const articleUrl=new URL(url);
@@ -111,21 +119,50 @@ export async function parseFeed(xml,feed,now=new Date()){
   return articles.sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt)).slice(0,feed.limit??12);
 }
 
-export async function parseWebtoonNews(html,feed,now=new Date()){
-  const entries=html.matchAll(/<a href="(\/ko\/board\/news-column\/\d+)">\s*<div class="article-item">([\s\S]*?)<\/a>/g);
+const datedLists={
+  'webtoon-news':{
+    row:/<a href="(\/ko\/board\/news-column\/\d+)">\s*<div class="article-item">([\s\S]*?)<\/a>/g,
+    title:/<div class="title">([\s\S]*?)<\/div>/,
+    date:/<div class="writer">[^<]*\|\s*(\d{4}-\d{2}-\d{2})\s*<\/div>/,
+  },
+  'webtoon-press':{
+    row:/<a href="(\/ko\/mediaDetail\?seq=\d+)" class="media__link">([\s\S]*?)<\/a>/g,
+    title:/<strong class="media__title">([\s\S]*?)<\/strong>/,
+    date:/<span class="media__date">\s*(\d{4}\.\d{2}\.\d{2})\s*<\/span>/,
+    description:/<p class="media__desc"[^>]*>([\s\S]*?)<\/p>/,
+  },
+  'spotv-football':{
+    row:/<a\b[^>]*href="((?:https:\/\/www\.spotvnews\.co\.kr)?\/news\/articleView\.html\?idxno=\d+)"[^>]*>([\s\S]*?)<\/a>/g,
+    title:/<(?:h3|p) class="(?:sub_)?title\b[^"]*">([\s\S]*?)<\/(?:h3|p)>/,
+    date:/>\s*(\d{4}-\d{2}-\d{2})\s*</,
+    description:/<p class="text\b[^"]*\bellipsis2\b[^"]*">([\s\S]*?)<\/p>/,
+  },
+};
+
+async function parseDatedList(html,feed,now,fields){
   const seen=new Set(),articles=[];
-  for(const [,href,entry] of entries){
-    const title=plainText(entry.match(/<div class="title">([\s\S]*?)<\/div>/)?.[1],300);
-    const day=entry.match(/<div class="writer">[^<]*\|\s*(\d{4}-\d{2}-\d{2})\s*<\/div>/)?.[1];
-    if(!day||!hasKoreanText(title)||seen.has(href))continue;
+  let recognized=false;
+  const origin=new URL(feed.website).origin;
+  for(const [,href,entry] of html.matchAll(fields.row)){
+    const url=canonicalUrl(href,feed.website);
+    const title=plainText(entry.match(fields.title)?.[1],300);
+    const description=fields.description?plainText(entry.match(fields.description)?.[1],240):'';
+    const day=entry.match(fields.date)?.[1].replaceAll('.','-');
+    if(!title||!day||!url||new URL(url).origin!==origin)continue;
     const published=new Date(day+'T00:00:00+09:00');
-    if(!Number.isFinite(published.getTime())||published>now||published.getTime()<now.getTime()-90*86_400_000||
-      new Date(published.getTime()+32_400_000).toISOString().slice(0,10)!==day)continue;
-    seen.add(href);
-    articles.push(await asArticle(feed,title,new URL(href,feed.website).href,'',published));
+    if(!Number.isFinite(published.getTime())||new Date(published.getTime()+32_400_000).toISOString().slice(0,10)!==day)continue;
+    recognized=true;
+    if(published>now||published.getTime()<now.getTime()-90*86_400_000||seen.has(url)||
+      feed.language!=='ko'||!hasKoreanText(title,description)||(feed.scope&&!feed.scope.test(title+' '+description)))continue;
+    seen.add(url);
+    articles.push(await asArticle(feed,title,url,description,published));
   }
-  if(!articles.length)throw new Error('unsupported_feed');
-  return articles.sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt)).slice(0,12);
+  if(!recognized)throw new Error('unsupported_feed');
+  return articles.sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt)).slice(0,feed.limit??12);
+}
+
+export function parseWebtoonNews(html,feed,now=new Date()){
+  return parseDatedList(html,feed,now,datedLists['webtoon-news']);
 }
 
 export async function parseLaunchCalendar(html,feed,now=new Date()){
@@ -173,7 +210,8 @@ export async function fetchFeed(feed,fetcher=fetch,now=new Date(),remainingMs=In
     const decoder=new TextDecoder(feed.encoding);let body='';let bytes=0;
     while(true){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>1500000){await reader.cancel();throw new Error('feed_too_large');}body+=decoder.decode(value,{stream:true});}
     body+=decoder.decode();
-    const parse=feed.format==='launch-calendar'?parseLaunchCalendar:feed.format==='webtoon-news'?parseWebtoonNews:parseFeed;
-    return await parse(body,feed,now);
+    if(feed.format==='launch-calendar')return await parseLaunchCalendar(body,feed,now);
+    if(feed.format&&datedLists[feed.format])return await parseDatedList(body,feed,now,datedLists[feed.format]);
+    return await parseFeed(body,feed,now);
   }finally{clearTimeout(timer);}
 }

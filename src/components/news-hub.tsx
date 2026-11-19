@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ArrowDownToLine, ArrowUpRight, Bookmark, ChevronDown, Globe2, Newspaper, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
-import { newsCategories, newsCategory, newsKinds, newsTime, type NewsArticle, type NewsPreferences } from '@/lib/news';
+import { newsCategories, newsCategory, newsKinds, newsTime, type FeedStatus, type NewsArticle, type NewsPreferences } from '@/lib/news';
 import type { Entry } from '@/lib/store';
 import { NewsPreferencesDialog } from './news-preferences';
 import { SectionFilters } from './section-controls';
@@ -18,11 +18,26 @@ const emptyTitles: Record<NewsView, string> = {
   saved: '스크랩한 기사가 없어요',
   hidden: '숨긴 기사가 없어요',
 };
+const directNewsSites = [
+  { category:'games', name:'게임메카', url:'https://www.gamemeca.com/news.php' },
+  { category:'games', name:'디스이즈게임', url:'https://www.thisisgame.com/' },
+  { category:'pc-it', name:'퀘이사존 하드웨어 뉴스', url:'https://quasarzone.com/bbs/qn_hardware' },
+];
+const sourceErrorLabels: Record<string, string> = {
+  timeout:'응답 시간 초과', collection_deadline:'이번 수집 시간 초과', feed_format:'기사 형식 확인 실패',
+};
+const dateOnlySources = new Set(['웹툰가이드', '네이버웹툰 보도자료', '스포티비뉴스 · 해외축구']);
+
+function sourceResult(source: FeedStatus) {
+  if (source.ok) return source.count ? `${source.count}개 확인` : '연결됨 · 표시할 기사 없음';
+  if (source.error?.startsWith('http_')) return `연결 오류 (${source.error.slice(5)})`;
+  return sourceErrorLabels[source.error ?? ''] ?? '일시 연결 실패';
+}
 
 function SourceMeta({ article }: { article: NewsArticle }) {
   return <div className="news-source-meta">
     <span>{article.sourceName}</span><i/>
-    <time dateTime={article.publishedAt}>{newsTime(article.publishedAt,article.sourceName === '웹툰가이드')}</time>
+    <time dateTime={article.publishedAt}>{newsTime(article.publishedAt,dateOnlySources.has(article.sourceName))}</time>
     {article.language !== 'ko' && <span className="news-language">{article.language.toUpperCase()}</span>}
   </div>;
 }
@@ -56,8 +71,10 @@ export default function NewsHub({ games }: { games: Entry[] }) {
   const visible = (response?.articles ?? []).filter(article =>
     article.hidden === (view === 'hidden') && (view !== 'saved' || article.saved) && (!applyUnread || !article.read));
   const activeTopics = response?.preferences.topics.filter(topic => !topic.muted) ?? [];
-  const sources = response?.sync.sources ?? [];
+  const sources = (response?.sync.sources ?? []).filter(source => category === 'all' || source.category === category);
   const successful = sources.filter(source => source.ok).length;
+  const quickLinks = directNewsSites.filter(source => category === 'all' || source.category === category);
+  const sourceHeading = category === 'all' ? '수집 출처' : `${newsCategory(category).label} 수집 출처`;
 
   function selectView(nextView: NewsView, nextCategory: string) {
     const url = new URL(window.location.href);
@@ -90,9 +107,12 @@ export default function NewsHub({ games }: { games: Entry[] }) {
   ].filter(condition => condition.label);
   const wideningLabel = query || date || applyUnread ? '같은 조건으로 전체 최신 보기'
     : category === 'all' ? '전체 최신 보기' : '이 분야의 전체 최신 보기';
-  const collecting = response?.sync.running && (view === 'interest' || view === 'all');
-  const emptyTitle = conditions.length ? '조건에 맞는 기사가 없어요'
-    : collecting ? '새 기사를 확인하고 있어요' : emptyTitles[view];
+  const feedView = view === 'interest' || view === 'all';
+  const collecting = feedView && response?.sync.running;
+  const failedSources = feedView && !collecting ? sources.length - successful : 0;
+  const emptyTitle = collecting ? '새 기사를 확인하고 있어요'
+    : failedSources > 0 && successful === 0 ? '뉴스 출처를 확인하지 못했어요'
+    : conditions.length ? '조건에 맞는 기사가 없어요' : emptyTitles[view];
 
   async function muteTopic(id: string, label: string) {
     if (!response || muting) return;
@@ -168,6 +188,7 @@ export default function NewsHub({ games }: { games: Entry[] }) {
           {visible.map(article => <NewsRow key={article.id} article={article} news={news} onMute={muteTopic} muting={muting}/>)}
         </div> : response && <div className="collection-empty news-results-empty">
           <h3>{emptyTitle}</h3>
+          {failedSources > 0 && <p className="news-source-warning">최근 수집에서 출처 {sources.length}곳 중 {failedSources}곳을 확인하지 못했어요. <a href="#news-sources" onClick={() => setSourcesOpen(true)}>수집 상태 보기</a></p>}
           {view === 'saved' && !conditions.length && <p>기사 오른쪽의 북마크를 누르면 여기에 모여요.</p>}
           {view === 'interest' && <div className="news-empty-actions">
             <button type="button" className="button secondary" onClick={() => selectView('all', category)}>{wideningLabel}</button>
@@ -179,21 +200,20 @@ export default function NewsHub({ games }: { games: Entry[] }) {
 
     <section id="news-sources" className="news-source-section">
       <button type="button" className="news-source-toggle" onClick={() => setSourcesOpen(value => !value)} aria-expanded={sourcesOpen}>
-        <span><Globe2 size={16}/>수집 출처{sources.length ? ` · ${successful}/${sources.length} 연결` : ''}</span><ChevronDown size={16}/>
+        <span><Globe2 size={16}/>{sourceHeading}{sources.length ? ` · ${successful}/${sources.length} 연결` : ''}</span><ChevronDown size={16}/>
       </button>
       {sourcesOpen && <div className="news-source-details">
-        <p>{response?.sync.lastSuccessAt ? `마지막 수집 ${newsTime(response.sync.lastSuccessAt)} KST` : '출처의 연결 결과를 기다리는 중이에요.'}</p>
+        <p>{sources.length && response?.sync.finishedAt ? `최근 수집 확인 ${newsTime(response.sync.finishedAt)} KST` : '표시할 출처 확인 기록이 아직 없어요.'}</p>
         <div className="source-status-grid">{sources.map(source => <div key={source.id}>
-          <span className={`status-dot ${source.ok ? '' : 'pending'}`}/>
+          <span className={`status-dot ${source.ok ? '' : 'pending'}`} aria-hidden="true"/>
           <a href={source.website} target="_blank" rel="noreferrer">{source.name}{source.id.startsWith('steam-') ? ` · 앱 ${source.id.slice(6)}` : ''}<ArrowUpRight size={12}/></a>
-          <small>{source.ok ? `${source.count}개 확인` : source.error?.startsWith('http_') ? `연결 오류 (${source.error.slice(5)})` : '일시 연결 실패'}</small>
+          <small>{sourceResult(source)}</small>
+          <span className="source-last-success">{source.lastSuccessAt ? <>최근 성공 <time dateTime={source.lastSuccessAt}>{newsTime(source.lastSuccessAt)} KST</time></> : '최근 성공 시각 미확인'}</span>
         </div>)}</div>
-        <div className="news-direct-sources">
+        {quickLinks.length > 0 && <div className="news-direct-sources">
           <span>웹 기사 바로가기</span>
-          <a href="https://www.gamemeca.com/news.php" target="_blank" rel="noreferrer">게임메카<ArrowUpRight size={13}/></a>
-          <a href="https://www.thisisgame.com/" target="_blank" rel="noreferrer">디스이즈게임<ArrowUpRight size={13}/></a>
-          <a href="https://quasarzone.com/bbs/qn_hardware" target="_blank" rel="noreferrer">퀘이사존 하드웨어 뉴스<ArrowUpRight size={13}/></a>
-        </div>
+          {quickLinks.map(source => <a key={source.url} href={source.url} target="_blank" rel="noreferrer">{source.name}<ArrowUpRight size={13}/></a>)}
+        </div>}
         <p>한국어 기사와 관련 커뮤니티 글을 수집합니다. 페이지를 열 때 마지막 확인 후 한 시간이 지났으면 새로 확인합니다.</p>
       </div>}
     </section>

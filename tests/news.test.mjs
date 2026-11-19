@@ -38,6 +38,10 @@ test('과도한 피드 응답과 HTTP 오류를 소스별로 거부한다',async
   await assert.rejects(()=>fetchFeed(feed,async()=>new Response('blocked',{status:429})),/http_429/);
   await assert.rejects(()=>fetchFeed(feed,async()=>new Response('x'.repeat(1500001))),/feed_too_large/);
 });
+test('유효한 RSS에 새 항목이 없으면 수집 성공으로 처리한다',async()=>{
+  assert.deepEqual(await parseFeed(rss(''),feed),[]);
+  await assert.rejects(()=>parseFeed('<html><title>오류</title></html>',feed),/unsupported_feed/);
+});
 test('Worker가 지원하는 수동 리다이렉트로 같은 소스만 따라간다',async()=>{
   let calls=0;const response=await fetchFeed(feed,async(url,options)=>{assert.equal(options.redirect,'manual');calls++;return calls===1?new Response(null,{status:302,headers:{Location:'/updated-feed'}}):new Response(rss(item('redirect')));});
   assert.equal(calls,2);assert.equal(response.length,1);
@@ -66,9 +70,23 @@ test('같은 URL이 다른 분야에서 다시 발견되면 분야를 합치고 
 });
 test('전 소스 실패 시 기존 기사와 마지막 성공 시각을 보존한다',async t=>{
   const {DB,req}=await setup(t);const before=await DB.prepare('SELECT * FROM news_sync').first();
-  await DB.prepare('UPDATE news_sync SET lease_until=123').run();
-  await collectNews({DB},{leaseUntil:123},{feeds,fetcher:async()=>new Response('unavailable',{status:503})});
+  const legacySources=JSON.parse(before.sources).map(({lastSuccessAt,...source})=>source);
+  await DB.prepare('UPDATE news_sync SET lease_until=123,sources=?').bind(JSON.stringify(legacySources)).run();
+  const failedAt=new Date(new Date(before.last_success_at).getTime()+60_000);
+  await collectNews({DB},{leaseUntil:123},{feeds,now:failedAt,fetcher:async()=>new Response('unavailable',{status:503})});
   const data=await (await req()).json();assert.equal(data.counts.all,feeds.length);assert.equal(data.sync.lastSuccessAt,before.last_success_at);assert.equal(data.sync.sources.every(s=>!s.ok),true);
+  assert.equal(data.sync.sources[0].checkedAt,failedAt.toISOString());
+  assert.equal(data.sync.sources[0].lastSuccessAt,legacySources[0].checkedAt);
+});
+test('출처별 연결 실패 기록을 응답 시간과 기사 형식으로 구분한다',async t=>{
+  const {DB}=await setup(t);
+  const sources=feeds.slice(0,2);
+  const result=await collectNews({DB},{leaseUntil:0},{feeds:sources,fetcher:async url=>{
+    if(url===sources[0].url)throw new DOMException('timed out','AbortError');
+    return new Response('<html><title>오류</title></html>');
+  }});
+  assert.deepEqual(result.sources.map(source=>source.error),['timeout','feed_format']);
+  assert.ok(result.sources.every(source=>source.lastSuccessAt));
 });
 test('동시 수집 잠금과 수동 갱신 간격을 적용한다',async t=>{
   const DB=createLocalDatabase();await applyLocalMigrations(DB);t.after(()=>DB.sqlite.close());
@@ -111,6 +129,31 @@ test('게임메카 공식 RSS는 한국어 기사와 발행일, 원문 링크를
   },published);
   assert.deepEqual(results.map(({title,url,sourceName,publishedAt})=>[title,url,sourceName,publishedAt]),
     [['새로운 국산 게임 출시',directUrl,'게임메카',new Date(published.toUTCString()).toISOString()]]);
+});
+
+test('월간 오디오 RSS에 시간대가 없으면 한국 시간으로 읽는다',async()=>{
+  const monthly=FEEDS.find(source=>source.id==='monthly-audio');
+  const xml=rss(item('audio','새 오디오 앰프 국내 출시','2026-11-18 16:08:49','https://www.audioht.co.kr/news/articleView.html?idxno=1'));
+  const [article]=await fetchFeed(monthly,async()=>new Response(xml),new Date('2026-11-19T00:00:00Z'));
+  assert.equal(article.publishedAt,'2026-11-18T07:08:49.000Z');
+  assert.deepEqual(article.categories,['audio-music']);
+});
+
+test('공개 웹툰·축구 목록은 한국어 기사 날짜와 원문 링크를 유지한다',async()=>{
+  const webtoon=FEEDS.find(source=>source.id==='naver-webtoon-press');
+  const spotv=FEEDS.find(source=>source.id==='spotv-football');
+  const stamp=new Date('2026-11-19T00:00:00Z');
+  const press='<a href="/ko/mediaDetail?seq=100" class="media__link"><strong class="media__title">한국어 신작 웹툰 독점 공개</strong><p class="media__desc">신작 연재 안내입니다.</p><span class="media__date">2026.11.18</span></a>';
+  const football=(id,title,day)=>`<a href="/news/articleView.html?idxno=${id}"><p class="sub_title b14 ellipsis2">${title}</p><p class="text r12 fc_t400">${day}</p></a>`;
+  const sport=football(101,'맨시티 프리미어리그 경기 일정 발표','2026-11-18')+football(102,'아르헨티나 대표팀 선수 명단 발표','2026-11-18')+
+    football(103,'Premier League announces updated match schedule','2026-11-18')+football(104,'맨시티 선수 명단 발표','2026-11-31');
+  const [pressArticle]=await fetchFeed(webtoon,async()=>new Response(press),stamp);
+  assert.equal(pressArticle.url,'https://www.webtoonscorp.com/ko/mediaDetail?seq=100');
+  assert.equal(pressArticle.description,'신작 연재 안내입니다.');
+  const articles=await fetchFeed(spotv,async()=>new Response(sport),stamp);
+  assert.deepEqual(articles.map(({url,publishedAt})=>[url,publishedAt]),[['https://www.spotvnews.co.kr/news/articleView.html?idxno=101','2026-11-17T15:00:00.000Z']]);
+  assert.deepEqual(await fetchFeed(spotv,async()=>new Response(football(102,'아르헨티나 대표팀 선수 명단 발표','2026-11-18')),stamp),[]);
+  await assert.rejects(()=>fetchFeed(webtoon,async()=>new Response('<html>잘못된 페이지</html>'),stamp),/unsupported_feed/);
 });
 
 test('Google 뉴스는 지정한 매체·게시판에 속한 기사 제목과 배포 링크만 가져온다',async()=>{

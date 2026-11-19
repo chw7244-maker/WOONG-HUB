@@ -46,7 +46,7 @@ export const starterNewsTopics: NewsTopic[] = [
 export type NewsRelated = {id:string;url:string;title:string;sourceName:string};
 export type NewsRecommendation = {topicId:string;topicLabel:string;kind?:NewsKind;official:boolean};
 export type NewsArticle = NewsRelated & {sourceUrl:string;description:string;publishedAt:string;firstSeenAt:string;categories:NewsCategory[];language:string;read:boolean;saved:boolean;hidden:boolean;stateUpdatedAt:string|null;recommendation?:NewsRecommendation;related?:NewsRelated[]};
-export type FeedStatus = {id:string;name:string;website:string;category:NewsCategory;language:string;checkedAt:string;ok:boolean;count:number;error:string|null};
+export type FeedStatus = {id:string;name:string;website:string;category:NewsCategory;language:string;checkedAt:string;lastSuccessAt:string|null;ok:boolean;count:number;error:string|null};
 export type NewsSync = {running:boolean;lastAttemptAt:string|null;lastSuccessAt:string|null;finishedAt:string|null;nextAutoAt:string|null;sources:FeedStatus[];count:number};
 export type NewsResponse = {articles:NewsArticle[];counts:{all:number;unread:number;saved:number};categoryCounts:Record<string,number>;sync:NewsSync;nextCursor:string|null;preferences:NewsPreferences};
 export function newsCategory(id:string){return newsCategories.find(c=>c.id===id)??newsCategories[0];}

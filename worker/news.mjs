@@ -6,9 +6,24 @@ const SYNC_KEY='korean-articles-v1';
 const HOUR=3600000;
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Vary':'Cookie'}});
 const getSync=db=>db.prepare('SELECT * FROM news_sync WHERE key = ?').bind(SYNC_KEY).first();
+function readSourceStatuses(row){
+  try{
+    const list=JSON.parse(row?.sources??'[]');
+    return Array.isArray(list)?list.filter(source=>source?.id).map(source=>({
+      ...source,lastSuccessAt:source.lastSuccessAt??(source.ok?source.checkedAt:null),
+    })):[];
+  }catch{return [];}
+}
 function syncInfo(row,now=Date.now(),scheduled=false){
-  let sources=[];try{sources=JSON.parse(row?.sources??'[]');}catch{}
-  return {running:scheduled||(row?.lease_until??0)>now,lastAttemptAt:row?.started_at??null,lastSuccessAt:row?.last_success_at??null,finishedAt:row?.finished_at??null,nextAutoAt:row?.finished_at?new Date(new Date(row.finished_at).getTime()+HOUR).toISOString():null,count:row?.count??0,sources};
+  return {running:scheduled||(row?.lease_until??0)>now,lastAttemptAt:row?.started_at??null,lastSuccessAt:row?.last_success_at??null,finishedAt:row?.finished_at??null,nextAutoAt:row?.finished_at?new Date(new Date(row.finished_at).getTime()+HOUR).toISOString():null,count:row?.count??0,sources:readSourceStatuses(row)};
+}
+
+function sourceError(reason){
+  const message=reason?.message??'';
+  if(/^http_\d{3}$/.test(message)||message==='collection_deadline')return message;
+  if(reason?.name==='AbortError')return 'timeout';
+  if(['invalid_feed','invalid_xml','unsupported_feed'].includes(message))return 'feed_format';
+  return 'feed_unavailable';
 }
 export async function claimNewsSync(db,{force=false,now=new Date()}={}){
   const timestamp=now.getTime(),startedAt=now.toISOString(),leaseUntil=timestamp+120000;
@@ -50,13 +65,16 @@ export async function collectNews(env,lease,{fetcher=fetch,now=new Date(),feeds}
   const checkedAt=now.toISOString();
   try{
     const available=feeds??await collectionFeeds(env.DB);
+    const previousSuccess=new Map(readSourceStatuses(await getSync(env.DB)).map(source=>[source.id,source.lastSuccessAt]));
     const results=await fetchNewsSources(available,fetcher,now);
     const collected=new Map(),sources=[];
     for(let i=0;i<results.length;i++){
       const feed=available[i],result=results[i];
-      if(result.status==='rejected')console.error('News source unavailable',feed.id,String(result.reason?.message??'unknown').slice(0,240));
-      sources.push({id:feed.id,name:feed.name,website:feed.website,category:feed.category,language:feed.language,checkedAt,ok:result.status==='fulfilled',count:result.status==='fulfilled'?result.value.length:0,error:result.status==='rejected'?(result.reason?.message?.startsWith('http_')?result.reason.message:'feed_unavailable'):null});
-      if(result.status==='fulfilled')for(const article of result.value){const current=collected.get(article.id);if(current)current.categories=[...new Set([...current.categories,...article.categories])];else collected.set(article.id,article);}
+      const ok=result.status==='fulfilled';
+      if(!ok)console.error('News source unavailable',feed.id,String(result.reason?.message??'unknown').slice(0,240));
+      sources.push({id:feed.id,name:feed.name,website:feed.website,category:feed.category,language:feed.language,checkedAt,
+        lastSuccessAt:ok?checkedAt:previousSuccess.get(feed.id)??null,ok,count:ok?result.value.length:0,error:ok?null:sourceError(result.reason)});
+      if(ok)for(const article of result.value){const current=collected.get(article.id);if(current)current.categories=[...new Set([...current.categories,...article.categories])];else collected.set(article.id,article);}
     }
     const statements=[];
     const articles=[...collected.values()];

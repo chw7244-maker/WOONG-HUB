@@ -144,6 +144,18 @@ test('넓은 분야를 덜 봐도 구체적으로 팔로우한 모델 소식은 
   assert.equal(results[0].recommendation.topicId,product.id);
 });
 
+test('표현이 다른 성능 보도는 같은 기기·프레임·지원 여부일 때만 묶는다',()=>{
+  const results=rankNews([
+    article('a','Rockstar says the PS5 Pro is not powerful enough for 60 fps GTA 6','https://press-one.test/'),
+    article('b','Even PlayStation 5 Pro cannot run GTA VI at 40FPS or 60FPS','https://press-two.test/'),
+    article('c','GTA 6 runs at 60FPS on Xbox Series X','https://press-three.test/'),
+    article('d','GTA 6 reaches 60FPS on PS5 Pro in a test','https://press-four.test/'),
+  ],starterNewsTopics);
+  assert.equal(results.length,3);
+  const grouped=results.find(result=>result.related);
+  assert.deepEqual([grouped.id,grouped.related[0].id].sort(),['a','b']);
+});
+
 test('관심 설정은 계정별 저장과 충돌 검증을 하고 전체 기사와 스크랩을 보존한다',async t=>{
   const {DB,req}=await setup(t);
   const release=new Date(Date.now()-1000).toUTCString();

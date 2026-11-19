@@ -103,12 +103,25 @@ function recommend(article, topics) {
 
 const stopWords = new Set(['the','this','with','from','that','their','will','now','says','about','into','after','gets','your','what','after']);
 const versionTokens = title => (title.match(/\d+(?:\.\d+)*/gu) ?? []).join('|');
+function performanceDetails(title) {
+  const platforms = title.match(/\b(?:playstation 5|ps5)(?: pro)?\b|\bxbox series [xs]\b|\bswitch 2\b/giu) ?? [];
+  const rates = Array.from(title.matchAll(/\b(\d{2,3})\s*fps\b/giu), match => match[1]);
+  return {
+    platforms:new Set(platforms.map(value => value.toLowerCase().replace('playstation 5','ps5'))),
+    rates:new Set(rates),
+    limited:/\b(?:not|no|without|unable|cannot|can['’]t|won['’]t|locked at|capped at)\b|미지원|불가|제한/iu.test(title),
+  };
+}
 function sameStory(a, b) {
   if (a.rec.topicId !== b.rec.topicId || a.rec.kind !== b.rec.kind ||
     Math.abs(a.time - b.time) > 36 * 3_600_000) return false;
   if (a.steamApp && b.steamApp && a.steamApp !== b.steamApp) return false;
   if (a.title === b.title) return true;
-  if (a.article.sourceName === b.article.sourceName || a.version !== b.version || a.words.size < 5 || b.words.size < 5) return false;
+  if (a.article.sourceName === b.article.sourceName) return false;
+  if (a.performance && b.performance && a.performance.limited === b.performance.limited &&
+    [...a.performance.platforms].some(value => b.performance.platforms.has(value)) &&
+    [...a.performance.rates].some(value => b.performance.rates.has(value))) return true;
+  if (a.version !== b.version || a.words.size < 5 || b.words.size < 5) return false;
   const common = [...a.words].filter(word => b.words.has(word)).length;
   return common / (a.words.size + b.words.size - common) >= 0.82;
 }
@@ -121,6 +134,7 @@ export function rankNews(articles, topics) {
     const time = Date.parse(article.publishedAt), title = normalized(article.title);
     const rank = Math.floor((time + koreaOffset) / dayMs) * 8 + rec.relevance;
     return [{ article, rec, rank, time, title, version:versionTokens(article.title), steamApp:steamNewsApp(article.sourceUrl),
+      performance:rec.kind === 'performance' ? performanceDetails(article.title) : undefined,
       words:new Set(title.split(' ').filter(word => word.length > 2 && !stopWords.has(word))) }];
   });
   const groups = new Map();

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {FEEDS,parseFeed,canonicalUrl,fetchFeed,parseLaunchCalendar,steamNewsFeed} from '../worker/news-feeds.mjs';
+import {FEEDS,parseFeed,canonicalUrl,fetchFeed,parseLaunchCalendar,parseWebtoonNews,steamNewsFeed} from '../worker/news-feeds.mjs';
 import {claimNewsSync,collectNews,handleNews} from '../worker/news.mjs';
 import {rankNews} from '../worker/news-interests.mjs';
 import {starterNewsTopics} from '../src/lib/news.ts';
@@ -8,7 +8,7 @@ import {createLocalDatabase,applyLocalMigrations} from '../scripts/local-db.mjs'
 
 const now=()=>new Date();
 const feed=FEEDS[0];
-const feeds=FEEDS.filter(source=>!source.format&&!source.publisher);
+const feeds=FEEDS.filter(source=>!source.format&&!source.publisher&&!source.scope&&!source.encoding);
 const item=(id,title=`테스트 기사 ${id}`,date=now().toUTCString(),link=`https://publisher.test/story/${id}`)=>`<item><title><![CDATA[${title}]]></title><link>${link.replaceAll('&','&amp;')}</link><pubDate>${date}</pubDate><description><![CDATA[<p>테스트 전용 소개 <b>본문</b></p><script>alert(1)</script>]]></description></item>`;
 const rss=(items)=>`<?xml version="1.0"?><rss version="2.0"><channel><title>테스트 피드</title>${items}</channel></rss>`;
 async function setup(t){
@@ -21,11 +21,11 @@ async function setup(t){
 
 test('RSS 제목·발행일·짧은 소개를 읽고 추적 링크를 정리한다',async()=>{
   const articles=await parseFeed(rss(item('a','제목 &amp; 테스트',now().toUTCString(),'https://publisher.test/a?utm_source=test&id=1#top')),feed);
-  assert.equal(articles.length,1);assert.equal(articles[0].url,'https://publisher.test/a?id=1');assert.equal(articles[0].description,'테스트 전용 소개 본문');assert.equal(articles[0].id.length,64);assert.deepEqual(articles[0].categories,['audio-music']);
+  assert.equal(articles.length,1);assert.equal(articles[0].url,'https://publisher.test/a?id=1');assert.equal(articles[0].description,'테스트 전용 소개 본문');assert.equal(articles[0].id.length,64);assert.deepEqual(articles[0].categories,['korean-audio']);
 });
 test('Atom, 상대 링크, 중복 URL을 처리한다',async()=>{
   const xml=`<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Atom 테스트</title><link rel="alternate" href="/atom"/><updated>${now().toISOString()}</updated><summary>짧은 소개</summary></entry></feed>`;
-  assert.equal((await parseFeed(xml,feed))[0].url,'https://www.headfonia.com/atom');
+  assert.equal((await parseFeed(xml,feed))[0].url,'https://audioplanet.kr/atom');
   assert.equal((await parseFeed(rss(item('same')+item('same')),feed)).length,1);
 });
 test('DTD, 잘못된 XML, 위험한 링크, 없는 발행일은 수집하지 않는다',async()=>{
@@ -81,7 +81,7 @@ test('분야·검색·날짜 필터와 커서 페이지가 일관되게 동작�
   const page=await (await req('/api/news?limit=2')).json();assert.equal(page.articles.length,2);assert.ok(page.nextCursor);
   const next=await (await req('/api/news?limit=2&cursor='+encodeURIComponent(page.nextCursor))).json();assert.equal(next.articles.some(a=>page.articles.some(b=>a.id===b.id)),false);
   assert.equal((await (await req('/api/news?category=games')).json()).articles.length,feeds.filter(feed=>feed.category==='games').length);
-  assert.equal((await (await req('/api/news?q=pcgamer')).json()).articles.length,1);
+  assert.equal((await (await req('/api/news?q=inven')).json()).articles.length,1);
   assert.equal((await req('/api/news?date=2026-02-30')).status,400);assert.equal((await req('/api/news?category=bad')).status,400);assert.equal((await req('/api/news?cursor=bad')).status,400);
   assert.equal((await (await req('/api/news?q='+encodeURIComponent('%'))).json()).articles.length,0);
 });
@@ -132,7 +132,7 @@ test('같은 Google 뉴스 호스트에 순서대로 요청하며 한 매체가 
   };
   const result=await collectNews({DB},{leaseUntil:0},{feeds:googleFeeds,fetcher});
   assert.equal(maxOutstanding,1);
-  assert.equal(result.count,2);
+  assert.equal(result.count,googleFeeds.length-1);
   assert.equal(result.sources.find(source=>source.id==='gamemeca').error,'http_503');
 });
 
@@ -141,9 +141,9 @@ test('보드나라의 구형 한국어 인코딩을 바이트 경계에서도 �
   const encoder=new TextEncoder();
   const prefix=encoder.encode('<rss><channel><item><title>');
   const suffix=encoder.encode('</title><link>https://www.bodnara.co.kr/story</link><pubDate>'+now().toUTCString()+'</pubDate></item></channel></rss>');
-  const stream=new ReadableStream({start(controller){controller.enqueue(prefix);controller.enqueue(Uint8Array.of(0xb0));controller.enqueue(Uint8Array.of(0xa1));controller.enqueue(suffix);controller.close();}});
+  const stream=new ReadableStream({start(controller){controller.enqueue(prefix);controller.enqueue(Uint8Array.of(0xb0));controller.enqueue(Uint8Array.of(0xa1,0xb0,0xa1,0xb0,0xa1));controller.enqueue(suffix);controller.close();}});
   const [result]=await fetchFeed(publisher,async()=>new Response(stream));
-  assert.equal(result.title,'가');
+  assert.equal(result.title,'가가가');
 });
 
 test('팔로우한 Steam 앱의 공지 경로만 수집한다',async()=>{
@@ -165,16 +165,16 @@ test('주제와 유형을 함께 맞추고 가까운 중복은 공식 원문 아
     article('3','Cyberpunk 2077 patch 2.6 releases new enhancements'),
     article('4','Cyberpunk 2077: a personal retrospective'),
     article('5','풋볼 매니저 새로운 패치 공개'),
-    article('6','City fitness and team news','https://www.bbc.com/sport/football/teams/manchester-city','football'),
+    article('6','선수단 부상과 훈련 복귀 소식','https://kr.mancity.com/news','football'),
     article('7','Football Managers without the alias'),
     article('8','Different game launches on the same day as GTA 6'),
     article('9','GTA 6 has two graphics modes but no 60FPS option'),
   ];
   const ranked=rankNews(candidates,starterNewsTopics);
-  assert.equal(ranked[0].id,'2');
-  assert.equal(ranked[0].recommendation.official,true);
-  assert.equal(ranked[0].recommendation.kind,'update');
-  assert.equal(ranked[0].related[0].id,'1');
+  const official=ranked.find(article=>article.id==='2');
+  assert.equal(official.recommendation.official,true);
+  assert.equal(official.recommendation.kind,'update');
+  assert.equal(official.related[0].id,'1');
   assert.equal(ranked.find(a=>a.id==='9').recommendation.kind,'performance');
   assert.deepEqual(ranked.map(a=>a.id).sort(),['2','3','5','6','9']);
   assert.deepEqual(rankNews(candidates,starterNewsTopics.map(topic=>topic.id==='cyberpunk'?{...topic,muted:true}:topic)).map(a=>a.id).sort(),['5','6','9']);
@@ -208,7 +208,7 @@ test('관심 설정은 계정별 저장과 충돌 검증을 하고 전체 기사
   const {DB,req}=await setup(t);
   const release=new Date(Date.now()-1000).toUTCString();
   const more=async()=>new Response(rss(item('one','Football Manager 신규 패치',release)+item('two','FM27 업데이트',release)));
-  await collectNews({DB},{leaseUntil:0},{feeds:[FEEDS.find(feed=>feed.id==='pcgamer')],fetcher:more});
+  await collectNews({DB},{leaseUntil:0},{feeds:[FEEDS.find(feed=>feed.id==='inven')],fetcher:more});
   const interest=await (await req('/api/news?view=interest&limit=1')).json();
   assert.equal(interest.articles.length,1);
   assert.equal(interest.articles[0].recommendation.topicId,'fm');
@@ -228,6 +228,47 @@ test('관심 설정은 계정별 저장과 충돌 검증을 하고 전체 기사
   assert.equal((await (await req('/api/news?view=interest',{},'other')).json()).articles.length,2);
   assert.equal((await (await req('/api/news?view=all&category=games')).json()).articles.some(a=>a.id===id),true);
   assert.equal((await (await req('/api/news?view=saved')).json()).articles[0].id,id);
+});
+
+test('선언된 언어가 한국어여도 영어 본문과 유튜브 링크를 수집하지 않는다',async()=>{
+  const row=(id,title,description,link)=>'<item><title>'+title+'</title><link>'+link+'</link><pubDate>'+now().toUTCString()+
+    '</pubDate><description>'+description+'</description></item>';
+  const incoming=rss(
+    row('en','English PlayStation announcement','The publisher shared an update that is available today.','https://publisher.test/en')+
+    row('ko','The Witcher','위쳐 신규 확장팩이 오는 가을 정식 출시된다는 소식이다.','https://publisher.test/ko')+
+    row('video','한국어 공식 공개 영상','국내 소식을 소개합니다.','https://www.youtube.com/watch?v=123')+
+    row('label','English update notification KR','Korean games 소식','https://publisher.test/label'));
+  assert.deepEqual((await parseFeed(incoming,feed)).map(article=>article.url),['https://publisher.test/ko']);
+  assert.deepEqual(await parseFeed(incoming,{...feed,language:'en'}),[]);
+});
+
+test('웹툰 뉴스 목록은 제목·발행일·게시물 링크를 사용하고 표시된 날짜를 넘겨다보지 않는다',async()=>{
+  const source=FEEDS.find(feed=>feed.id==='webtoonguide');
+  const entry=(id,title,date)=>'<a href="/ko/board/news-column/'+id+'"><div class="article-item"><div class="title">'+
+    title+'</div><div class="writer">기자 | '+date+'</div></div></a>';
+  const html=entry('11','신작 웹툰 연재 공개','2026-11-19')+entry('11','같은 소식','2026-11-19')+
+    entry('12','다음 날 기사','2026-11-20')+entry('13','잘못된 날짜가 있는 기사','2026-11-31');
+  const result=await parseWebtoonNews(html,source,new Date('2026-11-19T03:00:00Z'));
+  assert.deepEqual(result.map(({title,url,publishedAt,description})=>[title,url,publishedAt,description]),[
+    ['신작 웹툰 연재 공개','https://www.webtoonguide.com/ko/board/news-column/11','2026-11-18T15:00:00.000Z',''],
+  ]);
+});
+
+test('최신 뉴스와 관심 뉴스는 예전 영어 기사와 영상의 노출을 제외하고 스크랩은 보관한다',async t=>{
+  const {DB,req}=await setup(t);
+  const insert=DB.prepare('INSERT INTO news_articles (id,title,url,source_name,source_url,description,published_at,first_seen_at,last_seen_at,categories,language) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+  const stamp=now().toISOString();
+  const english='a'.repeat(64),video='b'.repeat(64);
+  await insert.bind(english,'Football Manager patch 2.0','https://publisher.test/old','Press','https://publisher.test/','',stamp,stamp,stamp,'["games"]','en').run();
+  await insert.bind(video,'풋볼 매니저 공식 영상 공개','https://www.youtube.com/watch?v=456','게임 매체 · 공식 영상','https://www.youtube.com/@games','',stamp,stamp,stamp,'["games"]','ko').run();
+  for(const id of [english,video])await req('/api/news/state',{method:'PATCH',body:JSON.stringify({id,field:'saved',value:true})});
+  for(const view of ['all','interest','unread']){
+    const page=await (await req('/api/news?view='+view)).json();
+    assert.equal(page.articles.some(article=>[english,video].includes(article.id)),false);
+    assert.equal(page.counts.all,feeds.length);
+    assert.equal(page.counts.saved,2);
+  }
+  assert.equal((await (await req('/api/news?view=saved')).json()).articles.length,2);
 });
 test('읽음·스크랩·숨김은 계정별로 분리되고 다른 필드를 덮어쓰지 않는다',async t=>{
   const {req}=await setup(t);const id=(await (await req()).json()).articles[0].id;

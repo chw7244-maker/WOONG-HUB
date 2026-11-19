@@ -3,12 +3,13 @@ import { newsCategories, newsKinds, newsTopicLimit, steamNewsLimit } from '../sr
 const categories = new Set(['all', ...newsCategories.map(category => category.id)]);
 const dayMs = 86_400_000;
 const koreaOffset = 32_400_000;
-const eventWords = /\b(?:launch(?:es|ed)?|release[ds]?|out now|announc(?:e[ds]?|ement)|delay(?:ed)?|unveil(?:s|ed)?|dlc|expansion)\b|출시|공개|발표|신제품|발매|연기|확장팩/iu;
+const eventWords = /\b(?:launch(?:es|ed)?|release[ds]?|out now|announc(?:e[ds]?|ement)|delay(?:ed)?|unveil(?:s|ed)?|dlc|expansion)\b|출시|공개|발표|신제품|발매|연기|확장팩|개봉|첫\s*방송|방영\s*확정|편성\s*확정/iu;
 const kindPatterns = {
   update: /\b(?:patch(?:es)?|hotfix|firmware|update[ds]?|changelog)\b|패치|업데이트|펌웨어/iu,
   availability: /\b(?:in stock|restock|pre.?order|audition)\b|입고|재입고|예약\s*판매|청음|공동\s*구매/iu,
   deal: /\b(?:discount|free to keep|giveaway|on sale|sale ends|price drop|deals?)\b|할인|특가|무료\s*배포|가격\s*(?:인상|인하|변경|근황)/iu,
-  music: /\b(?:new (?:album|single|ep|record)|reissue[ds]?|remaster(?:ed)?|releas(?:e[ds]?|ing)|debut album|album of the day|album arrives|announces (?:an? |the )?(?:album|single|ep))\b|신보|새\s*앨범|발매|재발매|리마스터/iu,
+  music: /\b(?:new (?:album|single|ep|record)|reissue[ds]?|remaster(?:ed)?|releas(?:e[ds]?|ing)|debut album|album of the day|album arrives|announces (?:an? |the )?(?:album|single|ep))\b|신보|신곡|새\s*(?:앨범|싱글)|발매|재발매|리마스터/iu,
+  serialization: /연재|완결|휴재|웹툰화|시즌\s*\d+\s*(?:복귀|시작)|신작\s*웹툰/iu,
   squad: /\b(?:injur(?:y|ies|ed)|fitness|team news|back in training|ruled out|returns? to training|sidelined)\b|부상|훈련\s*복귀|출전\s*여부|결장/iu,
   transfer: /\b(?:transfer[rs]?|signs?|signed|signing|contract|loan deal)\b|이적|계약|영입/iu,
   fixture: /\b(?:fixture[rs]?|kick.?off|match preview|rescheduled|broadcast|how to watch|when is|game moved)\b|킥오프|경기\s*일정|일정\s*변경|경기\s*예고|중계/iu,
@@ -64,8 +65,8 @@ export function steamNewsApp(sourceUrl) {
 function recommend(article, topics) {
   const steamApp = steamNewsApp(article.sourceUrl);
   const retailer = article.sourceUrl.startsWith('https://www.schezade.co.kr/');
-  const official = Boolean(steamApp || retailer);
-  const city = article.sourceUrl === 'https://www.bbc.com/sport/football/teams/manchester-city';
+  const city = article.sourceUrl === 'https://kr.mancity.com/news';
+  const official = Boolean(steamApp || retailer || city);
   if (/\b(?:sponsored|paid partnership|advertorial)\b|유료광고|협찬\s*기사/iu.test(article.title)) return null;
   const title = ' ' + normalized(article.title) + ' ';
   const text = title + normalized(article.description) + ' ';

@@ -16,7 +16,7 @@ const views: { id: NewsView; label: string }[] = [
 function SourceMeta({ article }: { article: NewsArticle }) {
   return <div className="news-source-meta">
     <span>{article.sourceName}</span><i/>
-    <time dateTime={article.publishedAt}>{newsTime(article.publishedAt)}</time>
+    <time dateTime={article.publishedAt}>{newsTime(article.publishedAt,article.sourceName === '웹툰가이드')}</time>
     <span className="news-language">{article.language === 'ko' ? 'KR' : 'EN'}</span>
   </div>;
 }
@@ -156,7 +156,7 @@ export default function NewsHub({ games }: { games: Entry[] }) {
           <a href="https://www.thisisgame.com/" target="_blank" rel="noreferrer">디스이즈게임<ArrowUpRight size={13}/></a>
           <a href="https://quasarzone.com/bbs/qn_hardware" target="_blank" rel="noreferrer">퀘이사존 하드웨어 뉴스<ArrowUpRight size={13}/></a>
         </div>
-        <p>페이지를 열 때 마지막 확인 후 한 시간이 지났으면 새 기사를 수집합니다.</p>
+        <p>한국어 기사와 관련 커뮤니티 글을 수집합니다. 페이지를 열 때 마지막 확인 후 한 시간이 지났으면 새로 확인합니다.</p>
       </div>}
     </section>
 

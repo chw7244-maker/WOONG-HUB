@@ -2,7 +2,7 @@ import {FEEDS,fetchFeed,steamNewsFeed} from './news-feeds.mjs';
 import {newsCategories,starterNewsTopics,steamNewsLimit} from '../src/lib/news.ts';
 import {rankNews,validateNewsTopics} from './news-interests.mjs';
 
-const SYNC_KEY='publisher-rss-v1';
+const SYNC_KEY='korean-articles-v1';
 const HOUR=3600000;
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Vary':'Cookie'}});
 const getSync=db=>db.prepare('SELECT * FROM news_sync WHERE key = ?').bind(SYNC_KEY).first();
@@ -49,6 +49,7 @@ export async function collectNews(env,lease,{fetcher=fetch,now=new Date(),feeds}
         "INSERT INTO news_articles (id,title,url,source_name,source_url,description,published_at,first_seen_at,last_seen_at,categories,language) "+
         "SELECT value->>'id',value->>'title',value->>'url',value->>'sourceName',value->>'sourceUrl',value->>'description',value->>'publishedAt',?,?,value->'categories',value->>'language' "+
         "FROM json_each(?) WHERE true ON CONFLICT(url) DO UPDATE SET title=excluded.title,description=excluded.description,last_seen_at=excluded.last_seen_at,"+
+        "language=excluded.language,"+
         "categories=(SELECT json_group_array(value) FROM (SELECT value FROM json_each(news_articles.categories) UNION SELECT value FROM json_each(excluded.categories)))"
       ).bind(checkedAt,checkedAt,JSON.stringify(articles.slice(offset,offset+30))));
     }
@@ -75,6 +76,9 @@ async function smallBody(request,max=2048){
   body+=decoder.decode();try{return JSON.parse(body);}catch{throw new Error('invalid_json');}
 }
 const JOIN='FROM news_articles a LEFT JOIN news_user_states s ON a.id=s.article_id AND s.user_id=?';
+const KOREAN_ARTICLE = "a.language='ko' AND a.source_name NOT LIKE '% · 공식 영상' AND "+
+  "a.url NOT LIKE 'https://%youtube.com/%' AND a.url NOT LIKE 'https://youtu.be/%' AND "+
+  "(a.title GLOB '*[가-힣]*[가-힣]*[가-힣]*' OR a.description GLOB '*[가-힣]*[가-힣]*[가-힣]*')";
 async function newsPreferences(db,userId){
   const row=await db.prepare('SELECT revision,topics FROM news_preferences WHERE user_id=?').bind(userId).first();
   return row?{revision:row.revision,topics:JSON.parse(row.topics)}:{revision:0,topics:starterNewsTopics};
@@ -147,6 +151,7 @@ export async function handleNews(request,env,ctx){
       const lease=await claimNewsSync(env.DB);if(lease){scheduled=true;await defer(ctx,collectNews(env,lease));row=await getSync(env.DB);}
     }
     const conditions=[view==='hidden'?'COALESCE(s.is_hidden,0)=1':'COALESCE(s.is_hidden,0)=0'];const params=[userId];
+    if(view!=='saved'&&view!=='hidden')conditions.push(KOREAN_ARTICLE);
     if(category!=='all'){conditions.push('EXISTS(SELECT 1 FROM json_each(a.categories) WHERE value=?)');params.push(category);}
     if(view==='unread'||(unreadOnly&&(interest||view==='all')))conditions.push('COALESCE(s.is_read,0)=0');
     if(view==='saved')conditions.push('COALESCE(s.is_saved,0)=1');
@@ -190,8 +195,8 @@ export async function handleNews(request,env,ctx){
     const page=ordered.slice(0,limit),last=page.at(-1);
     const nextCursor=ordered.length>limit&&last?btoa(JSON.stringify([last.publishedAt,last.id,...(interest?[last.rank]:[])])):null;
     const articles=page.map(({rank,...article})=>article);
-    const counts=await env.DB.prepare(`SELECT COUNT(*) AS all_count,SUM(CASE WHEN COALESCE(s.is_read,0)=0 THEN 1 ELSE 0 END) AS unread,SUM(CASE WHEN s.is_saved=1 THEN 1 ELSE 0 END) AS saved ${JOIN} WHERE COALESCE(s.is_hidden,0)=0`).bind(userId).first();
-    const groups=await env.DB.prepare(`SELECT c.value AS category,COUNT(*) AS total ${JOIN} JOIN json_each(a.categories) c WHERE COALESCE(s.is_hidden,0)=0 GROUP BY c.value`).bind(userId).all();
+    const counts=await env.DB.prepare(`SELECT SUM(CASE WHEN ${KOREAN_ARTICLE} THEN 1 ELSE 0 END) AS all_count,SUM(CASE WHEN COALESCE(s.is_read,0)=0 AND ${KOREAN_ARTICLE} THEN 1 ELSE 0 END) AS unread,SUM(CASE WHEN s.is_saved=1 THEN 1 ELSE 0 END) AS saved ${JOIN} WHERE COALESCE(s.is_hidden,0)=0`).bind(userId).first();
+    const groups=await env.DB.prepare(`SELECT c.value AS category,COUNT(*) AS total ${JOIN} JOIN json_each(a.categories) c WHERE COALESCE(s.is_hidden,0)=0 AND ${KOREAN_ARTICLE} GROUP BY c.value`).bind(userId).all();
     return json({articles,preferences,counts:{all:counts.all_count??0,unread:counts.unread??0,saved:counts.saved??0},categoryCounts:Object.fromEntries(groups.results.map(g=>[g.category,g.total])),sync:syncInfo(row,Date.now(),scheduled&&!!row?.lease_until),nextCursor});
   }catch{return json({error:'news_unavailable'},503);}
 }

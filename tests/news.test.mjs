@@ -276,6 +276,68 @@ test('표현이 다른 성능 보도는 같은 기기·프레임·지원 여부�
   assert.deepEqual([grouped.id,grouped.related[0].id].sort(),['a','b']);
 });
 
+test('출처 선호는 관심 주제에 맞는 기사만 같은 날의 순서에서 조정한다',()=>{
+  const row=(id,title,host,stamp)=>({...article(id,title,'https://'+host+'/'),publishedAt:stamp});
+  const candidates=[
+    row('preferred','FM27 겨울 이적 데이터 패치','www.favorite.test','2026-11-17T01:00:00Z'),
+    row('neutral','FM27 경기 엔진 업데이트','neutral.test','2026-11-17T02:00:00Z'),
+    row('less','FM27 전술 화면 오류 패치','rare.test','2026-11-17T03:00:00Z'),
+    row('next-day','FM27 선수 사진 핫픽스 발표','rare.test','2026-11-18T01:00:00Z'),
+    row('unrelated','올해의 퍼즐 게임 출시 일정','favorite.test','2026-11-18T02:00:00Z'),
+  ];
+  const ranked=rankNews(candidates,starterNewsTopics,[{host:'favorite.test',mode:'more'},{host:'rare.test',mode:'less'}]);
+  assert.deepEqual(ranked.map(item=>item.id),['next-day','preferred','neutral','less']);
+  assert.equal(ranked[1].recommendation.preferredSource,true);
+  assert.equal(ranked[2].recommendation.preferredSource,undefined);
+});
+
+test('같은 소식은 선호 매체를 앞에 두고 공식 공지를 우선한다',()=>{
+  const title='사이버펑크 2077 다음 업데이트 발표';
+  const normal=article('normal',title,'https://news.test/');
+  const preferred=article('preferred',title,'https://www.favorite.test/', 'games', 1000);
+  const official=article('official',title,'https://store.steampowered.com/app/1091500/', 'games', 2000);
+  const preferences=[{host:'favorite.test',mode:'more'}];
+  assert.equal(rankNews([normal,preferred],starterNewsTopics,preferences)[0].id,'preferred');
+  const [group]=rankNews([normal,preferred,official],starterNewsTopics,preferences);
+  assert.equal(group.id,'official');
+  assert.equal(group.related[0].id,'preferred');
+});
+
+test('출처 선호는 계정별로 저장되고 기존 형식의 저장이나 전체 최신에 영향을 주지 않는다',async t=>{
+  const {DB,req}=await setup(t);
+  const day=new Date(Date.now()-86_400_000).toISOString().slice(0,10);
+  const preferred='1'.repeat(64),other='2'.repeat(64);
+  const insert=DB.prepare('INSERT INTO news_articles (id,title,url,source_name,source_url,description,published_at,first_seen_at,last_seen_at,categories,language) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+  for(const [id,title,host,hour] of [[preferred,'FM27 데이터베이스 패치','www.favorite.test','01'],[other,'FM27 경기 엔진 패치','normal.test','02']]){
+    const published=day+'T'+hour+':00:00.000Z';
+    await insert.bind(id,title,'https://'+host+'/article',host,'https://'+host+'/','',published,published,published,'["games"]','ko').run();
+  }
+  const current=(await (await req('/api/news?view=interest')).json()).preferences;
+  assert.deepEqual(current.sourcePreferences,[]);
+  const sources=[{host:'favorite.test',label:'선호 테스트 매체',mode:'more'}];
+  const write=document=>req('/api/news/preferences',{method:'PUT',body:JSON.stringify(document)});
+  assert.equal((await write({...current,sourcePreferences:[...sources,...sources]})).status,400);
+  assert.equal((await write({...current,sourcePreferences:[{...sources[0],host:'elsewhere.test/'}]})).status,400);
+  const first=await write({...current,sourcePreferences:sources});
+  assert.equal(first.status,200);
+  const saved=await first.json();
+  assert.equal((await write({...current,sourcePreferences:sources})).status,200);
+  assert.equal((await write({...current,sourcePreferences:[]})).status,409);
+  const legacy=await write({revision:saved.revision,topics:saved.topics});
+  assert.equal(legacy.status,200);
+  const updated=await legacy.json();
+  assert.deepEqual(updated.sourcePreferences,sources);
+  const interest=await (await req('/api/news?view=interest')).json();
+  assert.deepEqual(interest.articles.map(a=>a.id),[preferred,other]);
+  assert.equal(interest.articles[0].recommendation.preferredSource,true);
+  const latest=await (await req('/api/news?view=all&q=FM27')).json();
+  assert.deepEqual(latest.articles.map(a=>a.id),[other,preferred]);
+  const otherAccount=await (await req('/api/news?view=interest',{},'other')).json();
+  assert.deepEqual(otherAccount.preferences.sourcePreferences,[]);
+  assert.deepEqual(otherAccount.articles.map(a=>a.id),[other,preferred]);
+  assert.deepEqual((await (await write({...updated,sourcePreferences:[]})).json()).sourcePreferences,[]);
+});
+
 test('관심 설정은 계정별 저장과 충돌 검증을 하고 전체 기사와 스크랩을 보존한다',async t=>{
   const {DB,req}=await setup(t);
   const release=new Date(Date.now()-1000).toUTCString();

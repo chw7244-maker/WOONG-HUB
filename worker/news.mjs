@@ -1,6 +1,6 @@
 import {FEEDS,fetchFeed,steamNewsFeed} from './news-feeds.mjs';
 import {newsCategories,starterNewsTopics,steamNewsLimit} from '../src/lib/news.ts';
-import {rankNews,validateNewsTopics} from './news-interests.mjs';
+import {rankNews,validateNewsSourcePreferences,validateNewsTopics} from './news-interests.mjs';
 
 const SYNC_KEY='korean-articles-v1';
 const HOUR=3600000;
@@ -114,8 +114,9 @@ const KOREAN_ARTICLE = "a.language='ko' AND a.source_name NOT LIKE '% · 공식 
   "a.url NOT LIKE 'https://%youtube.com/%' AND a.url NOT LIKE 'https://youtu.be/%' AND "+
   "(a.title GLOB '*[가-힣]*[가-힣]*[가-힣]*' OR a.description GLOB '*[가-힣]*[가-힣]*[가-힣]*')";
 async function newsPreferences(db,userId){
-  const row=await db.prepare('SELECT revision,topics FROM news_preferences WHERE user_id=?').bind(userId).first();
-  return row?{revision:row.revision,topics:JSON.parse(row.topics)}:{revision:0,topics:starterNewsTopics};
+  const row=await db.prepare('SELECT revision,topics,source_preferences FROM news_preferences WHERE user_id=?').bind(userId).first();
+  return row?{revision:row.revision,topics:JSON.parse(row.topics),sourcePreferences:JSON.parse(row.source_preferences)}:
+    {revision:0,topics:starterNewsTopics,sourcePreferences:[]};
 }
 
 async function updatePreferences(request,db,userId){
@@ -127,11 +128,15 @@ async function updatePreferences(request,db,userId){
   const topics=validateNewsTopics(data?.topics);
   if(!topics||!Number.isSafeInteger(data?.revision)||data.revision<0)return json({error:'invalid_preferences'},400);
   const document=JSON.stringify(topics);
+  const sources=data.sourcePreferences===undefined?null:validateNewsSourcePreferences(data.sourcePreferences);
+  if(data.sourcePreferences!==undefined&&!sources)return json({error:'invalid_source_preferences'},400);
+  const sourceDocument=sources?JSON.stringify(sources):null;
   const update=data.revision===0
-    ? await db.prepare('INSERT INTO news_preferences (user_id,revision,topics) VALUES (?,1,?) ON CONFLICT DO NOTHING').bind(userId,document).run()
-    : await db.prepare('UPDATE news_preferences SET revision=revision+1,topics=? WHERE user_id=? AND revision=?').bind(document,userId,data.revision).run();
+    ? await db.prepare('INSERT INTO news_preferences (user_id,revision,topics,source_preferences) VALUES (?,1,?,?) ON CONFLICT DO NOTHING').bind(userId,document,sourceDocument??'[]').run()
+    : await db.prepare('UPDATE news_preferences SET revision=revision+1,topics=?,source_preferences=COALESCE(?,source_preferences) WHERE user_id=? AND revision=?').bind(document,sourceDocument,userId,data.revision).run();
   const result=await newsPreferences(db,userId);
-  if(!update.meta.changes&&JSON.stringify(result.topics)!==document)return json({error:'preferences_changed',preferences:result},409);
+  if(!update.meta.changes&&(JSON.stringify(result.topics)!==document||
+    (sourceDocument!==null&&JSON.stringify(result.sourcePreferences)!==sourceDocument)))return json({error:'preferences_changed',preferences:result},409);
   return json(result);
 }
 
@@ -223,7 +228,7 @@ export async function handleNews(request,env,ctx){
       ordered=result.results.map(articleFrom);
     }
     if(interest){
-      ordered=rankNews(ordered,preferences.topics);
+      ordered=rankNews(ordered,preferences.topics,preferences.sourcePreferences);
       if(after)ordered=ordered.filter(a=>a.rank<after.rank||(a.rank===after.rank&&(a.publishedAt<after.published||(a.publishedAt===after.published&&a.id>after.id))));
     }
     const page=ordered.slice(0,limit),last=page.at(-1);

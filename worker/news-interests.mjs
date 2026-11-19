@@ -1,4 +1,4 @@
-import { newsCategories, newsKinds, newsTopicLimit, steamNewsLimit } from '../src/lib/news.ts';
+import { newsCategories, newsKinds, newsSourceHost, newsSourcePreferenceLimit, newsTopicLimit, steamNewsLimit } from '../src/lib/news.ts';
 
 const categories = new Set(['all', ...newsCategories.map(category => category.id)]);
 const dayMs = 86_400_000;
@@ -40,6 +40,22 @@ export function validateNewsTopics(value) {
     ids.add(item.id);
     output.push({ id:item.id, label:item.label.trim(), category:item.category, terms:[...new Set(item.terms.map(term => term.trim()))],
       kinds:[...new Set(item.kinds)], muted:item.muted, ...(app && { steamAppId:app }) });
+  }
+  return output;
+}
+
+const sourceHostPattern = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
+export function validateNewsSourcePreferences(value) {
+  if (!Array.isArray(value) || value.length > newsSourcePreferenceLimit) return null;
+  const output = [], seen = new Set();
+  for (const item of value) {
+    const host = item?.host;
+    const label = trimText(item?.label, 80);
+    if (typeof host !== 'string' || host.length > 253 || !sourceHostPattern.test(host) ||
+      newsSourceHost('https://' + host) !== host || seen.has(host) || !label ||
+      (item.mode !== 'more' && item.mode !== 'less')) return null;
+    seen.add(host);
+    output.push({ host, label, mode:item.mode });
   }
   return output;
 }
@@ -127,19 +143,22 @@ function sameStory(a, b) {
   return common / (a.words.size + b.words.size - common) >= 0.82;
 }
 
-export function rankNews(articles, topics) {
+export function rankNews(articles, topics, sourcePreferences = []) {
   const rules = topics.map(topic => ({ ...topic, matches:topic.terms.map(termMatcher) }));
+  const sourceModes = new Map(sourcePreferences.map(source => [source.host, source.mode]));
   const candidates = articles.flatMap(article => {
     const rec = recommend(article, rules);
     if (!rec) return [];
     const time = Date.parse(article.publishedAt), title = normalized(article.title);
-    const rank = Math.floor((time + koreaOffset) / dayMs) * 8 + rec.relevance;
-    return [{ article, rec, rank, time, title, version:versionTokens(article.title), steamApp:steamNewsApp(article.sourceUrl),
+    const mode = sourceModes.size ? sourceModes.get(newsSourceHost(article.sourceUrl)) : undefined;
+    const sourceWeight = mode === 'more' ? 2 : mode === 'less' ? -1 : 0;
+    const rank = Math.floor((time + koreaOffset) / dayMs) * 8 + rec.relevance + sourceWeight;
+    return [{ article, rec, rank, sourceWeight, time, title, version:versionTokens(article.title), steamApp:steamNewsApp(article.sourceUrl),
       performance:rec.kind === 'performance' ? performanceDetails(article.title) : undefined,
       words:new Set(title.split(' ').filter(word => word.length > 2 && !stopWords.has(word))) }];
   });
   const groups = new Map();
-  candidates.sort((a, b) => Number(b.rec.official) - Number(a.rec.official) || b.time - a.time || a.article.id.localeCompare(b.article.id));
+  candidates.sort((a, b) => Number(b.rec.official) - Number(a.rec.official) || b.sourceWeight - a.sourceWeight || b.time - a.time || a.article.id.localeCompare(b.article.id));
   for (const candidate of candidates) {
     const key = candidate.rec.topicId;
     const bucket = groups.get(key) ?? [];
@@ -157,7 +176,8 @@ export function rankNews(articles, topics) {
   }
   return [...groups.values()].flat().sort((a, b) => b.rank - a.rank || b.time - a.time || a.article.id.localeCompare(b.article.id)).map(entry => {
     const { topicId, topicLabel, kind, official } = entry.rec;
-    return { ...entry.article, rank:entry.rank, recommendation:{ topicId, topicLabel, kind, official },
+    return { ...entry.article, rank:entry.rank, recommendation:{ topicId, topicLabel, kind, official,
+      ...(entry.sourceWeight > 0 && { preferredSource:true }) },
       ...(entry.related.length && { related:entry.related }) };
   });
 }

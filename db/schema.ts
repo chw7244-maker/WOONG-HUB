@@ -27,6 +27,7 @@ export const newsPreferences = sqliteTable('news_preferences', {
   userId: text('user_id').primaryKey(),
   revision: integer('revision').notNull(),
   topics: text('topics').notNull(),
+  sourcePreferences: text('source_preferences').notNull().default('[]'),
 });
 
 export const dailyBriefings = sqliteTable('daily_briefings', {

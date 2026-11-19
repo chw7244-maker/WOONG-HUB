@@ -66,6 +66,7 @@
 .news-row-actions { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 8px; }
 .news-row-actions button { min-height: 44px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); }
 .news-row-actions button:hover { background: var(--hover); }
+.news-row-actions button[aria-pressed=true] { color: var(--blue); background: var(--blue-soft); border-color: var(--blue); }
 .news-results-empty p { margin: 0; font-size: .875rem; }
 .news-results-empty .news-source-warning { margin-bottom: 8px; line-height: 1.6; }
 .news-source-warning a { display: inline-block; color: var(--blue); text-decoration: underline; text-underline-offset: 2px; }
@@ -86,6 +87,15 @@
 .hub-workspace .news-hub label.news-unread-filter > input { flex: none; width: 18px; height: 18px; min-height: 0; accent-color: var(--blue); }
 .news-preferences-dialog { width: min(680px, 96vw); }
 .news-preference-body { display: grid; gap: 12px; padding: 16px; }
+.news-source-preferences { display: grid; gap: 6px; padding: 10px 0; border-block: 1px solid var(--border); }
+.news-source-preference-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.news-source-preference-heading h3 { margin: 0; font-size: 1rem; }
+.news-source-preference-heading button { min-height: 44px; }
+.news-source-preferences p { margin: 0; color: var(--muted); font-size: .875rem; }
+.news-source-preference { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 4px 8px; font-size: .875rem; }
+.news-source-preference span { overflow-wrap: anywhere; min-width: 0; }
+.news-source-preference small { display: block; color: var(--muted); font-size: .75rem; }
+.news-source-preference select { min-height: 44px; max-width: 100%; padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--panel); }
 .news-topic-add { display: grid; gap: 8px; align-items: end; grid-template-columns: minmax(0, 1fr) minmax(105px, .48fr) auto; }
 .news-game-add { grid-template-columns: minmax(0, 1fr) auto; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
 .news-topic-add label, .news-topic-fields > label { display: grid; gap: 4px; font-size: .875rem; }
@@ -111,6 +121,7 @@
   .news-hub .news-search > button { min-height: 44px; min-width: 44px; }
   .news-hub .news-topics-nav > button { min-height: 44px; }
   .news-active-conditions button { min-height: 44px; }
+  .news-source-preference select { font-size: 1rem; }
   .news-reading-details summary { min-height: 44px; padding-block: 12px; }
 }
 @media (max-width: 520px) {

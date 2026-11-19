@@ -50,6 +50,13 @@
       "when": 1795053436869,
       "tag": "0006_bored_violations",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1795075830079,
+      "tag": "0007_news_source_preferences",
+      "breakpoints": true
     }
   ]
 }

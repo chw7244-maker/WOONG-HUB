@@ -1,0 +1,1 @@
+ALTER TABLE `news_preferences` ADD `source_preferences` text DEFAULT '[]' NOT NULL;

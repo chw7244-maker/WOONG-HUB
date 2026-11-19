@@ -16,6 +16,7 @@ export function NewsPreferencesDialog({ preferences, games, onSave, onClose }: {
   onClose: () => void;
 }) {
   const [topics, setTopics] = useState(preferences.topics);
+  const [sourcePreferences, setSourcePreferences] = useState(preferences.sourcePreferences ?? []);
   const [termInputs, setTermInputs] = useState<Record<string,string>>({});
   const [label, setLabel] = useState('');
   const [category, setCategory] = useState<NewsTopic['category']>('all');
@@ -64,7 +65,7 @@ export function NewsPreferencesDialog({ preferences, games, onSave, onClose }: {
     }
     setBusy(true);
     setError('');
-    try { await onSave({ revision:preferences.revision, topics:cleaned }); onClose(); }
+    try { await onSave({ revision:preferences.revision, topics:cleaned, sourcePreferences }); onClose(); }
     catch (err) { setError(err instanceof Error ? err.message : '관심 설정을 저장하지 못했어요.'); }
     finally { setBusy(false); }
   }
@@ -87,6 +88,24 @@ export function NewsPreferencesDialog({ preferences, games, onSave, onClose }: {
           </select></label>
           <button type="button" className="button secondary" disabled={busy || !game || topics.length >= newsTopicLimit} onClick={addTopic}><Plus size={16}/>게임 추가</button>
         </div>}
+        <section className="news-source-preferences" aria-labelledby="news-source-preferences-heading">
+          <div className="news-source-preference-heading">
+            <h3 id="news-source-preferences-heading">출처 선호</h3>
+            {sourcePreferences.length > 0 && <button type="button" className="text-button muted" disabled={busy} onClick={() => setSourcePreferences([])}>출처 선호 초기화</button>}
+          </div>
+          {sourcePreferences.length ? [...sourcePreferences].sort((a, b) => a.label.localeCompare(b.label, 'ko')).map(source => <label className="news-source-preference" key={source.host}>
+            <span>{source.label}<small>{source.host}</small></span>
+            <select aria-label={`${source.label} 출처 선호`} value={source.mode} disabled={busy} onChange={event => {
+              const mode = event.target.value;
+              setSourcePreferences(current => mode === 'default' ? current.filter(item => item.host !== source.host)
+                : current.map(item => item.host === source.host ? { ...item, mode:mode === 'more' ? 'more' : 'less' } : item));
+            }}>
+              <option value="more">더 보기</option>
+              <option value="less">덜 보기</option>
+              <option value="default">기본으로 되돌리기</option>
+            </select>
+          </label>) : <p>기사 옵션에서 출처를 더 보거나 덜 보도록 설정할 수 있어요.</p>}
+        </section>
         <div className="news-topic-list">
           {topics.map(topic => <details className="news-topic-setting" key={topic.id}>
             <summary><strong>{topic.label}</strong><small>{topic.muted ? '덜 보기' : '팔로우 중'}{topic.steamAppId ? ' · Steam 공식 공지' : ''}</small></summary>

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ArrowDownToLine, ArrowUpRight, Bookmark, ChevronDown, Globe2, Newspaper, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
-import { newsCategories, newsCategory, newsKinds, newsTime, type FeedStatus, type NewsArticle, type NewsPreferences } from '@/lib/news';
+import { newsCategories, newsCategory, newsKinds, newsSourceHost, newsSourceLabel, newsSourcePreferenceLimit, newsTime, type FeedStatus, type NewsArticle, type NewsPreferences, type NewsSourceMode } from '@/lib/news';
 import type { Entry } from '@/lib/store';
 import { NewsPreferencesDialog } from './news-preferences';
 import { SectionFilters } from './section-controls';
@@ -51,7 +51,7 @@ export default function NewsHub({ games }: { games: Entry[] }) {
   const [unread, setUnread] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [editor, setEditor] = useState<NewsPreferences | null>(null);
-  const [muting, setMuting] = useState(false);
+  const [savingPreferences, setSavingPreferences] = useState(false);
   const [feedback, setFeedback] = useState('');
 
   useEffect(() => {
@@ -114,24 +114,49 @@ export default function NewsHub({ games }: { games: Entry[] }) {
     : failedSources > 0 && successful === 0 ? '뉴스 출처를 확인하지 못했어요'
     : conditions.length ? '조건에 맞는 기사가 없어요' : emptyTitles[view];
 
-  async function muteTopic(id: string, label: string) {
-    if (!response || muting) return;
-    setMuting(true);
+  async function savePreferenceChange(preferences: NewsPreferences, message: string) {
+    if (savingPreferences) return;
+    setSavingPreferences(true);
     setFeedback('');
-    const preferences = response.preferences;
     try {
-      await news.savePreferences({ ...preferences, topics:preferences.topics.map(topic => topic.id === id ? { ...topic, muted:true } : topic) });
-      setFeedback(`${label} 주제는 관심 뉴스에서 덜 표시됩니다. 관심 설정에서 다시 팔로우할 수 있어요.`);
+      await news.savePreferences(preferences);
+      setFeedback(message);
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : '관심 설정을 저장하지 못했어요.');
-    } finally { setMuting(false); }
+    } finally { setSavingPreferences(false); }
+  }
+
+  async function muteTopic(id: string, label: string) {
+    if (!response) return;
+    const preferences = response.preferences;
+    await savePreferenceChange({ ...preferences, topics:preferences.topics.map(topic => topic.id === id ? { ...topic, muted:true } : topic) },
+      `${label} 주제는 관심 뉴스에서 덜 표시됩니다. 관심 설정에서 다시 팔로우할 수 있어요.`);
+  }
+
+  async function changeSource(article: NewsArticle, mode: NewsSourceMode) {
+    if (!response || savingPreferences) return;
+    const host = newsSourceHost(article.sourceUrl);
+    const label = newsSourceLabel(article.sourceName);
+    if (!host || !label) return;
+    const preferences = response.preferences;
+    const current = preferences.sourcePreferences ?? [];
+    const existing = current.find(source => source.host === host);
+    if (!existing && current.length >= newsSourcePreferenceLimit) {
+      setFeedback(`출처 선호는 ${newsSourcePreferenceLimit}곳까지 저장할 수 있어요. 관심 설정에서 기존 출처를 해제해 주세요.`);
+      return;
+    }
+    const sourcePreferences = current.filter(source => source.host !== host);
+    const reset = existing?.mode === mode;
+    if (!reset) sourcePreferences.push({ host, label, mode });
+    await savePreferenceChange({ ...preferences, sourcePreferences }, reset ? `${label} 출처 선호를 해제했어요.`
+      : `${label} 소식을 관심 뉴스에서 ${mode === 'more' ? '더 위에' : '더 아래에'} 표시해요.`);
   }
 
   return <div className="news-hub">
     <header className="page-heading section-heading news-page-heading">
       <div><h1>뉴스</h1></div>
       <div className="news-heading-actions">
-        <button type="button" className="button secondary news-preferences-trigger" disabled={!response || muting} onClick={() => response && setEditor(response.preferences)}>
+        <button type="button" className="button secondary news-preferences-trigger" disabled={!response || savingPreferences} onClick={() => response && setEditor(response.preferences)}>
           <SlidersHorizontal size={16}/>관심 설정
         </button>
         <button type="button" className="button secondary news-refresh" disabled={response?.sync.running} onClick={() => void news.refresh()}>
@@ -185,14 +210,14 @@ export default function NewsHub({ games }: { games: Entry[] }) {
       </div>
       {news.loading && !response ? <div className="news-loading"><RefreshCw className="spinning" size={22}/><p>기사를 불러오는 중이에요.</p></div>
         : visible.length ? <div className="news-reading-list">
-          {visible.map(article => <NewsRow key={article.id} article={article} news={news} onMute={muteTopic} muting={muting}/>)}
+          {visible.map(article => <NewsRow key={article.id} article={article} news={news} onMute={muteTopic} onSource={changeSource} savingPreferences={savingPreferences}/>)}
         </div> : response && <div className="collection-empty news-results-empty">
           <h3>{emptyTitle}</h3>
           {failedSources > 0 && <p className="news-source-warning">최근 수집에서 출처 {sources.length}곳 중 {failedSources}곳을 확인하지 못했어요. <a href="#news-sources" onClick={() => setSourcesOpen(true)}>수집 상태 보기</a></p>}
           {view === 'saved' && !conditions.length && <p>기사 오른쪽의 북마크를 누르면 여기에 모여요.</p>}
           {view === 'interest' && <div className="news-empty-actions">
             <button type="button" className="button secondary" onClick={() => selectView('all', category)}>{wideningLabel}</button>
-            {!conditions.length && <button type="button" className="text-button blue" onClick={() => setEditor(response.preferences)}>관심 설정</button>}
+            {!conditions.length && <button type="button" className="text-button blue" disabled={savingPreferences} onClick={() => setEditor(response.preferences)}>관심 설정</button>}
           </div>}
         </div>}
       {response?.nextCursor && <button type="button" disabled={news.loading} className="news-more button secondary" onClick={() => void news.more()}>{news.loading ? '불러오는 중' : '기사 더 보기'}<ChevronDown size={14}/></button>}
@@ -225,21 +250,24 @@ export default function NewsHub({ games }: { games: Entry[] }) {
   </div>;
 }
 
-function NewsRow({ article, news, onMute, muting }: {
+function NewsRow({ article, news, onMute, onSource, savingPreferences }: {
   article: NewsArticle;
   news: ReturnType<typeof useNews>;
   onMute: (id: string, label: string) => Promise<void>;
-  muting: boolean;
+  onSource: (article: NewsArticle, mode: NewsSourceMode) => Promise<void>;
+  savingPreferences: boolean;
 }) {
   const category = newsCategory(article.categories[0]);
   const rec = article.recommendation;
+  const sourceHost = newsSourceHost(article.sourceUrl);
+  const sourceMode = news.response?.preferences.sourcePreferences?.find(source => source.host === sourceHost)?.mode;
   return <article className={`news-reading-row ${article.read ? 'article-read' : ''}`}>
     <div className="news-reading-copy">
       <a href={article.url} target="_blank" rel="noreferrer" onClick={() => { if (!article.read) news.setArticleState(article, 'read', true); }}>
         <h3>{article.title}<ArrowUpRight size={14} aria-hidden="true"/></h3>
       </a>
       <div className="news-reading-meta"><SourceMeta article={article}/><span className={`news-category-tag ${category.accent}`}>{category.label}</span></div>
-      {rec && <p className="news-recommendation">추천 · {rec.topicLabel}{rec.kind ? ` · ${newsKinds[rec.kind]}` : ''}{rec.official ? ' · 공식 원문' : ''}</p>}
+      {rec && <p className="news-recommendation">추천 · {rec.topicLabel}{rec.kind ? ` · ${newsKinds[rec.kind]}` : ''}{rec.official ? ' · 공식 원문' : ''}{rec.preferredSource ? ' · 선호 출처' : ''}</p>}
       {article.description && <p className="news-reading-description">{article.description}</p>}
     </div>
     <button type="button" className="news-bookmark" aria-pressed={article.saved} disabled={news.pending.has(`${article.id}:saved`)} aria-label={`${article.title} 스크랩`} title={article.saved ? '스크랩 해제' : '스크랩'} onClick={() => news.setArticleState(article, 'saved', !article.saved)}>
@@ -255,8 +283,12 @@ function NewsRow({ article, news, onMute, muting }: {
         <div className="news-row-actions">
           <button type="button" disabled={news.pending.has(`${article.id}:read`)} onClick={() => news.setArticleState(article, 'read', !article.read)}>{article.read ? '읽지 않음으로 표시' : '읽음으로 표시'}</button>
           <button type="button" disabled={news.pending.has(`${article.id}:hidden`)} onClick={() => news.setArticleState(article, 'hidden', !article.hidden)}>{article.hidden ? '숨김 해제' : '기사 숨기기'}</button>
-          {rec && <button type="button" disabled={muting} onClick={() => void onMute(rec.topicId, rec.topicLabel)}>이 주제 덜 보기</button>}
+          {rec && <button type="button" disabled={savingPreferences} onClick={() => void onMute(rec.topicId, rec.topicLabel)}>이 주제 덜 보기</button>}
         </div>
+        {sourceHost && <div className="news-row-actions" role="group" aria-label={`${article.sourceName} 출처 선호`}>
+          <button type="button" aria-pressed={sourceMode === 'more'} disabled={savingPreferences} onClick={() => void onSource(article, 'more')}>이 출처 더 보기</button>
+          <button type="button" aria-pressed={sourceMode === 'less'} disabled={savingPreferences} onClick={() => void onSource(article, 'less')}>이 출처 덜 보기</button>
+        </div>}
       </details>
     </div>
   </article>;

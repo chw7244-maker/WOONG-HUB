@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import '../components/sync.css';
 import '../components/news.css';
-import '../components/daily-briefing.css';
 import '../components/audio.css';
 import '../components/calendar.css';
 import '../components/games.css';

@@ -1,13 +1,13 @@
 'use client';
 import {useCallback,useEffect,useRef,useState} from 'react';
-import {type NewsArticle,type NewsResponse,type NewsSync} from '@/lib/news';
+import {type NewsArticle,type NewsPreferences,type NewsResponse,type NewsSync} from '@/lib/news';
 
-export type NewsView='all'|'unread'|'saved'|'hidden';
-export function useNews(options:{category?:string;view?:NewsView;query?:string;date?:string;limit?:number}={}){
-  const {category='all',view='all',query='',date='',limit=24}=options;
-  const key=new URLSearchParams({category,view,q:query,date,limit:String(limit)}).toString();
+export type NewsView='interest'|'all'|'saved'|'hidden';
+export function useNews(options:{category?:string;view?:NewsView;query?:string;date?:string;limit?:number;unread?:boolean}={}){
+  const {category='all',view='interest',query='',date='',limit=24,unread=false}=options;
+  const key=new URLSearchParams({category,view,q:query,date,limit:String(limit),...(unread&&{unread:'1'})}).toString();
   const [response,setResponse]=useState<NewsResponse|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[mutationError,setMutationError]=useState(''),[message,setMessage]=useState(''),[pending,setPending]=useState<Set<string>>(new Set());
-  const active=useRef(true),requestId=useRef(0),controller=useRef<AbortController|null>(null),pendingValues=useRef(new Map<string,boolean>()),queues=useRef(new Map<string,Promise<void>>()),latestLoad=useRef<(()=>void)|null>(null);
+  const active=useRef(true),requestId=useRef(0),controller=useRef<AbortController|null>(null),pendingValues=useRef(new Map<string,boolean>()),queues=useRef(new Map<string,Promise<void>>()),latestLoad=useRef<(()=>Promise<void>)|null>(null);
   const overlay=useCallback((articles:NewsArticle[])=>articles.map(a=>{const copy={...a};for(const field of ['read','saved','hidden'] as const){const value=pendingValues.current.get(`${a.id}:${field}`);if(value!==undefined)copy[field]=value;}return copy;}),[]);
   const load=useCallback(async(append=false,cursor?:string,quiet=false)=>{
     const id=++requestId.current;controller.current?.abort();const abort=new AbortController();controller.current=abort;
@@ -17,11 +17,20 @@ export function useNews(options:{category?:string;view?:NewsView;query?:string;d
       if(!r.ok||!r.headers.get('Content-Type')?.includes('application/json'))throw new Error(r.status===401?'로그인을 확인한 뒤 다시 시도해주세요.':'뉴스를 불러오지 못했어요. 잠시 후 다시 시도해주세요.');
       const result=await r.json() as NewsResponse;
       if(!Array.isArray(result.articles)||!result.sync)throw new Error('뉴스 응답을 확인하지 못했어요.');
-      if(active.current&&id===requestId.current){setError('');setResponse(previous=>{const retain=quiet&&previous&&previous.articles.length>limit;const items=append&&previous?[...previous.articles,...result.articles]:retain?[...result.articles,...previous.articles]:result.articles;return {...result,nextCursor:retain?previous.nextCursor:result.nextCursor,articles:overlay([...new Map(items.map(a=>[a.id,a])).values()])};});}
+      if(active.current&&id===requestId.current){
+        setError('');
+        setResponse(previous=>{
+          const retain=quiet&&previous&&previous.preferences.revision===result.preferences.revision&&previous.articles.length>limit;
+          const items=append&&previous?[...previous.articles,...result.articles]:result.articles;
+          const unique=new Map(items.map(article=>[article.id,article]));
+          if(retain) for(const article of previous.articles) if(!unique.has(article.id)) unique.set(article.id,article);
+          return {...result,nextCursor:retain?previous.nextCursor:result.nextCursor,articles:overlay([...unique.values()])};
+        });
+      }
     }catch(e){if(!abort.signal.aborted&&active.current&&id===requestId.current)setError(e instanceof Error?e.message:'뉴스 연결을 확인해주세요.');}
     finally{if(active.current&&id===requestId.current)setLoading(false);}
   },[key,overlay,limit]);
-  latestLoad.current=()=>{void load(false,undefined,true);};
+  latestLoad.current=()=>load(false,undefined,true);
   useEffect(()=>{active.current=true;setResponse(null);void load();return()=>{active.current=false;controller.current?.abort();};},[load]);
   useEffect(()=>{
     const timer=setInterval(()=>{if(document.visibilityState==='visible')void load(false,undefined,true);},response?.sync.running?2500:60000);
@@ -54,6 +63,16 @@ export function useNews(options:{category?:string;view?:NewsView;query?:string;d
     });
     queues.current.set(article.id,task);
   },[load]);
+  async function savePreferences(preferences:NewsPreferences){
+    const r=await fetch('/api/news/preferences',{method:'PUT',credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify(preferences)});
+    if(r.status===409){
+      await latestLoad.current?.();
+      throw new Error('다른 곳에서 관심 설정이 바뀌었어요. 창을 닫고 최신 설정에서 다시 시도해주세요.');
+    }
+    if(!r.ok)throw new Error('관심 설정을 저장하지 못했어요. 다시 시도해주세요.');
+    await latestLoad.current?.();
+  }
   const displayMessage=message.includes('확인하고 있어요')&&response&&!response.sync.running?'새 기사 확인을 마쳤어요.':message;
-  return {response,loading,error:mutationError||error,message:displayMessage,pending,refresh,reload:()=>load(false,undefined,true),more:()=>response?.nextCursor&&load(true,response.nextCursor),setArticleState};
+  return {response,loading,error:mutationError||error,message:displayMessage,pending,refresh,reload:()=>load(false,undefined,true),more:()=>response?.nextCursor&&load(true,response.nextCursor),setArticleState,savePreferences};
 }

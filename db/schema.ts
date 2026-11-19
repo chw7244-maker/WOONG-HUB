@@ -23,6 +23,11 @@ export const newsSync=sqliteTable('news_sync',{
   key:text('key').primaryKey(),startedAt:text('started_at'),finishedAt:text('finished_at'),lastSuccessAt:text('last_success_at'),
   leaseUntil:integer('lease_until').notNull().default(0),count:integer('count').notNull().default(0),sources:text('sources').notNull().default('[]'),
 });
+export const newsPreferences = sqliteTable('news_preferences', {
+  userId: text('user_id').primaryKey(),
+  revision: integer('revision').notNull(),
+  topics: text('topics').notNull(),
+});
 
 export const dailyBriefings = sqliteTable('daily_briefings', {
   day: text('day').notNull(),

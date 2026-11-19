@@ -1,75 +1,217 @@
 'use client';
+
 import Link from 'next/link';
-import {useEffect,useState} from 'react';
+import { useEffect, useState } from 'react';
+import { ArrowDownToLine, ArrowUpRight, Bookmark, CheckCheck, ChevronDown, Eye, EyeOff, Globe2, Newspaper, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
+import { newsCategories, newsCategory, newsKinds, newsTime, type NewsArticle, type NewsPreferences } from '@/lib/news';
+import type { Entry } from '@/lib/store';
+import { NewsPreferencesDialog } from './news-preferences';
 import { SectionFilters } from './section-controls';
-import { ArrowDownToLine, ArrowUpRight, AudioLines, Bookmark, CheckCheck, ChevronDown, Cpu, Eye, EyeOff, Gamepad2, Globe2, Headphones, Newspaper, RefreshCw, Search, X, type LucideIcon } from 'lucide-react';
-import {newsCategories,newsCategory,newsTime,type NewsArticle} from '@/lib/news';
-import {useNews,type NewsView} from './use-news';
-import { DailyBriefingPanel, HomeBriefingHighlights, useDailyBriefings } from './daily-briefing';
+import { useNews, type NewsView } from './use-news';
 
-const categoryIcons:Record<string,LucideIcon>={'audio-music':Headphones,games:Gamepad2,'pc-it':Cpu,'korean-audio':AudioLines,korea:Newspaper,world:Globe2};
-function SourceMeta({article}:{article:NewsArticle}){return <div className="news-source-meta"><span>{article.sourceName}</span><i/><time dateTime={article.publishedAt}>{newsTime(article.publishedAt)}</time><span className="news-language">{article.language==='ko'?'KR':'EN'}</span></div>;}
-function CategoryTag({article}:{article:NewsArticle}){const category=newsCategory(article.categories[0]);return <span className={`news-category-tag ${category.accent}`}>{category.label}</span>;}
+const views: { id: NewsView; label: string }[] = [
+  { id:'interest', label:'관심 뉴스' }, { id:'all', label:'전체 최신' }, { id:'saved', label:'스크랩' },
+];
 
-export default function NewsHub(){
-  const [category,setCategory]=useState('all'),[view,setView]=useState<NewsView>('all'),[search,setSearch]=useState(''),[query,setQuery]=useState(''),[date,setDate]=useState(''),[sourcesOpen,setSourcesOpen]=useState(false);
-  useEffect(()=>{const id=new URLSearchParams(window.location.search).get('category');if(id&&newsCategories.some(c=>c.id===id))setCategory(id);},[]);
-  useEffect(()=>{const timer=setTimeout(()=>setQuery(search),300);return()=>clearTimeout(timer);},[search]);
-  const news=useNews({category,view,query,date});const response=news.response;
-  const visible=(response?.articles??[]).filter(a=>view==='hidden'?a.hidden:!a.hidden).filter(a=>view==='unread'?!a.read:view==='saved'?a.saved:true);
-  const successful=response?.sync.sources.filter(s=>s.ok).length??0;
-  function chooseCategory(id:string){setCategory(id);const url=new URL(window.location.href);if(id==='all')url.searchParams.delete('category');else url.searchParams.set('category',id);window.history.replaceState(null,'',url);}
-  function openArticle(article:NewsArticle){if(!article.read)news.setArticleState(article,'read',true);}
-  function actions(article:NewsArticle){return <div className="article-actions"><button className={article.read?'is-active':''} disabled={news.pending.has(`${article.id}:read`)} aria-label={`${article.title} ${article.read?'읽지 않음으로 표시':'읽음으로 표시'}`} title={article.read?'읽지 않음으로 표시':'읽음으로 표시'} onClick={()=>news.setArticleState(article,'read',!article.read)}>{article.read?<CheckCheck size={15}/>:<Eye size={15}/>}</button><button className={article.saved?'is-saved':''} aria-pressed={article.saved} disabled={news.pending.has(`${article.id}:saved`)} aria-label={`${article.title} ${article.saved?'스크랩 해제':'스크랩'}`} title={article.saved?'스크랩 해제':'스크랩'} onClick={()=>news.setArticleState(article,'saved',!article.saved)}><Bookmark size={15} fill={article.saved?'currentColor':'none'}/></button><button disabled={news.pending.has(`${article.id}:hidden`)} aria-label={`${article.title} ${article.hidden?'숨김 해제':'숨기기'}`} title={article.hidden?'숨김 해제':'숨기기'} onClick={()=>news.setArticleState(article,'hidden',!article.hidden)}>{article.hidden?<Eye size={15}/>:<EyeOff size={15}/>}</button></div>;}
-  return <div className="news-hub">
-    <header className="page-heading section-heading news-page-heading">
-      <div><h1>뉴스</h1></div>
-      <button type="button" className="button secondary news-refresh" disabled={response?.sync.running} onClick={()=>void news.refresh()}>
-        <RefreshCw size={15} className={response?.sync.running?'spinning':''}/>{response?.sync.running?'수집 중':'새 기사 확인'}
-      </button>
-    </header>
-    <DailyBriefingPanel/>
-    <div className="journal-status"><span><span className={`status-dot ${response?.sync.running?'pending':''}`}/>{response?.sync.running?'매체의 새 소식을 확인하고 있어요':response?.sync.lastSuccessAt?`마지막 수집 ${newsTime(response.sync.lastSuccessAt)} KST`:'매체 RSS를 연결하는 중'}</span><a href="#news-sources" onClick={()=>setSourcesOpen(true)} className="text-button muted">{response?.sync.sources.length?`${successful}/${response.sync.sources.length}개 소스 연결`:'수집 소스'}<ChevronDown size={12}/></a></div>
-    {(news.error||news.message)&&<div className="news-notice" role="status"><span>{news.error||news.message}</span>{news.error&&<button className="text-button blue" onClick={()=>void news.reload()}>다시 불러오기</button>}</div>}
-      <div className="news-controls"><div className="news-view-tabs" role="group" aria-label="읽기 상태"><button className={view==='all'?'selected':''} aria-pressed={view==='all'} onClick={()=>setView('all')}>최신</button><button className={view==='unread'?'selected':''} aria-pressed={view==='unread'} onClick={()=>setView('unread')}>안 읽음 <span>{response?.counts.unread??'—'}</span></button><button className={view==='saved'?'selected':''} aria-pressed={view==='saved'} onClick={()=>setView('saved')}><Bookmark size={12}/>스크랩 <span>{response?.counts.saved??'—'}</span></button><button className={view==='hidden'?'selected':''} aria-pressed={view==='hidden'} onClick={()=>setView('hidden')}>숨김</button></div><div className="news-filters"><label className="news-search"><Search size={14}/><input aria-label="기사 검색" placeholder="제목·매체 검색" value={search} maxLength={120} onChange={e=>setSearch(e.target.value)}/>{search&&<button aria-label="검색어 지우기" onClick={()=>setSearch('')}><X size={12}/></button>}</label><SectionFilters active={Number(Boolean(date))}><label><span>발행 날짜</span><input aria-label="기사 발행 날짜" className="news-date-filter" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>{date&&<button className="icon-button" title="날짜 초기화" aria-label="날짜 초기화" onClick={()=>setDate('')}><X size={13}/></button>}</SectionFilters></div></div>
-    <nav className="news-topics-nav" aria-label="뉴스 분야"><button aria-pressed={category==='all'} className={category==='all'?'selected':''} onClick={()=>chooseCategory('all')}><Newspaper size={15}/>전체<span>{response?.counts.all??'—'}</span></button>{newsCategories.map(c=>{const Icon=categoryIcons[c.id];return <button key={c.id} aria-pressed={category===c.id} className={category===c.id?'selected':''} onClick={()=>chooseCategory(c.id)}><Icon size={15}/>{c.label}<span>{response?(response.categoryCounts[c.id]??0):'—'}</span></button>;})}</nav>
-    <section className="journal-reading-section">
-      <div className="journal-section-heading"><h2>{view==='saved'?'스크랩':view==='unread'?'안 읽은 기사':view==='hidden'?'숨긴 기사':'최신 기사'}</h2>
-        <a href="/api/news/export" className="text-button muted" download><ArrowDownToLine size={14}/>스크랩 백업</a>
-      </div>
-      {news.loading&&!response?<div className="news-loading"><RefreshCw className="spinning" size={22}/><p>기사를 불러오는 중이에요.</p></div>:visible.length?<div className="news-reading-list">
-        {visible.map(article=><article key={article.id} className={`news-reading-row ${article.read?'article-read':''}`}>
-          <div className="news-reading-copy">
-            <div className="news-reading-meta"><CategoryTag article={article}/><SourceMeta article={article}/></div>
-            <a href={article.url} target="_blank" rel="noreferrer" onClick={()=>openArticle(article)}><h3>{article.title}<ArrowUpRight size={15}/></h3></a>
-            {article.description&&<p>{article.description}</p>}
-          </div>
-          {actions(article)}
-        </article>)}
-      </div>:<div className="collection-empty">
-        <h3>{view==='saved'?'스크랩한 기사가 없어요':view==='hidden'?'숨긴 기사가 없어요':response?.sync.running?'기사를 수집하는 중이에요':'조건에 맞는 기사가 없어요'}</h3>
-        {view==='all'&&!search&&!date&&<button className="button secondary" disabled={response?.sync.running} onClick={()=>void news.refresh()}><RefreshCw size={13}/>새 기사 확인</button>}
-      </div>}
-      {response?.nextCursor&&<button disabled={news.loading} className="news-more button secondary" onClick={()=>void news.more()}>{news.loading?'불러오는 중':'기사 더 보기'}<ChevronDown size={14}/></button>}
-    </section>
-    <section id="news-sources" className="news-source-section"><button className="news-source-toggle" onClick={()=>setSourcesOpen(v=>!v)} aria-expanded={sourcesOpen}><span><Globe2 size={15}/>수집 소스와 업데이트 안내</span><ChevronDown size={15}/></button>{sourcesOpen&&<div className="news-source-details"><p>매체가 공개한 RSS에서 제목·발행일·짧은 소개와 원문 링크만 가져옵니다. 영어 기사는 원문 언어로 표시하며, 소개는 AI 요약이 아닙니다.</p><div className="source-status-grid">{response?.sync.sources.map(s=><div key={s.id}><span className={`status-dot ${s.ok?'':'pending'}`}/><a href={s.website} target="_blank" rel="noreferrer">{s.name}<ArrowUpRight size={11}/></a><small>{s.ok?`${s.count}개 확인`:s.error?.startsWith('http_')?`연결 오류 (${s.error.slice(5)})`:'일시 연결 실패'}</small></div>)}</div><p>페이지를 열 때 마지막 확인 후 1시간이 지났으면 새 기사를 수집합니다. ‘새 기사 확인’으로 직접 갱신할 수 있습니다.</p></div>}</section>
+function SourceMeta({ article }: { article: NewsArticle }) {
+  return <div className="news-source-meta">
+    <span>{article.sourceName}</span><i/>
+    <time dateTime={article.publishedAt}>{newsTime(article.publishedAt)}</time>
+    <span className="news-language">{article.language === 'ko' ? 'KR' : 'EN'}</span>
   </div>;
 }
 
-export function NewsBriefing(){
-  const news=useNews({limit:3});const articles=news.response?.articles??[];
-  const { response: daily } = useDailyBriefings();
-  const hasBriefings = !!daily?.issues.length;
-  const rss = <>
+export default function NewsHub({ games }: { games: Entry[] }) {
+  const [category, setCategory] = useState('all');
+  const [view, setView] = useState<NewsView>('interest');
+  const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
+  const [date, setDate] = useState('');
+  const [unread, setUnread] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [editor, setEditor] = useState<NewsPreferences | null>(null);
+  const [muting, setMuting] = useState(false);
+  const [feedback, setFeedback] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const category = params.get('category'), view = params.get('view');
+    if (category && newsCategories.some(item => item.id === category)) setCategory(category);
+    if (view === 'all' || view === 'saved' || view === 'hidden') setView(view);
+  }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => setQuery(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const applyUnread = unread && (view === 'interest' || view === 'all');
+  const news = useNews({ category, view, query, date, unread:applyUnread });
+  const { response } = news;
+  const visible = (response?.articles ?? []).filter(article =>
+    article.hidden === (view === 'hidden') && (view !== 'saved' || article.saved) && (!applyUnread || !article.read));
+  const activeTopics = response?.preferences.topics.filter(topic => !topic.muted) ?? [];
+  const sources = response?.sync.sources ?? [];
+  const successful = sources.filter(source => source.ok).length;
+
+  function selectView(nextView: NewsView, nextCategory: string) {
+    const url = new URL(window.location.href);
+    if (nextView === 'interest') url.searchParams.delete('view');
+    else url.searchParams.set('view', nextView);
+    if (nextCategory === 'all') url.searchParams.delete('category');
+    else url.searchParams.set('category', nextCategory);
+    window.history.replaceState(null, '', url);
+    setCategory(nextCategory);
+    setView(nextView);
+  }
+
+  async function muteTopic(id: string, label: string) {
+    if (!response || muting) return;
+    setMuting(true);
+    setFeedback('');
+    const preferences = response.preferences;
+    try {
+      await news.savePreferences({ ...preferences, topics:preferences.topics.map(topic => topic.id === id ? { ...topic, muted:true } : topic) });
+      setFeedback(`${label} 주제는 관심 뉴스에서 덜 표시됩니다. 관심 설정에서 다시 팔로우할 수 있어요.`);
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : '관심 설정을 저장하지 못했어요.');
+    } finally { setMuting(false); }
+  }
+
+  return <div className="news-hub">
+    <header className="page-heading section-heading news-page-heading">
+      <div><h1>뉴스</h1></div>
+      <div className="news-heading-actions">
+        <button type="button" className="button secondary news-preferences-trigger" disabled={!response || muting} onClick={() => response && setEditor(response.preferences)}>
+          <SlidersHorizontal size={16}/>관심 설정
+        </button>
+        <button type="button" className="button secondary news-refresh" disabled={response?.sync.running} onClick={() => void news.refresh()}>
+          <RefreshCw size={15} className={response?.sync.running ? 'spinning' : ''}/>{response?.sync.running ? '수집 중' : '새 기사 확인'}
+        </button>
+      </div>
+    </header>
+
+    <div className="news-controls">
+      <div className="news-view-tabs" role="group" aria-label="뉴스 보기">
+        {views.map(item => <button key={item.id} type="button" className={view === item.id ? 'selected' : ''} aria-pressed={view === item.id} onClick={() => selectView(item.id, category)}>
+          {item.id === 'saved' && <Bookmark size={14}/>}
+          {item.label}
+          {item.id === 'saved' && response && <span>{response.counts.saved}</span>}
+        </button>)}
+      </div>
+      <div className="news-filters">
+        <label className="news-search"><Search size={16}/><input aria-label="기사 검색" placeholder="제목·매체 검색" value={search} maxLength={120} onChange={event => setSearch(event.target.value)}/>
+          {search && <button type="button" aria-label="검색어 지우기" onClick={() => setSearch('')}><X size={14}/></button>}
+        </label>
+        <SectionFilters active={Number(Boolean(date)) + Number(applyUnread) + Number(view === 'hidden')}>
+          <label><span>발행 날짜</span><input aria-label="기사 발행 날짜" className="news-date-filter" type="date" value={date} onChange={event => setDate(event.target.value)}/></label>
+          {date && <button type="button" className="icon-button" aria-label="날짜 초기화" onClick={() => setDate('')}><X size={14}/></button>}
+          {(view === 'interest' || view === 'all') && <label className="news-unread-filter"><input type="checkbox" checked={unread} onChange={event => setUnread(event.target.checked)}/>안 읽은 기사만</label>}
+          <button type="button" className="text-button muted" onClick={() => selectView(view === 'hidden' ? 'interest' : 'hidden', 'all')}>{view === 'hidden' ? '관심 뉴스로 돌아가기' : '숨긴 기사 보기'}</button>
+        </SectionFilters>
+      </div>
+    </div>
+
+    <nav className="news-topics-nav" aria-label="뉴스 분야">
+      <button type="button" aria-pressed={category === 'all'} className={category === 'all' ? 'selected' : ''} onClick={() => selectView(view, 'all')}>전체 분야</button>
+      {newsCategories.map(item => <button key={item.id} type="button" aria-pressed={category === item.id} className={category === item.id ? 'selected' : ''} onClick={() => selectView(view, item.id)}>{item.label}</button>)}
+    </nav>
+
+    {(feedback || news.error || news.message) && <div className="news-notice" role="status">
+      <span>{news.error || feedback || news.message}</span>
+      {news.error && <button type="button" className="text-button blue" onClick={() => void news.reload()}>다시 불러오기</button>}
+    </div>}
+    <section className="journal-reading-section">
+      <div className="journal-section-heading">
+        <h2>{view === 'hidden' ? '숨긴 기사' : views.find(item => item.id === view)?.label}</h2>
+        {view === 'saved' && <a href="/api/news/export" className="text-button muted" download><ArrowDownToLine size={15}/>스크랩 백업</a>}
+        {view === 'interest' && response && <span className="news-follow-count">팔로우 {activeTopics.length}개</span>}
+      </div>
+      {news.loading && !response ? <div className="news-loading"><RefreshCw className="spinning" size={22}/><p>기사를 불러오는 중이에요.</p></div>
+        : visible.length ? <div className="news-reading-list">
+          {visible.map(article => <NewsRow key={article.id} article={article} news={news} onMute={muteTopic} muting={muting}/>)}
+        </div> : <div className="collection-empty">
+          <h3>{view === 'saved' ? '조건에 맞는 스크랩이 없어요' : view === 'hidden' ? '숨긴 기사가 없어요' : response?.sync.running ? '새 기사를 확인하고 있어요' : '조건에 맞는 기사가 없어요'}</h3>
+          {view === 'interest' && response && <div className="news-empty-actions">
+            <button type="button" className="button secondary" onClick={() => setEditor(response.preferences)}>관심 설정</button>
+            <button type="button" className="text-button blue" onClick={() => selectView('all', category)}>전체 최신 보기</button>
+          </div>}
+        </div>}
+      {response?.nextCursor && <button type="button" disabled={news.loading} className="news-more button secondary" onClick={() => void news.more()}>{news.loading ? '불러오는 중' : '기사 더 보기'}<ChevronDown size={14}/></button>}
+    </section>
+
+    <section id="news-sources" className="news-source-section">
+      <button type="button" className="news-source-toggle" onClick={() => setSourcesOpen(value => !value)} aria-expanded={sourcesOpen}>
+        <span><Globe2 size={16}/>수집 출처{sources.length ? ` · ${successful}/${sources.length} 연결` : ''}</span><ChevronDown size={16}/>
+      </button>
+      {sourcesOpen && <div className="news-source-details">
+        <p>{response?.sync.lastSuccessAt ? `마지막 수집 ${newsTime(response.sync.lastSuccessAt)} KST` : '출처의 연결 결과를 기다리는 중이에요.'}</p>
+        <div className="source-status-grid">{sources.map(source => <div key={source.id}>
+          <span className={`status-dot ${source.ok ? '' : 'pending'}`}/>
+          <a href={source.website} target="_blank" rel="noreferrer">{source.name}{source.id.startsWith('steam-') ? ` · 앱 ${source.id.slice(6)}` : ''}<ArrowUpRight size={12}/></a>
+          <small>{source.ok ? `${source.count}개 확인` : source.error?.startsWith('http_') ? `연결 오류 (${source.error.slice(5)})` : '일시 연결 실패'}</small>
+        </div>)}</div>
+        <p>페이지를 열 때 마지막 확인 후 한 시간이 지났으면 새 기사를 수집합니다.</p>
+      </div>}
+    </section>
+
+    {editor && <NewsPreferencesDialog preferences={editor} games={games} onClose={() => setEditor(null)} onSave={async preferences => {
+      await news.savePreferences(preferences);
+      setFeedback('관심 설정을 저장했어요.');
+    }}/>}
+  </div>;
+}
+
+function NewsRow({ article, news, onMute, muting }: {
+  article: NewsArticle;
+  news: ReturnType<typeof useNews>;
+  onMute: (id: string, label: string) => Promise<void>;
+  muting: boolean;
+}) {
+  const category = newsCategory(article.categories[0]);
+  const rec = article.recommendation;
+  return <article className={`news-reading-row ${article.read ? 'article-read' : ''}`}>
+    <div className="news-reading-copy">
+      <div className="news-reading-meta"><span className={`news-category-tag ${category.accent}`}>{category.label}</span><SourceMeta article={article}/></div>
+      <a href={article.url} target="_blank" rel="noreferrer" onClick={() => { if (!article.read) news.setArticleState(article, 'read', true); }}>
+        <h3>{article.title}<ArrowUpRight size={15}/></h3>
+      </a>
+      {article.description && <p>{article.description}</p>}
+      {rec && <div className="news-recommendation">
+        <span>{rec.topicLabel}{rec.kind ? ` · ${newsKinds[rec.kind]}` : ''}{rec.official ? ' · 공식 원문' : ''}</span>
+        <button type="button" className="text-button muted" disabled={muting} aria-label={`${rec.topicLabel} 주제 덜 보기`} onClick={() => void onMute(rec.topicId, rec.topicLabel)}>이 주제 덜 보기</button>
+      </div>}
+      {!!article.related?.length && <details className="news-related">
+        <summary>같은 소식 {article.related.length}건 더 보기</summary>
+        <ul>{article.related.map(item => <li key={item.id}><a href={item.url} target="_blank" rel="noreferrer">{item.sourceName} · {item.title}<ArrowUpRight size={13}/></a></li>)}</ul>
+      </details>}
+    </div>
+    <div className="article-actions">
+      <button type="button" className={article.read ? 'is-active' : ''} disabled={news.pending.has(`${article.id}:read`)} aria-label={`${article.title} ${article.read ? '읽지 않음으로 표시' : '읽음으로 표시'}`} title={article.read ? '읽지 않음으로 표시' : '읽음으로 표시'} onClick={() => news.setArticleState(article, 'read', !article.read)}>{article.read ? <CheckCheck size={16}/> : <Eye size={16}/>}</button>
+      <button type="button" className={article.saved ? 'is-saved' : ''} aria-pressed={article.saved} disabled={news.pending.has(`${article.id}:saved`)} aria-label={`${article.title} ${article.saved ? '스크랩 해제' : '스크랩'}`} title={article.saved ? '스크랩 해제' : '스크랩'} onClick={() => news.setArticleState(article, 'saved', !article.saved)}><Bookmark size={16} fill={article.saved ? 'currentColor' : 'none'}/></button>
+      <button type="button" disabled={news.pending.has(`${article.id}:hidden`)} aria-label={`${article.title} ${article.hidden ? '숨김 해제' : '기사 숨기기'}`} title={article.hidden ? '숨김 해제' : '기사 숨기기'} onClick={() => news.setArticleState(article, 'hidden', !article.hidden)}>{article.hidden ? <Eye size={16}/> : <EyeOff size={16}/>}</button>
+    </div>
+  </article>;
+}
+
+export function HomeNews() {
+  const news = useNews({ limit:12 });
+  const candidates = (news.response?.articles ?? []).filter(article => !article.hidden);
+  const topics = new Set<string>();
+  const diverse = candidates.filter(article => {
+    const id = article.recommendation?.topicId ?? article.id;
+    if (topics.has(id)) return false;
+    topics.add(id);
+    return true;
+  });
+  const articles = [...diverse, ...candidates.filter(article => !diverse.includes(article))].slice(0,3);
+  return <section className="panel hub-news-highlights">
+    <div className="panel-heading"><h2>관심 뉴스</h2><Link className="text-button muted" href="/news/">뉴스 더 보기<ArrowUpRight size={14}/></Link></div>
     {articles.length ? <div className="home-news-list">{articles.map(article => <a key={article.id} href={article.url} target="_blank" rel="noreferrer" onClick={() => { if (!article.read) news.setArticleState(article, 'read', true); }}>
-      <span className={`home-news-dot ${newsCategory(article.categories[0]).accent}`}/><div><h3>{article.title}</h3><SourceMeta article={article}/></div><ArrowUpRight size={14}/>
-    </a>)}</div> : <div className="home-news-empty"><Newspaper size={25}/><p>{news.error || '새로운 이야기를 모으고 있어요.'}</p><Link href="/news/" className="text-button blue">뉴스 허브 열기</Link></div>}
-    <div className="home-news-topics">{newsCategories.map(category => <Link key={category.id} href={`/news/?category=${category.id}`}>{category.label}</Link>)}</div>
-    <div className="home-news-footnote"><span className="status-dot"/>{news.response?.sync.running ? '새 기사 확인 중' : news.response?.sync.lastSuccessAt ? `${newsTime(news.response.sync.lastSuccessAt)} 수집 · 매체 RSS` : '매체 RSS 직접 수집'}</div>
-  </>;
-  return <section className="panel hub-news-briefing">
-    <div className="panel-heading"><h2>{hasBriefings ? daily.date === daily.today ? '오늘의 브리핑' : '최근 브리핑' : '오늘의 읽을거리'}
-      {!hasBriefings && <span className="heading-count">{news.response?.counts.unread ?? '—'}</span>}</h2><Link className="text-button muted" href="/news/">뉴스 허브</Link></div>
-    {hasBriefings ? <><HomeBriefingHighlights response={daily}/><details className="daily-home-rss"><summary>RSS 새 기사</summary>{rss}</details></> : rss}
+      <span className={`home-news-dot ${newsCategory(article.categories[0]).accent}`}/>
+      <div><h3>{article.title}</h3><SourceMeta article={article}/></div><ArrowUpRight size={14}/>
+    </a>)}</div> : <div className="home-news-empty">
+      <Newspaper size={24}/><p>{news.error || (news.loading || news.response?.sync.running ? '새 소식을 확인하고 있어요.' : '새 관심 뉴스가 없어요.')}</p>
+      <Link href="/news/?view=all" className="text-button blue">전체 최신 보기</Link>
+    </div>}
   </section>;
 }

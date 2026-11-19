@@ -1,12 +1,12 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export const widgetLabels: Record<string, string> = {
-  weather: '날씨', calendar: '캘린더', todos: '오늘의 할 일', bookmarks: '즐겨찾기', news: '뉴스 브리핑',
+  weather: '날씨', calendar: '캘린더', todos: '오늘의 할 일', bookmarks: '즐겨찾기', news: '관심 뉴스',
   interests: '오디오 이어서 하기', note: '빠른 메모와 최근 기록', spotify: 'Spotify 음악', steam: 'Steam 최근 플레이',
   football: '맨시티 다음 경기', watch: '보던 작품 이어서 보기',
 };
 
-const sectionLabels: Record<string, string> = { resume: '이어서 하기', week: '주간 일정', recent: '최근 기록', links: '즐겨찾기', news: '뉴스 브리핑' };
+const sectionLabels: Record<string, string> = { resume: '이어서 하기', week: '주간 일정', recent: '최근 기록', links: '즐겨찾기', news: '관심 뉴스' };
 
 export default function HomeWidgetControls({ order, visible, onToggle, onOrder }: {
   order: string[]; visible: (id: string) => boolean; onToggle: (id: string, enabled: boolean) => void; onOrder: (order: string[]) => void;

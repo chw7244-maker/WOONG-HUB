@@ -11,7 +11,6 @@ import { footballSnapshot, handleFootball } from './football.mjs';
 import { handleWatchSearch } from './watch.mjs';
 import { handleWeather, weatherForecast } from './weather.mjs';
 import { defaultWeatherCity } from '../src/lib/weather-cities.ts';
-import { handleBriefings } from './briefings.mjs';
 
 const MAX_BYTES = 1024 * 1024;
 function json(body, status = 200) {
@@ -57,7 +56,6 @@ export async function handleApi(request, env, ctx) {
     return json({...health,integrations:{fixtures:football.fixtures?.items.length??null,standings:football.standings?.items.length??null,results:football.results?.items.length??null,weather:!!weather,weatherSource:weather?(weather.source??'open-meteo'):null}});
   }
   if(path.startsWith('/api/news'))return handleNews(request,env,ctx);
-  if(['/api/briefings','/api/briefings/export','/api/briefings/publish'].includes(path))return handleBriefings(request,env);
   if(path==='/api/calendar'||path==='/api/calendar/sync')return handleCalendar(request,env);
   if(path==='/api/football')return handleFootball(request,ctx);
   if(path==='/api/watch/search')return handleWatchSearch(request,env);

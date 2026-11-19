@@ -43,6 +43,13 @@
       "when": 1795050443966,
       "tag": "0005_daily_briefings",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1795053436869,
+      "tag": "0006_bored_violations",
+      "breakpoints": true
     }
   ]
 }

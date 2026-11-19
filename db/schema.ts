@@ -24,6 +24,13 @@ export const newsSync=sqliteTable('news_sync',{
   leaseUntil:integer('lease_until').notNull().default(0),count:integer('count').notNull().default(0),sources:text('sources').notNull().default('[]'),
 });
 
+export const dailyBriefings = sqliteTable('daily_briefings', {
+  day: text('day').notNull(),
+  edition: text('edition').notNull(),
+  document: text('document').notNull(),
+  publishedAt: text('published_at').notNull(),
+}, table => [primaryKey({ columns: [table.day, table.edition] })]);
+
 // Shared snapshot is only exposed inside the existing owner-private Site.
 export const notionCalendarSnapshots=sqliteTable('notion_calendar_snapshots',{
   key:text('key').primaryKey(),revision:integer('revision').notNull(),data:text('data').notNull(),mutationId:text('mutation_id').notNull(),updatedAt:text('updated_at').notNull(),

@@ -36,6 +36,13 @@
       "when": 1794921646348,
       "tag": "0004_flippant_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1795050443966,
+      "tag": "0005_daily_briefings",
+      "breakpoints": true
     }
   ]
 }

@@ -2,9 +2,10 @@
 import Link from 'next/link';
 import {useEffect,useState} from 'react';
 import { SectionFilters } from './section-controls';
-import { ArrowDownToLine, ArrowRight, ArrowUpRight, AudioLines, Bookmark, CheckCheck, ChevronDown, Cpu, Eye, EyeOff, Gamepad2, Globe2, Headphones, Newspaper, RefreshCw, Search, X, type LucideIcon } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpRight, AudioLines, Bookmark, CheckCheck, ChevronDown, Cpu, Eye, EyeOff, Gamepad2, Globe2, Headphones, Newspaper, RefreshCw, Search, X, type LucideIcon } from 'lucide-react';
 import {newsCategories,newsCategory,newsTime,type NewsArticle} from '@/lib/news';
 import {useNews,type NewsView} from './use-news';
+import { DailyBriefingPanel, HomeBriefingHighlights, useDailyBriefings } from './daily-briefing';
 
 const categoryIcons:Record<string,LucideIcon>={'audio-music':Headphones,games:Gamepad2,'pc-it':Cpu,'korean-audio':AudioLines,korea:Newspaper,world:Globe2};
 function SourceMeta({article}:{article:NewsArticle}){return <div className="news-source-meta"><span>{article.sourceName}</span><i/><time dateTime={article.publishedAt}>{newsTime(article.publishedAt)}</time><span className="news-language">{article.language==='ko'?'KR':'EN'}</span></div>;}
@@ -27,6 +28,7 @@ export default function NewsHub(){
         <RefreshCw size={15} className={response?.sync.running?'spinning':''}/>{response?.sync.running?'수집 중':'새 기사 확인'}
       </button>
     </header>
+    <DailyBriefingPanel/>
     <div className="journal-status"><span><span className={`status-dot ${response?.sync.running?'pending':''}`}/>{response?.sync.running?'매체의 새 소식을 확인하고 있어요':response?.sync.lastSuccessAt?`마지막 수집 ${newsTime(response.sync.lastSuccessAt)} KST`:'매체 RSS를 연결하는 중'}</span><a href="#news-sources" onClick={()=>setSourcesOpen(true)} className="text-button muted">{response?.sync.sources.length?`${successful}/${response.sync.sources.length}개 소스 연결`:'수집 소스'}<ChevronDown size={12}/></a></div>
     {(news.error||news.message)&&<div className="news-notice" role="status"><span>{news.error||news.message}</span>{news.error&&<button className="text-button blue" onClick={()=>void news.reload()}>다시 불러오기</button>}</div>}
       <div className="news-controls"><div className="news-view-tabs" role="group" aria-label="읽기 상태"><button className={view==='all'?'selected':''} aria-pressed={view==='all'} onClick={()=>setView('all')}>최신</button><button className={view==='unread'?'selected':''} aria-pressed={view==='unread'} onClick={()=>setView('unread')}>안 읽음 <span>{response?.counts.unread??'—'}</span></button><button className={view==='saved'?'selected':''} aria-pressed={view==='saved'} onClick={()=>setView('saved')}><Bookmark size={12}/>스크랩 <span>{response?.counts.saved??'—'}</span></button><button className={view==='hidden'?'selected':''} aria-pressed={view==='hidden'} onClick={()=>setView('hidden')}>숨김</button></div><div className="news-filters"><label className="news-search"><Search size={14}/><input aria-label="기사 검색" placeholder="제목·매체 검색" value={search} maxLength={120} onChange={e=>setSearch(e.target.value)}/>{search&&<button aria-label="검색어 지우기" onClick={()=>setSearch('')}><X size={12}/></button>}</label><SectionFilters active={Number(Boolean(date))}><label><span>발행 날짜</span><input aria-label="기사 발행 날짜" className="news-date-filter" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>{date&&<button className="icon-button" title="날짜 초기화" aria-label="날짜 초기화" onClick={()=>setDate('')}><X size={13}/></button>}</SectionFilters></div></div>
@@ -50,11 +52,24 @@ export default function NewsHub(){
       </div>}
       {response?.nextCursor&&<button disabled={news.loading} className="news-more button secondary" onClick={()=>void news.more()}>{news.loading?'불러오는 중':'기사 더 보기'}<ChevronDown size={14}/></button>}
     </section>
-    <section id="news-sources" className="news-source-section"><button className="news-source-toggle" onClick={()=>setSourcesOpen(v=>!v)} aria-expanded={sourcesOpen}><span><Globe2 size={15}/>수집 소스와 업데이트 안내</span><ChevronDown size={15}/></button>{sourcesOpen&&<div className="news-source-details"><p>매체가 공개한 RSS에서 제목·발행일·짧은 소개와 원문 링크만 가져옵니다. 영어 기사는 원문 언어로 표시하며, 소개는 AI 요약이 아닙니다.</p><div className="source-status-grid">{response?.sync.sources.map(s=><div key={s.id}><span className={`status-dot ${s.ok?'':'pending'}`}/><a href={s.website} target="_blank" rel="noreferrer">{s.name}<ArrowUpRight size={11}/></a><small>{s.ok?`${s.count}개 확인`:s.error?.startsWith('http_')?`연결 오류 (${s.error.slice(5)})`:'일시 연결 실패'}</small></div>)}</div><p>페이지를 열 때 마지막 확인 후 1시간이 지났으면 새 기사를 수집합니다. ‘새 기사 확인’으로 직접 갱신할 수 있습니다. 사이트를 닫아둔 동안의 예약 수집과 AI 요약은 아직 연결하지 않았습니다.</p></div>}</section>
+    <section id="news-sources" className="news-source-section"><button className="news-source-toggle" onClick={()=>setSourcesOpen(v=>!v)} aria-expanded={sourcesOpen}><span><Globe2 size={15}/>수집 소스와 업데이트 안내</span><ChevronDown size={15}/></button>{sourcesOpen&&<div className="news-source-details"><p>매체가 공개한 RSS에서 제목·발행일·짧은 소개와 원문 링크만 가져옵니다. 영어 기사는 원문 언어로 표시하며, 소개는 AI 요약이 아닙니다.</p><div className="source-status-grid">{response?.sync.sources.map(s=><div key={s.id}><span className={`status-dot ${s.ok?'':'pending'}`}/><a href={s.website} target="_blank" rel="noreferrer">{s.name}<ArrowUpRight size={11}/></a><small>{s.ok?`${s.count}개 확인`:s.error?.startsWith('http_')?`연결 오류 (${s.error.slice(5)})`:'일시 연결 실패'}</small></div>)}</div><p>페이지를 열 때 마지막 확인 후 1시간이 지났으면 새 기사를 수집합니다. ‘새 기사 확인’으로 직접 갱신할 수 있습니다.</p></div>}</section>
   </div>;
 }
 
 export function NewsBriefing(){
   const news=useNews({limit:3});const articles=news.response?.articles??[];
-  return <section className="panel hub-news-briefing"><div className="panel-heading"><h2>오늘의 읽을거리<span className="heading-count">{news.response?.counts.unread??'—'}</span></h2><Link className="text-button muted" href="/news/">뉴스 허브<ArrowUpRight size={14}/></Link></div>{articles.length?<div className="home-news-list">{articles.map(a=><a key={a.id} href={a.url} target="_blank" rel="noreferrer" onClick={()=>{if(!a.read)news.setArticleState(a,'read',true);}}><span className={`home-news-dot ${newsCategory(a.categories[0]).accent}`}/><div><h3>{a.title}</h3><SourceMeta article={a}/></div><ArrowUpRight size={14}/></a>)}</div>:<div className="home-news-empty"><Newspaper size={25}/><p>{news.error||'새로운 이야기를 모으고 있어요.'}</p><Link href="/news/" className="text-button blue">새 뉴스 허브 열기<ArrowRight size={13}/></Link></div>}<div className="home-news-topics">{newsCategories.map(c=><Link key={c.id} href={`/news/?category=${c.id}`}>{c.label}</Link>)}</div><div className="home-news-footnote"><span className="status-dot"/>{news.response?.sync.running?'새 기사 확인 중':news.response?.sync.lastSuccessAt?`${newsTime(news.response.sync.lastSuccessAt)} 수집 · 매체 RSS`:'매체 RSS 직접 수집'}</div></section>;
+  const { response: daily } = useDailyBriefings();
+  const hasBriefings = !!daily?.issues.length;
+  const rss = <>
+    {articles.length ? <div className="home-news-list">{articles.map(article => <a key={article.id} href={article.url} target="_blank" rel="noreferrer" onClick={() => { if (!article.read) news.setArticleState(article, 'read', true); }}>
+      <span className={`home-news-dot ${newsCategory(article.categories[0]).accent}`}/><div><h3>{article.title}</h3><SourceMeta article={article}/></div><ArrowUpRight size={14}/>
+    </a>)}</div> : <div className="home-news-empty"><Newspaper size={25}/><p>{news.error || '새로운 이야기를 모으고 있어요.'}</p><Link href="/news/" className="text-button blue">뉴스 허브 열기</Link></div>}
+    <div className="home-news-topics">{newsCategories.map(category => <Link key={category.id} href={`/news/?category=${category.id}`}>{category.label}</Link>)}</div>
+    <div className="home-news-footnote"><span className="status-dot"/>{news.response?.sync.running ? '새 기사 확인 중' : news.response?.sync.lastSuccessAt ? `${newsTime(news.response.sync.lastSuccessAt)} 수집 · 매체 RSS` : '매체 RSS 직접 수집'}</div>
+  </>;
+  return <section className="panel hub-news-briefing">
+    <div className="panel-heading"><h2>{hasBriefings ? daily.date === daily.today ? '오늘의 브리핑' : '최근 브리핑' : '오늘의 읽을거리'}
+      {!hasBriefings && <span className="heading-count">{news.response?.counts.unread ?? '—'}</span>}</h2><Link className="text-button muted" href="/news/">뉴스 허브</Link></div>
+    {hasBriefings ? <><HomeBriefingHighlights response={daily}/><details className="daily-home-rss"><summary>RSS 새 기사</summary>{rss}</details></> : rss}
+  </section>;
 }

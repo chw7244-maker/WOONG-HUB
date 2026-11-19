@@ -36,16 +36,22 @@ export function useDailyBriefings(date = '') {
 }
 
 function CsvDownload({ date, today }: { date: string; today: string }) {
-  const [from, setFrom] = useState(date), [through, setThrough] = useState(date);
-  const invalid = !isBriefingDate(from) || !isBriefingDate(through) || from > through || through > today || Date.parse(through) - Date.parse(from) > 92 * 86400000;
+  const [invalid, setInvalid] = useState(false);
   return <details className="daily-csv">
     <summary>CSV 다운로드</summary>
     <div className="daily-csv-body">
       <a className="button secondary" href={csvUrl(date, date)} download>{dateLabel(date)} CSV</a>
-      <form className="daily-csv-range" action="/api/briefings/export">
-        <label>시작일<input type="date" name="from" value={from} max={today} required onChange={event => setFrom(event.target.value)}/></label>
-        <label>종료일<input type="date" name="through" value={through} min={from} max={today} required onChange={event => setThrough(event.target.value)}/></label>
-        <button type="submit" className="button secondary" disabled={invalid}>기간 CSV</button>
+      <form className="daily-csv-range" action="/api/briefings/export" onChange={() => setInvalid(false)} onSubmit={event => {
+        const values = new FormData(event.currentTarget);
+        const from = String(values.get('from') ?? ''), through = String(values.get('through') ?? '');
+        if (!isBriefingDate(from) || !isBriefingDate(through) || from > through || through > today || Date.parse(through) - Date.parse(from) > 92 * 86400000) {
+          event.preventDefault();
+          setInvalid(true);
+        }
+      }}>
+        <label>시작일<input type="date" name="from" defaultValue={date} max={today} required/></label>
+        <label>종료일<input type="date" name="through" defaultValue={date} max={today} required/></label>
+        <button type="submit" className="button secondary">기간 CSV</button>
         {invalid && <p role="status">시작일부터 종료일까지 최대 93일을 선택하세요.</p>}
       </form>
     </div>
@@ -70,10 +76,15 @@ export function DailyBriefingPanel() {
     <header className="daily-heading">
       <div><h2 id="daily-briefing-title">{response && resolved !== response.today ? '날짜별 브리핑' : '오늘의 브리핑'}</h2>
         {resolved && <time dateTime={resolved}>{dateLabel(resolved)} KST</time>}</div>
-      {(response || date) && <div className="daily-date-controls">
-        <label>브리핑 날짜<input type="date" aria-label="브리핑 날짜" value={resolved} max={response?.today} onChange={event => { if (isBriefingDate(event.target.value)) setDate(event.target.value); }}/></label>
+      {(response || date) && <form key={resolved} className="daily-date-controls" onSubmit={event => {
+        event.preventDefault();
+        const value = new FormData(event.currentTarget).get('date');
+        if (typeof value === 'string' && isBriefingDate(value)) setDate(value);
+      }}>
+        <label>브리핑 날짜<input type="date" name="date" aria-label="브리핑 날짜" defaultValue={resolved} max={response?.today} required/></label>
+        <button type="submit" className="button secondary">보기</button>
         <button type="button" className="button secondary" onClick={() => setDate('')} disabled={!date}>최근 호</button>
-      </div>}
+      </form>}
     </header>
     <div className="daily-editions" role="group" aria-label="브리핑 종류">
       {editionIds.map(key => <button key={key} type="button" aria-pressed={edition === key} onClick={() => setEdition(key)}>{briefingEditions[key].label}</button>)}

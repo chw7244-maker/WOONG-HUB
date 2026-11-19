@@ -7,6 +7,7 @@ export function useNews(options:{category?:string;view?:NewsView;query?:string;d
   const {category='all',view='interest',query='',date='',limit=24,unread=false}=options;
   const key=new URLSearchParams({category,view,q:query,date,limit:String(limit),...(unread&&{unread:'1'})}).toString();
   const [response,setResponse]=useState<NewsResponse|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[mutationError,setMutationError]=useState(''),[message,setMessage]=useState(''),[pending,setPending]=useState<Set<string>>(new Set());
+  const [responseKey,setResponseKey]=useState(key);
   const active=useRef(true),requestId=useRef(0),controller=useRef<AbortController|null>(null),pendingValues=useRef(new Map<string,boolean>()),queues=useRef(new Map<string,Promise<void>>()),latestLoad=useRef<(()=>Promise<void>)|null>(null);
   const overlay=useCallback((articles:NewsArticle[])=>articles.map(a=>{const copy={...a};for(const field of ['read','saved','hidden'] as const){const value=pendingValues.current.get(`${a.id}:${field}`);if(value!==undefined)copy[field]=value;}return copy;}),[]);
   const load=useCallback(async(append=false,cursor?:string,quiet=false)=>{
@@ -31,7 +32,7 @@ export function useNews(options:{category?:string;view?:NewsView;query?:string;d
     finally{if(active.current&&id===requestId.current)setLoading(false);}
   },[key,overlay,limit]);
   latestLoad.current=()=>load(false,undefined,true);
-  useEffect(()=>{active.current=true;setResponse(null);void load();return()=>{active.current=false;controller.current?.abort();};},[load]);
+  useEffect(()=>{active.current=true;setResponseKey(key);setResponse(null);setError('');void load();return()=>{active.current=false;controller.current?.abort();};},[key,load]);
   useEffect(()=>{
     const timer=setInterval(()=>{if(document.visibilityState==='visible')void load(false,undefined,true);},response?.sync.running?2500:60000);
     const focus=()=>void load(false,undefined,true);window.addEventListener('focus',focus);
@@ -74,5 +75,6 @@ export function useNews(options:{category?:string;view?:NewsView;query?:string;d
     await latestLoad.current?.();
   }
   const displayMessage=message.includes('확인하고 있어요')&&response&&!response.sync.running?'새 기사 확인을 마쳤어요.':message;
-  return {response,loading,error:mutationError||error,message:displayMessage,pending,refresh,reload:()=>load(false,undefined,true),more:()=>response?.nextCursor&&load(true,response.nextCursor),setArticleState,savePreferences};
+  const isCurrent=responseKey===key;
+  return {response:isCurrent?response:null,loading:!isCurrent||loading,error:mutationError||(isCurrent?error:''),message:displayMessage,pending,refresh,reload:()=>load(false,undefined,true),more:()=>response?.nextCursor&&load(true,response.nextCursor),setArticleState,savePreferences};
 }

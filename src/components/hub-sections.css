@@ -26,7 +26,8 @@
   gap: 8px;
   margin-bottom: 12px;
 }
-.hub-workspace :is(.music-filters,.audio-filters,.game-filters,.news-filters) > label {
+.hub-workspace :is(.music-filters,.audio-filters,.game-filters) > label,
+.hub-workspace .news-filters > .news-search {
   grid-column: 1;
   width: 100%;
   max-width: none;
@@ -34,7 +35,8 @@
   min-height: 44px;
   margin: 0;
 }
-.hub-workspace :is(.music-filters,.audio-filters,.game-filters,.news-filters) > label input { min-width: 0; font-size: 14px; }
+.hub-workspace :is(.music-filters,.audio-filters,.game-filters) > label input,
+.hub-workspace .news-filters > .news-search input { min-width: 0; font-size: 14px; }
 .section-filters summary, .section-stats summary,
 .settings-services summary, .connection-detail summary {
   display: flex;
@@ -182,7 +184,8 @@
   .catalog-player-row { gap: 7px; }
   .catalog-player-art { width: 43px; height: 43px; }
   .catalog-service-link { font-size: 12px; }
-  .hub-workspace :is(.music-filters,.audio-filters,.game-filters,.news-filters) > label input,
+  .hub-workspace :is(.music-filters,.audio-filters,.game-filters) > label input,
+  .hub-workspace .news-filters > .news-search input,
   .hub-workspace .section-filter-fields :is(select,input) { font-size: 16px; }
   .hub-workspace :is(.music-hub,.audio-hub,.games-hub,.records-toolbar) .tabs button, .news-hub .news-view-tabs button, .news-hub .news-topics-nav button { min-height: 44px; }
   .audio-record-actions .icon-button, .record-list-action { width: 44px; height: 44px; }

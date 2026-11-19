@@ -12,6 +12,12 @@ import { useNews, type NewsView } from './use-news';
 const views: { id: NewsView; label: string }[] = [
   { id:'interest', label:'관심 뉴스' }, { id:'all', label:'전체 최신' }, { id:'saved', label:'스크랩' },
 ];
+const emptyTitles: Record<NewsView, string> = {
+  interest: '아직 관심 뉴스가 없어요',
+  all: '아직 수집된 기사가 없어요',
+  saved: '스크랩한 기사가 없어요',
+  hidden: '숨긴 기사가 없어요',
+};
 
 function SourceMeta({ article }: { article: NewsArticle }) {
   return <div className="news-source-meta">
@@ -40,7 +46,7 @@ export default function NewsHub({ games }: { games: Entry[] }) {
     if (view === 'all' || view === 'saved' || view === 'hidden') setView(view);
   }, []);
   useEffect(() => {
-    const timer = setTimeout(() => setQuery(search), 300);
+    const timer = setTimeout(() => setQuery(search.trim()), 300);
     return () => clearTimeout(timer);
   }, [search]);
 
@@ -63,6 +69,30 @@ export default function NewsHub({ games }: { games: Entry[] }) {
     setCategory(nextCategory);
     setView(nextView);
   }
+
+  function clearSearch() {
+    setSearch('');
+    setQuery('');
+  }
+
+  function clearConditions() {
+    clearSearch();
+    setDate('');
+    setUnread(false);
+    selectView(view, 'all');
+  }
+
+  const conditions = [
+    { id:'category', label:category === 'all' ? '' : newsCategory(category).label, clear:() => selectView(view, 'all') },
+    { id:'search', label:query ? `검색 · ${query}` : '', clear:clearSearch },
+    { id:'date', label:date ? `발행일 · ${date.replaceAll('-', '.')}` : '', clear:() => setDate('') },
+    { id:'unread', label:applyUnread ? '안 읽은 기사만' : '', clear:() => setUnread(false) },
+  ].filter(condition => condition.label);
+  const wideningLabel = query || date || applyUnread ? '같은 조건으로 전체 최신 보기'
+    : category === 'all' ? '전체 최신 보기' : '이 분야의 전체 최신 보기';
+  const collecting = response?.sync.running && (view === 'interest' || view === 'all');
+  const emptyTitle = conditions.length ? '조건에 맞는 기사가 없어요'
+    : collecting ? '새 기사를 확인하고 있어요' : emptyTitles[view];
 
   async function muteTopic(id: string, label: string) {
     if (!response || muting) return;
@@ -99,9 +129,9 @@ export default function NewsHub({ games }: { games: Entry[] }) {
         </button>)}
       </div>
       <div className="news-filters">
-        <label className="news-search"><Search size={16}/><input aria-label="기사 검색" placeholder="제목·매체 검색" value={search} maxLength={120} onChange={event => setSearch(event.target.value)}/>
-          {search && <button type="button" aria-label="검색어 지우기" onClick={() => setSearch('')}><X size={14}/></button>}
-        </label>
+        <div className="news-search"><Search size={16} aria-hidden="true"/><input aria-label="기사 검색" placeholder="제목·매체 검색" value={search} maxLength={120} onChange={event => setSearch(event.target.value)}/>
+          {search && <button type="button" aria-label="검색어 지우기" onClick={clearSearch}><X size={14} aria-hidden="true"/></button>}
+        </div>
         <SectionFilters active={Number(Boolean(date)) + Number(applyUnread) + Number(view === 'hidden')}>
           <label><span>발행 날짜</span><input aria-label="기사 발행 날짜" className="news-date-filter" type="date" value={date} onChange={event => setDate(event.target.value)}/></label>
           {date && <button type="button" className="icon-button" aria-label="날짜 초기화" onClick={() => setDate('')}><X size={14}/></button>}
@@ -116,11 +146,18 @@ export default function NewsHub({ games }: { games: Entry[] }) {
       {newsCategories.map(item => <button key={item.id} type="button" aria-pressed={category === item.id} className={category === item.id ? 'selected' : ''} onClick={() => selectView(view, item.id)}>{item.label}</button>)}
     </nav>
 
+    {conditions.length > 0 && <div className="news-active-conditions" role="group" aria-label="적용한 뉴스 조건">
+      {conditions.map(condition => <button key={condition.id} type="button" className="news-condition" onClick={condition.clear} aria-label={`${condition.label} 해제`}>
+        <span>{condition.label}</span><X size={14} aria-hidden="true"/>
+      </button>)}
+      {conditions.length > 1 && <button type="button" className="text-button muted" onClick={clearConditions}>조건 초기화</button>}
+    </div>}
+
     {(feedback || news.error || news.message) && <div className="news-notice" role="status">
       <span>{news.error || feedback || news.message}</span>
       {news.error && <button type="button" className="text-button blue" onClick={() => void news.reload()}>다시 불러오기</button>}
     </div>}
-    <section className="journal-reading-section">
+    <section className="journal-reading-section" aria-busy={news.loading}>
       <div className="journal-section-heading">
         <h2>{view === 'hidden' ? '숨긴 기사' : views.find(item => item.id === view)?.label}</h2>
         {view === 'saved' && <a href="/api/news/export" className="text-button muted" download><ArrowDownToLine size={15}/>스크랩 백업</a>}
@@ -129,11 +166,12 @@ export default function NewsHub({ games }: { games: Entry[] }) {
       {news.loading && !response ? <div className="news-loading"><RefreshCw className="spinning" size={22}/><p>기사를 불러오는 중이에요.</p></div>
         : visible.length ? <div className="news-reading-list">
           {visible.map(article => <NewsRow key={article.id} article={article} news={news} onMute={muteTopic} muting={muting}/>)}
-        </div> : <div className="collection-empty">
-          <h3>{view === 'saved' ? '조건에 맞는 스크랩이 없어요' : view === 'hidden' ? '숨긴 기사가 없어요' : response?.sync.running ? '새 기사를 확인하고 있어요' : '조건에 맞는 기사가 없어요'}</h3>
-          {view === 'interest' && response && <div className="news-empty-actions">
-            <button type="button" className="button secondary" onClick={() => setEditor(response.preferences)}>관심 설정</button>
-            <button type="button" className="text-button blue" onClick={() => selectView('all', category)}>전체 최신 보기</button>
+        </div> : response && <div className="collection-empty news-results-empty">
+          <h3>{emptyTitle}</h3>
+          {view === 'saved' && !conditions.length && <p>기사 오른쪽의 북마크를 누르면 여기에 모여요.</p>}
+          {view === 'interest' && <div className="news-empty-actions">
+            <button type="button" className="button secondary" onClick={() => selectView('all', category)}>{wideningLabel}</button>
+            {!conditions.length && <button type="button" className="text-button blue" onClick={() => setEditor(response.preferences)}>관심 설정</button>}
           </div>}
         </div>}
       {response?.nextCursor && <button type="button" disabled={news.loading} className="news-more button secondary" onClick={() => void news.more()}>{news.loading ? '불러오는 중' : '기사 더 보기'}<ChevronDown size={14}/></button>}

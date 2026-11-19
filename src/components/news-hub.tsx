@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowDownToLine, ArrowUpRight, Bookmark, CheckCheck, ChevronDown, Eye, EyeOff, Globe2, Newspaper, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpRight, Bookmark, ChevronDown, Globe2, Newspaper, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
 import { newsCategories, newsCategory, newsKinds, newsTime, type NewsArticle, type NewsPreferences } from '@/lib/news';
 import type { Entry } from '@/lib/store';
 import { NewsPreferencesDialog } from './news-preferences';
@@ -17,7 +17,7 @@ function SourceMeta({ article }: { article: NewsArticle }) {
   return <div className="news-source-meta">
     <span>{article.sourceName}</span><i/>
     <time dateTime={article.publishedAt}>{newsTime(article.publishedAt,article.sourceName === '웹툰가이드')}</time>
-    <span className="news-language">{article.language === 'ko' ? 'KR' : 'EN'}</span>
+    {article.language !== 'ko' && <span className="news-language">{article.language.toUpperCase()}</span>}
   </div>;
 }
 
@@ -177,24 +177,29 @@ function NewsRow({ article, news, onMute, muting }: {
   const rec = article.recommendation;
   return <article className={`news-reading-row ${article.read ? 'article-read' : ''}`}>
     <div className="news-reading-copy">
-      <div className="news-reading-meta"><span className={`news-category-tag ${category.accent}`}>{category.label}</span><SourceMeta article={article}/></div>
       <a href={article.url} target="_blank" rel="noreferrer" onClick={() => { if (!article.read) news.setArticleState(article, 'read', true); }}>
-        <h3>{article.title}<ArrowUpRight size={15}/></h3>
+        <h3>{article.title}<ArrowUpRight size={14} aria-hidden="true"/></h3>
       </a>
-      {article.description && <p>{article.description}</p>}
-      {rec && <div className="news-recommendation">
-        <span>{rec.topicLabel}{rec.kind ? ` · ${newsKinds[rec.kind]}` : ''}{rec.official ? ' · 공식 원문' : ''}</span>
-        <button type="button" className="text-button muted" disabled={muting} aria-label={`${rec.topicLabel} 주제 덜 보기`} onClick={() => void onMute(rec.topicId, rec.topicLabel)}>이 주제 덜 보기</button>
-      </div>}
+      <div className="news-reading-meta"><SourceMeta article={article}/><span className={`news-category-tag ${category.accent}`}>{category.label}</span></div>
+      {rec && <p className="news-recommendation">추천 · {rec.topicLabel}{rec.kind ? ` · ${newsKinds[rec.kind]}` : ''}{rec.official ? ' · 공식 원문' : ''}</p>}
+      {article.description && <p className="news-reading-description">{article.description}</p>}
+    </div>
+    <button type="button" className="news-bookmark" aria-pressed={article.saved} disabled={news.pending.has(`${article.id}:saved`)} aria-label={`${article.title} 스크랩`} title={article.saved ? '스크랩 해제' : '스크랩'} onClick={() => news.setArticleState(article, 'saved', !article.saved)}>
+      <Bookmark size={20} fill={article.saved ? 'currentColor' : 'none'} aria-hidden="true"/>
+    </button>
+    <div className="news-reading-details">
       {!!article.related?.length && <details className="news-related">
         <summary>같은 소식 {article.related.length}건 더 보기</summary>
-        <ul>{article.related.map(item => <li key={item.id}><a href={item.url} target="_blank" rel="noreferrer">{item.sourceName} · {item.title}<ArrowUpRight size={13}/></a></li>)}</ul>
+        <ul>{article.related.map(item => <li key={item.id}><a href={item.url} target="_blank" rel="noreferrer">{item.sourceName} · {item.title}<ArrowUpRight size={13} aria-hidden="true"/></a></li>)}</ul>
       </details>}
-    </div>
-    <div className="article-actions">
-      <button type="button" className={article.read ? 'is-active' : ''} disabled={news.pending.has(`${article.id}:read`)} aria-label={`${article.title} ${article.read ? '읽지 않음으로 표시' : '읽음으로 표시'}`} title={article.read ? '읽지 않음으로 표시' : '읽음으로 표시'} onClick={() => news.setArticleState(article, 'read', !article.read)}>{article.read ? <CheckCheck size={16}/> : <Eye size={16}/>}</button>
-      <button type="button" className={article.saved ? 'is-saved' : ''} aria-pressed={article.saved} disabled={news.pending.has(`${article.id}:saved`)} aria-label={`${article.title} ${article.saved ? '스크랩 해제' : '스크랩'}`} title={article.saved ? '스크랩 해제' : '스크랩'} onClick={() => news.setArticleState(article, 'saved', !article.saved)}><Bookmark size={16} fill={article.saved ? 'currentColor' : 'none'}/></button>
-      <button type="button" disabled={news.pending.has(`${article.id}:hidden`)} aria-label={`${article.title} ${article.hidden ? '숨김 해제' : '기사 숨기기'}`} title={article.hidden ? '숨김 해제' : '기사 숨기기'} onClick={() => news.setArticleState(article, 'hidden', !article.hidden)}>{article.hidden ? <Eye size={16}/> : <EyeOff size={16}/>}</button>
+      <details className="news-row-options">
+        <summary aria-label={`${article.title} 기사 옵션`}>기사 옵션</summary>
+        <div className="news-row-actions">
+          <button type="button" disabled={news.pending.has(`${article.id}:read`)} onClick={() => news.setArticleState(article, 'read', !article.read)}>{article.read ? '읽지 않음으로 표시' : '읽음으로 표시'}</button>
+          <button type="button" disabled={news.pending.has(`${article.id}:hidden`)} onClick={() => news.setArticleState(article, 'hidden', !article.hidden)}>{article.hidden ? '숨김 해제' : '기사 숨기기'}</button>
+          {rec && <button type="button" disabled={muting} onClick={() => void onMute(rec.topicId, rec.topicLabel)}>이 주제 덜 보기</button>}
+        </div>
+      </details>
     </div>
   </article>;
 }

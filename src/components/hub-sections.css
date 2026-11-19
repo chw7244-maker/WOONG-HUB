@@ -158,15 +158,6 @@
 .news-hub .journal-reading-section { margin-top: 0; }
 .news-hub .journal-section-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 7px; margin-bottom: 6px; }
 .news-hub .journal-section-heading h2 { margin: 0; font-size: 18px; }
-.news-reading-row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 4px 14px; padding: 14px 0; border-top: 1px solid var(--border); }
-.news-reading-copy { min-width: 0; }
-.news-reading-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 3px 8px; }
-.news-reading-meta .news-source-meta { margin: 0; color: var(--muted); font-size: 12px; }
-.news-reading-copy h3 { display: flex; align-items: baseline; gap: 6px; font-size: 16px; margin: 4px 0 0; overflow-wrap: anywhere; }
-.news-reading-copy h3 svg { flex: none; color: var(--blue); }
-.news-reading-copy p { color: var(--muted); font-size: 12px; margin: 3px 0 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.news-reading-row.article-read h3 { color: var(--muted); }
-.news-reading-row .article-actions button { width: 36px; height: 44px; }
 
 .settings-jump { grid-column: 1/-1; display: flex; flex-wrap: wrap; gap: 6px; }
 .settings-jump a { display: inline-flex; min-height: 42px; align-items: center; padding: 0 12px; border-radius: 8px; color: var(--blue); background: var(--panel); }
@@ -194,13 +185,11 @@
   .hub-workspace :is(.music-filters,.audio-filters,.game-filters,.news-filters) > label input,
   .hub-workspace .section-filter-fields :is(select,input) { font-size: 16px; }
   .hub-workspace :is(.music-hub,.audio-hub,.games-hub,.records-toolbar) .tabs button, .news-hub .news-view-tabs button, .news-hub .news-topics-nav button { min-height: 44px; }
-  .audio-record-actions .icon-button, .record-list-action, .news-reading-row .article-actions button { width: 44px; height: 44px; }
+  .audio-record-actions .icon-button, .record-list-action { width: 44px; height: 44px; }
   .audio-record-row { flex-wrap: wrap; gap: 4px 7px; }
   .audio-record-status { display: none; }
   .audio-status-mobile { display: inline; }
   .record-list-chevron { display: none; }
-  .news-reading-row { grid-template-columns: 1fr; }
-  .news-reading-row .article-actions { justify-self: start; }
   .modal-backdrop:has(> .section-detail) { padding: 0; align-items: flex-end; }
   .dialog.section-detail { width: 100%; max-width: 100%; max-height: 88dvh; border-radius: 20px 20px 0 0; border-bottom: 0; }
   .section-detail > .dialog-heading { position: sticky; top: 0; z-index: 2; background: var(--panel); }

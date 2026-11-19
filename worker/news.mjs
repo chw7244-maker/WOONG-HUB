@@ -27,7 +27,14 @@ export async function collectNews(env,lease,{fetcher=fetch,now=new Date(),feeds}
   const checkedAt=now.toISOString();
   try{
     const available=feeds??await collectionFeeds(env.DB);
-    const results=await Promise.allSettled(available.map(feed=>fetchFeed(feed,fetcher,now)));
+    let googleNewsQueue=Promise.resolve();
+    const loads=available.map(feed=>{
+      if(!feed.publisher)return fetchFeed(feed,fetcher,now);
+      const pending=googleNewsQueue.then(()=>fetchFeed(feed,fetcher,now));
+      googleNewsQueue=pending.then(()=>{},()=>{});
+      return pending;
+    });
+    const results=await Promise.allSettled(loads);
     const collected=new Map(),sources=[];
     for(let i=0;i<results.length;i++){
       const feed=available[i],result=results[i];

@@ -3,7 +3,7 @@ import {XMLParser,XMLValidator} from 'fast-xml-parser';
 function googleNewsPublisher(id,label,website,host,category,section){
   const path=section?new URL(website).pathname+'/views':'';
   const params=new URLSearchParams({q:'site:'+host+path+' when:7d',hl:'ko',gl:'KR',ceid:'KR:ko'});
-  return {id,name:label+' · Google 뉴스',website,url:'https://news.google.com/rss/search?'+params,category,language:'ko',publisher:{label,host,section}};
+  return {id,name:label+' · Google 뉴스',website,url:'https://news.google.com/rss/search?'+params,category,language:'ko',publisher:{label,host:host.replace(/^www\./,''),section}};
 }
 
 // Fixed public sources. Browser input cannot supply a fetch URL.
@@ -22,7 +22,7 @@ export const FEEDS=[
   {id:'verge',name:'The Verge',website:'https://www.theverge.com/',url:'https://www.theverge.com/rss/index.xml',category:'pc-it',language:'en'},
   {id:'bbc-city',name:'BBC Sport · 맨시티',website:'https://www.bbc.com/sport/football/teams/manchester-city',url:'https://feeds.bbci.co.uk/sport/football/teams/manchester-city/rss.xml',category:'football',language:'en',limit:20},
   {id:'schezade',name:'셰에라자드',website:'https://www.schezade.co.kr/pagegen/v2/custom/launch-calendar/index.php',url:'https://www.schezade.co.kr/pagegen/v2/custom/launch-calendar/index.php',category:'korean-audio',language:'ko',format:'launch-calendar'},
-  googleNewsPublisher('gamemeca','게임메카','https://www.gamemeca.com/news.php','gamemeca.com','games'),
+  googleNewsPublisher('gamemeca','게임메카','https://www.gamemeca.com/news.php','www.gamemeca.com','games'),
   googleNewsPublisher('thisisgame-news','디스이즈게임','https://www.thisisgame.com/','thisisgame.com','games'),
   googleNewsPublisher('quasarzone-news','퀘이사존','https://quasarzone.com/bbs/qn_hardware','quasarzone.com','pc-it','하드웨어 뉴스'),
   {id:'inven',name:'인벤',website:'https://www.inven.co.kr/webzine/news/',url:'https://feeds.feedburner.com/inven',category:'games',language:'ko'},
@@ -118,7 +118,7 @@ export async function parseLaunchCalendar(html,feed,now=new Date()){
 }
 
 export async function fetchFeed(feed,fetcher=fetch,now=new Date()){
-  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),feed.publisher?6500:12000);
   try{
     const allowedHosts=new Set([new URL(feed.url).hostname]);
     if(!feed.publisher)allowedHosts.add(new URL(feed.website).hostname);

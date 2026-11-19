@@ -115,6 +115,27 @@ test('Google 뉴스는 지정한 매체·게시판에 속한 기사 제목과 �
   assert.deepEqual((await parseFeed(rss(quasarRows),quasar)).map(article=>article.title),['GPU 성능 소식']);
 });
 
+test('같은 Google 뉴스 호스트에 순서대로 요청하며 한 매체가 실패해도 다음 매체를 확인한다',async t=>{
+  const {DB}=await setup(t);
+  const googleFeeds=FEEDS.filter(source=>source.publisher);
+  let outstanding=0, maxOutstanding=0;
+  const fetcher=async url=>{
+    const feed=googleFeeds.find(source=>source.url===url);
+    maxOutstanding=Math.max(maxOutstanding,++outstanding);
+    await Promise.resolve();
+    outstanding--;
+    if(feed.id==='gamemeca')return new Response('unavailable',{status:503});
+    const suffix=feed.publisher.section?' > '+feed.publisher.section:'';
+    const rssItem=item(feed.id,'국내 새 소식'+suffix+' - '+feed.publisher.label,now().toUTCString(),'https://news.google.com/rss/articles/'+feed.id)
+      .replace('</item>','<source url="https://'+feed.publisher.host+'">'+feed.publisher.label+'</source></item>');
+    return new Response(rss(rssItem));
+  };
+  const result=await collectNews({DB},{leaseUntil:0},{feeds:googleFeeds,fetcher});
+  assert.equal(maxOutstanding,1);
+  assert.equal(result.count,2);
+  assert.equal(result.sources.find(source=>source.id==='gamemeca').error,'http_503');
+});
+
 test('보드나라의 구형 한국어 인코딩을 바이트 경계에서도 올바르게 읽는다',async()=>{
   const publisher=FEEDS.find(source=>source.id==='bodnara');
   const encoder=new TextEncoder();

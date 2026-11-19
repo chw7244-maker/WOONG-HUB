@@ -2,20 +2,27 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { ArrowUpRight, AudioLines, Bell, BriefcaseBusiness, CalendarDays, Ellipsis, House, Layers3, Moon, Newspaper, Search, Settings2, StickyNote, Sun } from 'lucide-react';
+import { ArrowUpRight, AudioLines, Bell, BriefcaseBusiness, CalendarDays, Ellipsis, House, Layers3, Moon, Newspaper, Search, Settings2, StickyNote, Sun, type LucideIcon } from 'lucide-react';
 import Dialog from './dialog';
 import { hobbyPages } from './hobby-directory';
 
-const pages = [
+const sharedPages = [
   { id: 'home', label: '홈', icon: House },
   { id: 'calendar', label: '일정', icon: CalendarDays },
   { id: 'hobbies', label: '취미', icon: Layers3 },
-  { id: 'library', label: '기록', icon: StickyNote },
 ];
+const libraryPage = { id: 'library', label: '기록', icon: StickyNote };
+const newsPage = { id: 'news', label: '뉴스', icon: Newspaper };
+const desktopPages = [...sharedPages, libraryPage];
+const mobilePages = [...sharedPages, newsPage];
 const utilityPages = [
-  { id: 'news', label: '뉴스', icon: Newspaper },
   { id: 'work', label: '업무', icon: BriefcaseBusiness },
   { id: 'settings', label: '설정', icon: Settings2 },
+];
+const morePages: { id: string; label: string; icon: LucideIcon; layout?: 'desktop' | 'mobile' }[] = [
+  { ...newsPage, layout: 'desktop' },
+  { ...libraryPage, layout: 'mobile' },
+  ...utilityPages,
 ];
 const href = (id: string) => id === 'home' ? '/' : `/${id}/`;
 
@@ -28,15 +35,18 @@ export default function HubNavigation({
   const [more, setMore] = useState(false);
   const active = hobbyPages.some(page => page.id === section) || ['spotify', 'steam'].includes(section) ? 'hobbies' : section;
   const utilityActive = utilityPages.some(page => page.id === section);
-  const moreButton = (mobile: boolean) => <button type="button" className="hub-more-trigger" aria-haspopup="dialog" aria-expanded={more} data-active={utilityActive || undefined} onClick={() => setMore(true)}>
-    {mobile && <Ellipsis size={20} aria-hidden="true"/>}<span>더보기</span>
-  </button>;
+  const moreButton = (mobile: boolean) => {
+    const secondaryPage = mobile ? libraryPage : newsPage;
+    return <button type="button" className="hub-more-trigger" aria-haspopup="dialog" aria-expanded={more} data-active={utilityActive || section === secondaryPage.id || undefined} onClick={() => setMore(true)}>
+      {mobile && <Ellipsis size={20} aria-hidden="true"/>}<span>더보기</span>
+    </button>;
+  };
   return <>
     <header className="hub-header">
       <div className="hub-header-inner">
         <Link href="/" className="hub-wordmark"><span><AudioLines size={19} aria-hidden="true" /></span>WOONG HUB</Link>
         <nav className="hub-desktop-nav" aria-label="주 메뉴">
-          {pages.map(({ id, label }) => (
+          {desktopPages.map(({ id, label }) => (
             <Link key={id} href={href(id)} aria-current={active === id ? section === id ? 'page' : 'location' : undefined}>{label}</Link>
           ))}
           {moreButton(false)}
@@ -49,13 +59,13 @@ export default function HubNavigation({
       </div>
     </header>
     <nav className="hub-bottom-nav" aria-label="모바일 주 메뉴">
-      {pages.map(({ id, label, icon: Icon }) => (
+      {mobilePages.map(({ id, label, icon: Icon }) => (
         <Link key={id} href={href(id)} aria-current={active === id ? section === id ? 'page' : 'location' : undefined}><Icon size={20} aria-hidden="true"/><span>{label}</span></Link>
       ))}
       {moreButton(true)}
     </nav>
     {more && <Dialog title="더보기" onClose={() => setMore(false)} className="hub-more-dialog" focusField={false}>
-      <nav aria-label="더보기 메뉴">{utilityPages.map(({ id, label, icon: Icon }) => <Link key={id} href={href(id)} aria-current={section === id ? 'page' : undefined} onClick={() => setMore(false)}>
+      <nav aria-label="더보기 메뉴">{morePages.map(({ id, label, icon: Icon, layout }) => <Link key={id} href={href(id)} data-layout={layout} aria-current={section === id ? 'page' : undefined} onClick={() => setMore(false)}>
         <Icon size={19} aria-hidden="true"/><span>{label}</span><ArrowUpRight size={15} aria-hidden="true"/>
       </Link>)}</nav>
     </Dialog>}

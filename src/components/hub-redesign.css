@@ -134,11 +134,16 @@
 .hub-note-writing { flex: 1 0 145px; min-height: 145px; font-size: 17px; line-height: 1.72; resize: none; overscroll-behavior-y: contain; }
 .hub-note-title:focus-visible, .hub-note-writing:focus-visible { outline: 1px solid var(--blue); outline-offset: 5px; }
 
+@media (width > 760px) {
+  .hub-more-dialog nav a[data-layout="mobile"] { display: none; }
+}
+
 @media (max-width: 760px) {
   .app-shell { --hub-bottom-nav-height: calc(62px + env(safe-area-inset-bottom)); }
   .hub-workspace .main-content { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); padding-bottom: var(--hub-bottom-nav-height); }
   .app-shell .toast { bottom: calc(var(--hub-bottom-nav-height) + 12px); }
   .hub-desktop-nav { display: none; }
+  .hub-more-dialog nav a[data-layout="desktop"] { display: none; }
   .hub-header-inner { min-height: calc(55px + env(safe-area-inset-top)); }
   .hub-header-actions { gap: 0; }
   .hub-header-actions > .icon-button { width: 44px; height: 44px; }

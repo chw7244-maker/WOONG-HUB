@@ -51,7 +51,7 @@ export async function handleApi(request, env, ctx) {
     const health={ok:true,storage:'d1',schema:3,news:true,calendar:true};
     if(url.searchParams.get('integrations')!=='1')return json(health);
     const [football,weather]=await Promise.all([
-      footballSnapshot(request,ctx,false),weatherForecast(request,ctx,defaultWeatherCity)
+      footballSnapshot(request,ctx,'full'),weatherForecast(request,ctx,defaultWeatherCity)
     ]);
     return json({...health,integrations:{fixtures:football.fixtures?.items.length??null,standings:football.standings?.items.length??null,results:football.results?.items.length??null,weather:!!weather,weatherSource:weather?(weather.source??'open-meteo'):null}});
   }

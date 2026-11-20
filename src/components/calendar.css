@@ -1,5 +1,23 @@
 .calendar-screen { display: grid; gap: 16px; }
 .calendar-source-drawer { border-block: 1px solid var(--border); scroll-margin-top: 12px; }
+.calendar-saved-matches {
+  min-width: 0;
+  padding-inline: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.calendar-saved-matches > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; list-style: none; cursor: pointer; }
+.calendar-saved-matches > summary::-webkit-details-marker { display: none; }
+.calendar-saved-matches > summary small { margin-inline-start: auto; }
+.calendar-saved-matches[open] > summary svg { rotate: 180deg; }
+.calendar-saved-matches small, .calendar-saved-matches > p { color: var(--muted); font-size: 12px; }
+.calendar-saved-matches > p { margin-bottom: 8px; }
+.calendar-saved-matches ul { list-style: none; margin: 0; padding: 0; }
+.calendar-saved-matches li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-block: 6px; border-top: 1px solid var(--border); }
+.calendar-saved-matches li > div { min-width: 0; display: grid; }
+.calendar-match-date { min-height: 44px; padding: 3px 0; text-align: start; color: var(--blue); font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
+.calendar-saved-matches li > button { flex: none; min-height: 44px; font-size: 13px; }
 .calendar-source-trigger { display: flex; align-items: center; width: 100%; gap: 8px; min-height: 50px; text-align: start; }
 .calendar-source-trigger strong { font-size: 15px; }
 .calendar-source-trigger > svg:first-child { color: var(--blue); }
@@ -41,6 +59,7 @@
 .connected-event a { display: inline-flex; align-items: center; gap: 5px; }
 .connected-event a svg { flex: none; color: var(--blue); }
 .connected-event small, .calendar-agenda-empty, .calendar-range-warning { color: var(--muted); font-size: 12px; margin: 5px 0; }
+.connected-event .calendar-match-notice { margin-block: 0; }
 .calendar-sync-info { border-top: 1px solid var(--border); padding: 12px 0 3px; color: var(--muted); font-size: 13px; }
 .calendar-sync-info > div { display: flex; align-items: center; gap: 6px; }
 .calendar-sync-info > div svg { color: var(--blue); }

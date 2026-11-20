@@ -69,6 +69,9 @@
 .home-match-name svg { flex: none; color: var(--blue); }
 .home-match > p { display: flex; flex-wrap: wrap; column-gap: 9px; margin: 4px 0; color: var(--muted); font-size: 13px; }
 .home-match > small { font-size: 12px; color: var(--muted); }
+.home-match-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0 12px; margin-top: auto; }
+.home-match-actions > .text-button { min-height: 44px; font-size: 13px; }
+.match-calendar-action { min-height: 44px; justify-self: start; color: var(--blue); font-weight: 650; font-size: 13px; }
 .football-hub, .watch-hub { display: grid; gap: 16px; min-width: 0; }
 .football-overview { display: grid; grid-template-columns: minmax(0,2.2fr) minmax(0,1fr); gap: 12px; }
 .football-overview > :only-child { grid-column: 1 / -1; }
@@ -88,6 +91,7 @@
 .football-body { min-width: 0; padding: 12px 16px; scroll-margin-block-start: 16px; }
 .football-matches { margin: 0; padding: 0; list-style: none; }
 .football-matches li { display: grid; grid-template-columns: minmax(162px, 1fr) minmax(0, 3fr); gap: 5px 12px; align-items: center; padding: 12px 4px; border-bottom: 1px solid var(--border); }
+.football-fixtures > li { grid-template-columns: minmax(148px,1fr) minmax(0,3fr) auto; }
 .football-matches time, .football-matches small { display: block; font-size: 13px; color: var(--muted); }
 .football-matches strong { font-size: 15px; overflow-wrap: anywhere; }
 .football-score { display: inline-block; padding-inline: 4px; color: var(--blue); white-space: nowrap; }

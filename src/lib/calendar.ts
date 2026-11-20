@@ -1,6 +1,6 @@
 import type {Entry} from './store.ts';
 export type CalendarSource={id:string;name:string;provider:'notion'|'google'};
-export type CalendarEvent={id:string;sourceId:string;title:string;url:string;allDay:boolean;start:string;end:string};
+export type CalendarEvent={id:string;sourceId:string;title:string;url:string;allDay:boolean;start:string;end:string;note?:string;cancelled?:boolean};
 export type CalendarSnapshot={version:1;timeZone:'Asia/Seoul';syncedAt:string;rangeStart:string;rangeEnd:string;sources:CalendarSource[];events:CalendarEvent[]};
 export type CalendarResponse={revision:number;snapshot:CalendarSnapshot|null};
 export { validDay as isCalendarDay };
@@ -21,7 +21,7 @@ export function validateCalendar(input:unknown):CalendarSnapshot{
   return {version:1,timeZone:'Asia/Seoul',syncedAt:d.syncedAt,rangeStart:d.rangeStart,rangeEnd:d.rangeEnd,sources:d.sources.map(s=>({id:s.id,name:s.name,provider:s.provider})),events:d.events.map(e=>({id:e.id,sourceId:e.sourceId,title:e.title,url:e.url?calendarEventUrl(e.url):'',allDay:e.allDay,start:e.start,end:e.end}))};
 }
 export function eventOnDay(event:CalendarEvent,day:string){if(event.allDay)return day>=event.start&&day<event.end;const begin=Date.parse(day+'T00:00:00+09:00'),end=begin+86400000,start=Date.parse(event.start),finish=Date.parse(event.end);return start<end&&(finish===start?start>=begin:finish>begin);}
-export function eventStartDay(event:CalendarEvent){return event.allDay?event.start:new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(event.start));}
+export function eventStartDay(event:Pick<CalendarEvent,'allDay'|'start'>){return event.allDay?event.start:new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(event.start));}
 export function lastCalendarDay(endExclusive:string){return new Date(Date.parse(endExclusive+'T00:00:00Z')-86400000).toISOString().slice(0,10);}
 export function localCalendarEvent(entry:Entry):CalendarEvent|null{if(entry.kind!=='event'||!entry.date)return null;const allDay=!entry.date.includes('T');return {id:entry.id,sourceId:'hub-local',title:entry.title,url:'',allDay,start:allDay?entry.date:entry.date+':00+09:00',end:allDay?new Date(Date.parse(entry.date+'T00:00:00Z')+86400000).toISOString().slice(0,10):entry.date+':00+09:00'};}
 export function calendarPeriod(event:CalendarEvent){

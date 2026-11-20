@@ -161,6 +161,7 @@
 .hub-week-summary > button[aria-expanded=true] svg { rotate: 180deg; }
 .hub-week-summary small { color: var(--muted); font-size: 12px; }
 .hub-week-summary > a, .hub-week-compact #home-week-agenda > button { flex-shrink: 0; min-height: 44px; }
+.hub-agenda-note { display: block; padding-bottom: 4px; }
 
 .hub-continuation { align-items: stretch; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); }
 .hub-continuation-item {

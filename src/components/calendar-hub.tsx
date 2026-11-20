@@ -2,8 +2,9 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {ArrowUpRight,CalendarDays,ChevronDown,ChevronLeft,ChevronRight,Clock3,Plus,RefreshCw} from 'lucide-react';
 import {type Entry} from '@/lib/store';
-import {calendarPeriod,eventOnDay,isCalendarDay,lastCalendarDay,type CalendarResponse} from '@/lib/calendar';
+import {calendarPeriod,eventOnDay,eventStartDay,isCalendarDay,lastCalendarDay,type CalendarEvent,type CalendarResponse} from '@/lib/calendar';
 import {addCalendarDays,dashboardDay,dashboardEvents} from '@/lib/home-dashboard';
+import {footballSourceId,footballSourceName} from '@/lib/football';
 
 export function useCalendarSnapshot(enabled:boolean){
   const [data,setData]=useState<CalendarResponse|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState('');
@@ -14,6 +15,8 @@ export function useCalendarSnapshot(enabled:boolean){
 type Props = {
   calendar: ReturnType<typeof useCalendarSnapshot>;
   entries: Entry[];
+  matches: CalendarEvent[];
+  onRemoveMatch: (id: string) => void;
   today: string;
   hidden: string[];
   onHiddenChange: (ids: string[]) => void;
@@ -25,7 +28,7 @@ const sourceColors = ['#a0a9f4', '#e3b477', '#81cbb5', '#c99dd7', '#e098a5', '#8
 const dateLabel = new Intl.DateTimeFormat('ko-KR', { timeZone: 'UTC', month: 'long', day: 'numeric', weekday: 'long' });
 const stamp = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
-export default function CalendarHub({calendar,entries,today,hidden,onHiddenChange,onAdd,onEdit}: Props) {
+export default function CalendarHub({calendar,entries,matches,onRemoveMatch,today,hidden,onHiddenChange,onAdd,onEdit}: Props) {
   const [selectedDay, setSelectedDay] = useState('');
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [monthOpen, setMonthOpen] = useState(false);
@@ -54,11 +57,15 @@ export default function CalendarHub({calendar,entries,today,hidden,onHiddenChang
   if (!today) return <p className="connected-calendar-loading">캘린더를 준비하고 있어요.</p>;
   const selected = selectedDay || today;
   const snapshot = calendar.data?.snapshot;
-  const sources = [{ id: 'hub-local', name: 'HUB에 직접 등록', provider: 'hub' }, ...(snapshot?.sources ?? [])];
+  const sources = [
+    { id: 'hub-local', name: 'HUB에 직접 등록', provider: 'hub' },
+    ...(matches.length ? [{ id: footballSourceId, name: footballSourceName, provider: 'football' }] : []),
+    ...(snapshot?.sources ?? []),
+  ];
   const visibleSources = sources.filter(source => !hidden.includes(source.id));
-  const events = dashboardEvents(entries, snapshot, hidden);
+  const events = dashboardEvents(entries, snapshot, hidden, matches);
   const selectedEvents = dashboardDay(events, selected);
-  const outside = snapshot && visibleSources.some(source => source.provider !== 'hub') &&
+  const outside = snapshot && visibleSources.some(source => source.provider === 'notion' || source.provider === 'google') &&
     (selected < snapshot.rangeStart || selected >= snapshot.rangeEnd);
   const [year, month] = selected.split('-').map(Number);
   const first = new Date(Date.UTC(year, month - 1, 1));
@@ -97,11 +104,32 @@ export default function CalendarHub({calendar,entries,today,hidden,onHiddenChang
           {sources.map((source,index)=><label className="calendar-source-toggle" key={source.id}>
             <input type="checkbox" aria-label={source.name+' 표시'} checked={!hidden.includes(source.id)} onChange={()=>toggleSource(source.id)}/>
             <span className="calendar-source-dot" style={{background:sourceColors[index%sourceColors.length]}} aria-hidden="true"/>
-            <span><strong>{source.name}</strong><small>{source.provider==='notion'?'Notion':source.provider==='google'?'Google':'HUB'}</small></span>
+            <span><strong>{source.name}</strong><small>{source.provider==='notion'?'Notion':source.provider==='google'?'Google':source.provider==='football'?'맨시티 공식 일정':'HUB'}</small></span>
           </label>)}
         </div>
       </div>
     </section>
+
+    {matches.length > 0 && <details className="calendar-saved-matches">
+      <summary><strong>{footballSourceName}</strong><small>{matches.length}개</small><ChevronDown size={16} aria-hidden="true"/></summary>
+      {hidden.includes(footballSourceId) && <p>‘표시할 캘린더’에서 경기 표시가 꺼져 있어요.</p>}
+      <ul>
+        {matches.slice().sort((a,b)=>b.start.localeCompare(a.start)).map(match => <li key={match.id}>
+          <div>
+            <button type="button" className="calendar-match-date" aria-label={`${match.title} 날짜 보기`} onClick={()=>{
+              if (hidden.includes(footballSourceId)) toggleSource(footballSourceId);
+              chooseDay(eventStartDay(match));
+              requestAnimationFrame(()=>{
+                agendaHeading.current?.scrollIntoView({block:'nearest'});
+                agendaHeading.current?.focus({preventScroll:true});
+              });
+            }}>{match.title}</button>
+            <small>{[calendarPeriod(match), match.note].filter(Boolean).join(' · ')}</small>
+          </div>
+          <button type="button" className="text-button muted" aria-label={`${match.title} 담기 취소`} onClick={()=>onRemoveMatch(match.id)}>담기 취소</button>
+        </li>)}
+      </ul>
+    </details>}
 
     <div className="calendar-view-grid">
       <section id="calendar-month" className={`panel connected-month ${monthOpen?'open-mobile':''}`} ref={monthPanel} aria-label="월간 달력">
@@ -151,6 +179,7 @@ export default function CalendarHub({calendar,entries,today,hidden,onHiddenChang
             <span style={{background:sourceColors[Math.max(0,index)%sourceColors.length]}} aria-hidden="true"/>
             <div><small>{sources[index]?.name??'캘린더'} · {calendarPeriod(event)}</small>
               {local?<button type="button" onClick={()=>onEdit(local)}>{event.title}</button>:event.url?<a href={event.url} target="_blank" rel="noreferrer">{event.title}<ArrowUpRight size={13}/></a>:<strong>{event.title}</strong>}
+              {event.note && <small className="calendar-match-notice">{event.note}</small>}
             </div>
           </li>;
         })}</ul>:<p className="calendar-agenda-empty">{calendar.loading?'일정을 불러오는 중이에요.':'이 날짜에 표시할 일정이 없어요.'}</p>}

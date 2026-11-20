@@ -7,6 +7,8 @@ import { searchEntries } from '../src/lib/search.ts';
 import { clubFixtures, handleFootball, leagueTable, premierLeagueSeason } from '../worker/football.mjs';
 import { handleWatchSearch } from '../worker/watch.mjs';
 import { handleWeather } from '../worker/weather.mjs';
+import { fixtureCalendarHref, footballSourceId, saveFixture, savedFixtureEvents } from '../src/lib/football.ts';
+import { dashboardDay, dashboardEvents, nextDashboardEvent } from '../src/lib/home-dashboard.ts';
 
 const request = path => new Request(`https://hub.example${path}`, { headers: { 'oai-authenticated-user-id': 'owner' } });
 const day = Date.parse('2026-11-18T10:00:00Z');
@@ -68,6 +70,52 @@ test('home loads just the official schedule and league failures do not hide it',
   assert.equal(full.results, null);
   const anonymous = await handleFootball(new Request('https://hub.example/api/football'), null, { fetcher, now: day });
   assert.equal(anonymous.status, 401);
+});
+
+test('캘린더 조회는 지난 공식 경기와 취소 상태를 조회하고 순위표 소스는 호출하지 않는다', async () => {
+  const fetcher = async url => {
+    assert.equal(new URL(url).hostname, 'api-prod.mancity.com');
+    return new Response(feed.replace('SUMMARY:Napoli', 'STATUS:CANCELLED\r\nSUMMARY:Napoli'));
+  };
+  const now = Date.parse('2026-11-23T10:00:00Z');
+  const calendar = await (await handleFootball(request('/api/football?view=calendar'), null, { fetcher, now })).json();
+  assert.deepEqual(calendar.fixtures.items.map(item=>[item.id,item.postponed]), [['game-1','tentative'],['game-2','cancelled']]);
+  assert.equal(calendar.standings, null);
+  assert.equal(calendar.results, null);
+  const home = await (await handleFootball(request('/api/football?view=home'), null, { fetcher, now })).json();
+  assert.deepEqual(home.fixtures.items.map(item=>item.id), ['game-2']);
+});
+
+test('담은 경기만 캘린더에 추가하고 KST 날짜가 바뀐 경기와 취소를 구분한다', () => {
+  const [first,second] = clubFixtures(feed);
+  const old = { ...first,kickOff:'2026-11-21T12:30:00Z',postponed:null };
+  const personal = { ...watch,id:'personal',kind:'event',date:'2026-11-22T05:00' };
+  const saved = [saveFixture(old)];
+  const source = { items:[first,second],stale:false,checkedAt:new Date(day).toISOString() };
+  const updated = savedFixtureEvents(saved,source,day,false);
+  assert.equal(updated.length,1);
+  assert.equal(fixtureCalendarHref(updated[0].start),'/calendar/?date=2026-11-22');
+  assert.match(updated[0].note,/킥오프 변경/);
+  assert.deepEqual(dashboardDay(dashboardEvents([personal],null,[],updated),'2026-11-22').map(event=>event.id).sort(),['game-1','personal']);
+  assert.deepEqual(dashboardDay(dashboardEvents([],null,[footballSourceId],updated),'2026-11-22'),[]);
+  const cancelled = savedFixtureEvents(saved,{...source,items:[{...first,postponed:'cancelled'}]},day,false);
+  assert.match(cancelled[0].note,/경기 취소/);
+  assert.equal(nextDashboardEvent(cancelled,day,'2026-11-18'),null);
+  const unavailable = savedFixtureEvents(saved,null,day,true);
+  assert.equal(unavailable[0].start,old.kickOff);
+  assert.match(unavailable[0].note,/저장 당시 시간/);
+  assert.match(savedFixtureEvents(saved,{...source,stale:true},day,false)[0].note,/마지막 조회 정보/);
+});
+
+test('담은 경기 백업과 기기 간 병합은 경기별 추가와 취소를 보존한다', () => {
+  const [first, second] = clubFixtures(feed).map(saveFixture);
+  const withFixtures = savedFixtures => ({ ...initial,preferences:{...initial.preferences,savedFixtures} });
+  const base = withFixtures([first]);
+  assert.deepEqual(validateData(JSON.parse(JSON.stringify(base))),base);
+  assert.deepEqual(mergeData(initial, withFixtures([first]),withFixtures([first,second])).data.preferences.savedFixtures,[first,second]);
+  assert.deepEqual(mergeData(base,withFixtures([]),withFixtures([first,second])).data.preferences.savedFixtures,[second]);
+  assert.throws(()=>validateData(withFixtures([first,first])));
+  assert.throws(()=>validateData(withFixtures([{...first,kickOff:'2026-02-30T00:00:00Z'}])));
 });
 
 test('TMDB lookup handles missing configuration and only returns validated poster paths', async () => {

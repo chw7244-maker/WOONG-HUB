@@ -9,9 +9,9 @@ export function addCalendarDays(day: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-export function dashboardEvents(entries: Entry[], snapshot: CalendarSnapshot | null | undefined, hidden: string[]) {
+export function dashboardEvents(entries: Entry[], snapshot: CalendarSnapshot | null | undefined, hidden: string[], fixtures: CalendarEvent[] = []) {
   const local = entries.map(localCalendarEvent).filter((event): event is CalendarEvent => event !== null);
-  return [...local, ...(snapshot?.events ?? [])].filter(event => !hidden.includes(event.sourceId));
+  return [...local, ...(snapshot?.events ?? []), ...fixtures].filter(event => !hidden.includes(event.sourceId));
 }
 
 export function dashboardDay(events: CalendarEvent[], day: string) {
@@ -28,7 +28,7 @@ export function dashboardWeekStart(today: string, selected: string) {
 export function nextDashboardEvent(events: CalendarEvent[], now: number, today: string) {
   const tomorrow = Date.parse(addCalendarDays(today, 1) + 'T00:00:00+09:00');
   const startsAt = (event: CalendarEvent) => Date.parse(event.allDay ? event.start + 'T00:00:00+09:00' : event.start);
-  const timed = events.filter(event => !event.allDay && (Date.parse(event.end) > now || startsAt(event) >= now))
+  const timed = events.filter(event => !event.cancelled && !event.allDay && (Date.parse(event.end) > now || startsAt(event) >= now))
     .sort((a, b) => startsAt(a) - startsAt(b) || a.title.localeCompare(b.title, 'ko'));
   const timedToday = timed.find(event => startsAt(event) < tomorrow);
   if (timedToday) return { event: timedToday, live: startsAt(timedToday) <= now && Date.parse(timedToday.end) > now };

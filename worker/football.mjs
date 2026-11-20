@@ -107,21 +107,24 @@ async function cachedSource(request, key, fetchData, { cache, ctx, now }) {
   catch { return previous ? { ...previous, stale: true } : null; }
 }
 
-export async function footballSnapshot(request, ctx, home, { fetcher = fetch, cache = globalThis.caches?.default, now = Date.now() } = {}) {
+export async function footballSnapshot(request, ctx, view, { fetcher = fetch, cache = globalThis.caches?.default, now = Date.now() } = {}) {
   const season = premierLeagueSeason(new Date(now));
   const options = { cache, ctx, now };
   const [fixtures, standings, results] = await Promise.all([
     cachedSource(request, 'club', async () => clubFixtures(await fetchText(fetcher, clubFeed, 500_000)), options),
-    home ? null : cachedSource(request, `table-${season}`, async () => leagueTable(JSON.parse(await fetchText(fetcher, `${leagueApi}/getbltable/pl/${season}`, 1_000_000))), options),
-    home ? null : cachedSource(request, `results-${season}`, async () => cityLeagueResults(JSON.parse(await fetchText(fetcher, `${leagueApi}/getmatchdata/pl/${season}`, 12_000_000))), options),
+    view === 'full' ? cachedSource(request, `table-${season}`, async () => leagueTable(JSON.parse(await fetchText(fetcher, `${leagueApi}/getbltable/pl/${season}`, 1_000_000))), options) : null,
+    view === 'full' ? cachedSource(request, `results-${season}`, async () => cityLeagueResults(JSON.parse(await fetchText(fetcher, `${leagueApi}/getmatchdata/pl/${season}`, 12_000_000))), options) : null,
   ]);
-  return { season, fixtures: fixtures && { ...fixtures, items: fixtures.items.filter(match => Date.parse(match.kickOff) >= now).slice(0, home ? 5 : 24) }, standings, results };
+  const visibleFixtures = fixtures && view !== 'calendar'
+    ? { ...fixtures, items: fixtures.items.filter(match => Date.parse(match.kickOff) >= now).slice(0, view === 'home' ? 5 : 24) }
+    : fixtures;
+  return { season, fixtures: visibleFixtures, standings, results };
 }
 
 export async function handleFootball(request, ctx, options) {
   const user = request.headers.get('oai-authenticated-user-id');
   if (!user || user.length > 200) return json({ error: 'authentication_required' }, 401);
   if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
-  const home = new URL(request.url).searchParams.get('view') === 'home';
-  return json(await footballSnapshot(request, ctx, home, options));
+  const view = new URL(request.url).searchParams.get('view');
+  return json(await footballSnapshot(request, ctx, view === 'home' || view === 'calendar' ? view : 'full', options));
 }

@@ -5,6 +5,7 @@ import { ArrowUpRight, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Lis
 import { useEffect, useState } from 'react';
 import { calendarPeriod, eventOnDay, eventStartDay, isCalendarDay, type CalendarEvent } from '@/lib/calendar';
 import { addCalendarDays, dashboardDay, dashboardTasks, dashboardWeekStart, nextDashboardEvent } from '@/lib/home-dashboard';
+import { footballSourceId, footballSourceName } from '@/lib/football';
 import { koreanDate, type Entry } from '@/lib/store';
 import type { useCalendarSnapshot } from './calendar-hub';
 
@@ -31,18 +32,18 @@ export function NextSchedule({ now, today, events, entries, calendar, onEdit }: 
   const next = today ? nextDashboardEvent(events, now, today) : null;
   const event = next?.event;
   const day = event ? eventStartDay(event) : '';
-  const source = event?.sourceId === 'hub-local' ? 'HUB' :
+  const source = event?.sourceId === 'hub-local' ? 'HUB' : event?.sourceId === footballSourceId ? footballSourceName :
     calendar.data?.snapshot?.sources.find(source => source.id === event?.sourceId)?.name ?? '외부 캘린더';
   const context = next?.live ? '지금 진행 중' : day <= today ? '오늘' : day === addCalendarDays(today, 1) ? '내일 · '+label(day) : label(day);
   return <section className="hub-next-card" aria-labelledby="home-next-title">
     <div className="hub-next-heading">
       <h2 id="home-next-title"><CalendarDays size={17} aria-hidden="true"/>다음 일정</h2>
-      {event && <small>{source}{calendar.error&&event.sourceId!=='hub-local'?' · 마지막 반영본':''}</small>}
+      {event && <small>{source}{calendar.error&&event.sourceId!=='hub-local'&&event.sourceId!==footballSourceId?' · 마지막 반영본':''}</small>}
     </div>
     {event ? <div className="hub-next-event">
       <time dateTime={event.start}>{event.allDay ? '종일' : clock.format(new Date(event.start))}</time>
       <div>
-        <small>{context}</small>
+        <small>{[context, event.note].filter(Boolean).join(' · ')}</small>
         <AgendaLink event={event} entry={event.sourceId === 'hub-local' ? entries.find(entry => entry.id === event.id) : undefined} onEdit={onEdit}/>
       </div>
     </div> : <p className="hub-next-empty" role="status">
@@ -153,7 +154,7 @@ export default function WeekAgenda({ today, events, entries, hidden, calendar, o
       {agenda.length ? <ul className="hub-agenda-list">
         {agenda.map(event => <li key={event.sourceId+':'+event.id}>
           <small>{calendarPeriod(event)}</small>
-          <AgendaLink event={event} entry={event.sourceId === 'hub-local' ? entries.find(entry => entry.id === event.id) : undefined} onEdit={onEdit}/>
+          <div><AgendaLink event={event} entry={event.sourceId === 'hub-local' ? entries.find(entry => entry.id === event.id) : undefined} onEdit={onEdit}/>{event.note && <small className="hub-agenda-note">{event.note}</small>}</div>
         </li>)}
       </ul> : <p className="hub-agenda-empty">{calendar.loading ? '일정을 불러오는 중이에요.' : '표시할 일정이 없어요.'}</p>}
       {outside && <p className="hub-agenda-empty">외부 캘린더의 수동 반영 기간 밖이에요.</p>}

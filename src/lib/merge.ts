@@ -34,5 +34,15 @@ export function mergeData(base: HubData, local: HubData, remote: HubData): { dat
   for (const key of ['theme','city','widgets','calendarHiddenSources','mediaWidgets','pinnedAudioSetup','homeOrder','hiddenNewWidgets'] as const) {
     if (!same(local.preferences[key], base.preferences[key])) Object.assign(preferences, { [key]: local.preferences[key] });
   }
+  if (local.preferences.savedFixtures || remote.preferences.savedFixtures || base.preferences.savedFixtures) {
+    const before = new Map(base.preferences.savedFixtures?.map(fixture => [fixture.id, fixture]));
+    const mine = new Map(local.preferences.savedFixtures?.map(fixture => [fixture.id, fixture]));
+    const theirs = new Map(remote.preferences.savedFixtures?.map(fixture => [fixture.id, fixture]));
+    preferences.savedFixtures = [];
+    for (const id of new Set([...mine.keys(), ...theirs.keys()])) {
+      const selected = same(mine.get(id), before.get(id)) ? theirs.get(id) : mine.get(id);
+      if (selected) preferences.savedFixtures.push(selected);
+    }
+  }
   return { data: validateData({version:1,entries:[...output.values()],preferences}), conflicts };
 }

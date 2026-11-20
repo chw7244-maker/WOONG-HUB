@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowRight, ArrowUpRight, AudioLines, Bell, CalendarDays, Check, ChevronDown, ChevronLeft, Gamepad2, Headphones, ListTodo, Moon, Newspaper, Plus, SlidersHorizontal, Sun, X, BriefcaseBusiness, Pencil, Link2, Database, type LucideIcon, SquarePen } from 'lucide-react';
+import { ArrowUpRight, AudioLines, Bell, CalendarDays, Check, ChevronDown, ChevronLeft, Gamepad2, Headphones, ListTodo, Moon, Newspaper, Plus, SlidersHorizontal, Sun, X, BriefcaseBusiness, Link2, Database, type LucideIcon, SquarePen } from 'lucide-react';
 import WeatherCard, { WeatherCitySelect } from './weather';
 import NewsHub, { HomeNews } from './news-hub';
 import AudioHub, { AudioEntryModal } from './audio-hub';
@@ -15,11 +15,11 @@ import UnifiedSearch from './unified-search';
 import {spotifyMusicDraft} from '@/lib/music';
 import CalendarHub, { useCalendarSnapshot } from './calendar-hub';
 import HubNavigation from './hub-navigation';
-import WeekAgenda, { NextSchedule } from './home-dashboard';
+import WeekAgenda, { HomeTasks, NextSchedule } from './home-dashboard';
 import NoteEditor from './note-editor';
 import { HomeMusic } from './hobby-highlights';
 import RecordList from './record-list';
-import { dashboardEvents, dashboardTasks, pinnedSetup, recentListeningGear } from '@/lib/home-dashboard';
+import { dashboardEvents, pinnedSetup, recentListeningGear } from '@/lib/home-dashboard';
 import ConnectionSettings from './connection-settings';
 import Dialog from './dialog';
 import { isSetup } from '@/lib/audio';
@@ -65,6 +65,7 @@ export default function Hub({section}:{section:string}) {
   const {data,ready}=sync;
   const calendar=useCalendarSnapshot(ready&&['home','calendar','settings'].includes(section));
   const [now,setNow]=useState<Date|null>(null);
+  const [quickAddOpen,setQuickAddOpen]=useState(false);
   const [modal,setModal]=useState<{kind:Kind;entry?:Entry;watchType?:WatchType}|null>(null),[searchOpen,setSearchOpen]=useState(false),[query,setQuery]=useState(''),[toast,setToast]=useState(''),[libraryTab,setLibraryTab]=useState<Kind>('note'),[filter,setFilter]=useState('전체'),[pendingImport,setPendingImport]=useState<HubData|null>(null),[deleteEntry,setDeleteEntry]=useState<Entry|null>(null),[notificationOpen,setNotificationOpen]=useState(false),[editWidgets,setEditWidgets]=useState(false);
   const fileRef=useRef<HTMLInputElement>(null);
   useEffect(()=>{
@@ -93,7 +94,6 @@ export default function Hub({section}:{section:string}) {
   function preference(update:Partial<HubData['preferences']>){persist({...data,preferences:{...data.preferences,...update}});}
   const entries=(kind:Kind)=>data.entries.filter(e=>e.kind===kind);
   const today=now?todayKST(now):'',events=entries('event').filter(e=>e.date.slice(0,10)>=today).sort((a,b)=>a.date.localeCompare(b.date));
-  const tasks=today?dashboardTasks(data.entries,today):[];
   const selectedSetup=pinnedSetup(entries('audio'),data.preferences.pinnedAudioSetup);
   const homeAudio=section==='home'&&(selectedSetup??recentListeningGear(entries('audio'),entries('music'))[0]?.entry);
   const recentRecords=section==='home'?data.entries.filter(e=>['note','audio','games','music','watch'].includes(e.kind)).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).slice(0,4):[];
@@ -155,23 +155,19 @@ export default function Hub({section}:{section:string}) {
         <SyncNotice onLegacyBackup={exportLegacy}/>
         {!ready?<div className="loading-state"><AudioLines size={36}/><p>{sync.phase==='connecting'?'나의 서버 저장소를 확인하고 있어요.':'서버에 다시 연결하면 기록을 불러옵니다.'}</p>{sync.phase!=='connecting'&&<button className="button secondary" onClick={()=>void sync.client.retry()}>다시 연결</button>}</div>:section==='home'?<>
           <header className="hub-today-heading">
-            <div><p className="hub-date">{dateLabel} <small>KST</small></p><h1>오늘</h1></div>
+            <h1>오늘</h1>
             <div className="hub-today-actions">
               <button type="button" className="icon-button" aria-label="홈 위젯 설정" aria-haspopup="dialog" onClick={()=>setEditWidgets(true)}><SlidersHorizontal size={18}/></button>
-              {visible('note')&&<button type="button" className="button primary" onClick={()=>setModal({kind:'note'})}><SquarePen size={16}/>메모 쓰기</button>}
+              <button type="button" className="button primary" aria-haspopup="dialog" onClick={()=>setQuickAddOpen(true)}><Plus size={17} aria-hidden="true"/>추가</button>
+            </div>
+            <div className="hub-today-context">
+              <p className="hub-date">{today ? <><time dateTime={today}>{dateLabel}</time> <small>KST</small></> : '한국 시간 확인 중'}</p>
+              {visible('weather')&&<WeatherCard city={data.preferences.city} onCityChange={city=>preference({city})} compact/>}
             </div>
           </header>
-          {visible('weather')&&<WeatherCard city={data.preferences.city} onCityChange={city=>preference({city})} compact/>}
           <div className="hub-home-layout hub-priority-grid">
             {visible('calendar')&&<NextSchedule now={now?.getTime()??0} today={today} events={homeEvents} entries={calendarEntries} calendar={calendar} onEdit={editEvent}/>}
-            {visible('todos')&&<section className="hub-tasks hub-tasks-card" aria-labelledby="home-tasks-title">
-              <div className="hub-next-heading"><h2 id="home-tasks-title"><ListTodo size={17} aria-hidden="true"/>오늘 할 일</h2><small>{tasks.length}개 남음</small></div>
-              {tasks.length?<div className="task-list">{tasks.slice(0,3).map(entry=><TaskRow key={entry.id} entry={entry} toggle={()=>toggle(entry)} edit={()=>setModal({kind:'todo',entry})}/>)}</div>:<p className="hub-next-empty">오늘 남은 할 일이 없어요.</p>}
-              <div className="hub-tasks-card-actions">
-                <button type="button" onClick={()=>setModal({kind:'todo'})} className="text-button blue"><Plus size={15}/>할 일 추가</button>
-                <Link href="/library/?tab=todo" className="text-button muted">전체 할 일<ArrowRight size={13}/></Link>
-              </div>
-            </section>}
+            {visible('todos')&&<HomeTasks today={today} entries={data.entries} onEdit={openEntry} onToggle={toggle}/>}
             {visible('football')&&<HomeMatch now={now}/>}
           </div>
           <div className="hub-home-panels">{homeOrder.map(id=><Fragment key={id}>{homePanels[id]}</Fragment>)}</div>
@@ -205,6 +201,13 @@ export default function Hub({section}:{section:string}) {
       </main>
     </div>
     {toast&&<div className="toast" role="status"><Check size={16}/>{toast}<button className="icon-button" aria-label="알림 닫기" onClick={()=>setToast('')}><X size={14}/></button></div>}
+    {quickAddOpen&&<Dialog title="빠른 추가" onClose={()=>setQuickAddOpen(false)} className="home-add-dialog" focusField={false}>
+      <div className="home-add-options">
+        <button type="button" disabled={!today} onClick={()=>{setQuickAddOpen(false);addCalendarEvent(today);}}><CalendarDays size={19} aria-hidden="true"/>일정 추가</button>
+        <button type="button" onClick={()=>{setQuickAddOpen(false);setModal({kind:'todo'});}}><ListTodo size={19} aria-hidden="true"/>할 일 추가</button>
+        <button type="button" onClick={()=>{setQuickAddOpen(false);setModal({kind:'note'});}}><SquarePen size={19} aria-hidden="true"/>메모 쓰기</button>
+      </div>
+    </Dialog>}
     {modal&&(modal.kind==='watch'?<WatchEntryModal entry={modal.entry} defaultType={modal.watchType} onClose={()=>setModal(null)} onSave={save}/>:modal.kind==='audio'?<AudioEntryModal entry={modal.entry} entries={entries('audio')} onClose={()=>setModal(null)} onSave={save}/>:modal.kind==='games'?<GameEntryModal entry={modal.entry} isNew={!data.entries.some(e=>e.id===modal.entry?.id)} onClose={()=>setModal(null)} onSave={save}/>:modal.kind==='music'?<MusicEntryModal entry={modal.entry} onClose={()=>setModal(null)} onSave={save}/>:modal.kind==='note'?<NoteEditor key={JSON.stringify([sync.userId,modal.entry?.id])} userId={sync.userId} entry={modal.entry} latest={data.entries.find(e=>e.id===modal.entry?.id)} onClose={()=>setModal(null)} onSave={save}/>:<EntryModal kind={modal.kind} entry={modal.entry} onClose={()=>setModal(null)} onSave={save}/>)}
     {editWidgets&&<Dialog title="홈 위젯 설정" onClose={()=>setEditWidgets(false)} className="home-widget-dialog" focusField={false}>{widgetsEditor}<div className="dialog-footer"><button className="button primary" type="button" onClick={()=>setEditWidgets(false)}>닫기</button></div></Dialog>}
     {searchOpen&&ready&&<UnifiedSearch key={sync.userId} entries={data.entries} query={query} onQuery={setQuery} onClose={()=>setSearchOpen(false)} onEdit={entry=>{setSearchOpen(false);setModal({kind:entry.kind,entry});}}/>}
@@ -212,9 +215,6 @@ export default function Hub({section}:{section:string}) {
     {deleteEntry&&<Dialog title="기록을 삭제할까요?" onClose={()=>setDeleteEntry(null)}><p className="dialog-description">“{deleteEntry.title}” 기록을 삭제합니다. 삭제한 기록은 백업 파일에서 복구할 수 있습니다.</p>{deleteEntry.kind==='audio'&&!isSetup(deleteEntry)&&entries('audio').some(e=>e.audio?.type==='setup'&&e.audio.deviceIds.includes(deleteEntry.id))&&<p className="dialog-description">이 장비를 사용하는 조합은 유지되며, 해당 연결에 ‘찾을 수 없는 장비’가 표시됩니다. 조합 수정에서 다른 장비로 바꿀 수 있어요.</p>}<div className="dialog-actions button-row"><button className="button secondary" onClick={()=>setDeleteEntry(null)}>취소</button><button className="button danger" onClick={remove}>삭제하기</button></div></Dialog>}
   </div>;
 }
-
-function TaskRow({entry,toggle,edit}:{entry:Entry;toggle:()=>void;edit:()=>void}) {return <div className={`task-row ${entry.done?'done':''}`}><button className="task-checkbox" role="checkbox" aria-checked={entry.done} aria-label={`${entry.title} ${entry.done?'완료 취소':'완료'}`} onClick={toggle}>{entry.done&&<Check size={12}/>}</button><button className="task-title" onClick={edit}>{entry.title}{entry.date&&<small>{koreanDate(entry.date)}</small>}</button><button className="icon-button edit-task" aria-label={`${entry.title} 수정`} onClick={edit}><Pencil size={12}/></button></div>;}
-
 
 function EntryModal({kind,entry,onClose,onSave}:{kind:Kind;entry?:Entry;onClose:()=>void;onSave:(e:Entry)=>void}) {
   const [title,setTitle]=useState(entry?.title??''),[detail,setDetail]=useState(entry?.detail??''),[category,setCategory]=useState(entry?.category||categories[kind]?.[0]||''),[status,setStatus]=useState(entry?.status||statuses[kind]?.[0]||''),[url,setUrl]=useState(entry?.url??''),[date]=useState(entry?.date?(kind==='event'&&!entry.date.includes('T')?`${entry.date}T09:00`:entry.date):''),[error,setError]=useState('');

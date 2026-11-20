@@ -23,8 +23,23 @@ test('The weekly dashboard observes KST day boundaries, hidden sources and month
   assert.deepEqual(dashboardDay(entries,'2026-12-31').map(event => event.id), ['leave','local','kst','utc']);
   assert.deepEqual(dashboardDay(entries,'2027-01-01').map(event => event.id), ['new-year']);
   assert.equal(dashboardEvents([local], snapshot, ['hub-local']).some(event => event.id === 'local'), false);
-  const tasks = [record('later','todo',{date:'2027-01-01'}),record('open','todo'), record('due','todo',{date:'2026-12-31T09:00'}), record('done','todo',{done:true})];
-  assert.deepEqual(dashboardTasks(tasks,'2026-12-31').map(task => task.id), ['due','open']);
+});
+
+test('The home task card groups outstanding items by their KST due date', () => {
+  const tasks = [
+    record('later', 'todo', { date:'2027-01-01' }),
+    record('undated', 'todo'),
+    record('today-time', 'todo', { date:'2026-12-31T09:00' }),
+    record('today-date', 'todo', { date:'2026-12-31' }),
+    record('yesterday', 'todo', { date:'2026-12-30' }),
+    record('done', 'todo', { date:'2026-12-31', done:true }),
+    record('event', 'event', { date:'2026-12-31T09:00' }),
+  ];
+  const { dueToday, overdue, undated } = dashboardTasks(tasks, '2026-12-31');
+  assert.deepEqual(dueToday.map(task => task.id), ['today-date','today-time']);
+  assert.deepEqual(overdue.map(task => task.id), ['yesterday']);
+  assert.deepEqual(undated.map(task => task.id), ['undated']);
+  assert.deepEqual(dashboardTasks(tasks, '').dueToday, []);
 });
 
 test('Next schedule prioritizes active and remaining timed events and respects hidden sources and KST midnight', () => {

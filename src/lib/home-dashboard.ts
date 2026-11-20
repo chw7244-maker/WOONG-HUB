@@ -41,8 +41,18 @@ export function nextDashboardEvent(events: CalendarEvent[], now: number, today: 
 }
 
 export function dashboardTasks(entries: Entry[], day: string) {
-  return entries.filter(entry => entry.kind === 'todo' && !entry.done && (!entry.date || entry.date.slice(0, 10) <= day))
-    .sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || b.createdAt.localeCompare(a.createdAt));
+  const groups = { dueToday: [] as Entry[], overdue: [] as Entry[], undated: [] as Entry[] };
+  if (!day) return groups;
+
+  const pending = entries.filter(entry => entry.kind === 'todo' && !entry.done)
+    .sort((a, b) => a.date.localeCompare(b.date) || b.createdAt.localeCompare(a.createdAt));
+  for (const entry of pending) {
+    const due = entry.date.slice(0, 10);
+    if (!due) groups.undated.push(entry);
+    else if (due === day) groups.dueToday.push(entry);
+    else if (due < day) groups.overdue.push(entry);
+  }
+  return groups;
 }
 
 export function recentListening(entries: Entry[]) {

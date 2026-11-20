@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowUpRight, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ArrowUpRight, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ListTodo, Pencil, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { calendarPeriod, eventOnDay, eventStartDay, isCalendarDay, type CalendarEvent } from '@/lib/calendar';
-import { addCalendarDays, dashboardDay, dashboardWeekStart, nextDashboardEvent } from '@/lib/home-dashboard';
-import type { Entry } from '@/lib/store';
+import { addCalendarDays, dashboardDay, dashboardTasks, dashboardWeekStart, nextDashboardEvent } from '@/lib/home-dashboard';
+import { koreanDate, type Entry } from '@/lib/store';
 import type { useCalendarSnapshot } from './calendar-hub';
 
 const weekday = new Intl.DateTimeFormat('ko-KR', { timeZone: 'UTC', weekday: 'short' });
@@ -49,6 +49,44 @@ export function NextSchedule({ now, today, events, entries, calendar, onEdit }: 
       {calendar.loading || !today ? '일정을 확인하고 있어요.' : calendar.error ? '일정 목록을 확인해주세요.' : '예정된 일정이 없어요.'}
     </p>}
     <Link className="text-button" href={day ? '/calendar/?date='+encodeURIComponent(day < today ? today : day) : '/calendar/'}>일정 보기<ArrowUpRight size={13} aria-hidden="true"/></Link>
+  </section>;
+}
+
+type TaskActions = { onToggle: (entry: Entry) => void; onEdit: (entry: Entry) => void };
+
+function TaskList({ tasks, showDate = false, onToggle, onEdit }: TaskActions & { tasks: Entry[]; showDate?: boolean }) {
+  return <ul className="task-list home-task-list">
+    {tasks.map(entry => <li className="task-row" key={entry.id}>
+      <button type="button" className="task-checkbox" role="checkbox" aria-checked={false} aria-label={`${entry.title} 완료`} onClick={() => onToggle(entry)}/>
+      <button type="button" className="task-title" aria-label={`${entry.title} 수정${showDate ? `, 마감 ${koreanDate(entry.date)}` : ''}`} onClick={() => onEdit(entry)}>
+        <span>{entry.title}{showDate && <small>{koreanDate(entry.date)}</small>}</span><Pencil size={13} aria-hidden="true"/>
+      </button>
+    </li>)}
+  </ul>;
+}
+
+export function HomeTasks({ entries, today, onToggle, onEdit }: TaskActions & { entries: Entry[]; today: string }) {
+  const { dueToday, overdue, undated } = dashboardTasks(entries, today);
+  const previewCount = 3;
+  const groups = [
+    { title: '오늘 마감 더 보기', tasks: dueToday.slice(previewCount), showDate: false },
+    { title: '기한 지난 할 일', tasks: overdue, showDate: true },
+    { title: '마감일 없는 할 일', tasks: undated, showDate: false },
+  ];
+
+  return <section className="hub-tasks-card" aria-labelledby="home-tasks-title">
+    <div className="hub-next-heading">
+      <h2 id="home-tasks-title"><ListTodo size={17} aria-hidden="true"/>오늘 할 일</h2>
+      <small aria-live="polite">오늘 마감 {dueToday.length}개</small>
+    </div>
+    {dueToday.length > 0
+      ? <TaskList tasks={dueToday.slice(0, previewCount)} onToggle={onToggle} onEdit={onEdit}/>
+      : <p className="hub-next-empty">{today ? '오늘 마감인 할 일이 없어요.' : '할 일을 확인하고 있어요.'}</p>}
+    {groups.filter(group => group.tasks.length > 0).map(({ title, tasks, showDate }) => <details key={title} className="home-task-group">
+      <summary><span>{title}</span><span className="home-task-count">{tasks.length}개</span><ChevronDown size={15} aria-hidden="true"/></summary>
+      <TaskList tasks={tasks} showDate={showDate} onToggle={onToggle} onEdit={onEdit}/>
+    </details>)}
+    <Link href="/library/?tab=todo" className="text-button home-all-tasks">전체 할 일</Link>
   </section>;
 }
 

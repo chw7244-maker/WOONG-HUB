@@ -28,13 +28,6 @@
 .hub-workspace .page-heading p { color: var(--muted); font-size: 13px; }
 .hub-workspace .page-heading .button { min-height: 40px; }
 
-.hub-today-heading { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; margin: 18px 0 22px; }
-.hub-today-heading h1 { font-size: clamp(33px, 5vw, 50px); letter-spacing: -.065em; line-height: 1.12; margin: 4px 0 0; }
-.hub-date { margin: 0; font-size: 13px; color: var(--muted); }
-.hub-date small { margin-inline-start: 2px; color: var(--muted); font-size: 11px; }
-.hub-today-actions { display: flex; align-items: center; gap: 8px; }
-.hub-today-actions .icon-button { width: 40px; height: 44px; }
-.hub-today-actions .button { min-height: 44px; font-size: 13px; }
 .hub-home-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(245px, .42fr); gap: clamp(16px, 3vw, 38px); }
 .hub-home-layout:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
 .hub-home-layout:empty { display: none; }
@@ -67,9 +60,6 @@
 .hub-agenda-list li :is(button, a) { display: inline-flex; align-items: center; gap: 7px; padding: 5px 0; }
 .hub-agenda-list li a svg { flex-shrink: 0; color: var(--blue); }
 .hub-agenda-empty { display: flex; align-items: center; gap: 7px; color: var(--muted); margin: 6px 0 8px; font-size: 13px; }
-.hub-tasks .task-list { margin: 0; }
-.hub-tasks .task-title { font-size: 13px; }
-.hub-all-tasks { margin-top: 6px; }
 .hub-resume-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; align-items: start; }
 .hub-resume-grid:has(> :nth-child(2):last-child) { grid-template-columns: repeat(2,minmax(0,1fr)); }
 .hub-resume-grid:has(> :only-child) { grid-template-columns: minmax(0,1fr); }
@@ -157,7 +147,6 @@
   .hub-bottom-nav :is([aria-current],[data-active=true],[aria-expanded=true]) { color: var(--blue); background: var(--blue-soft); font-weight: 650; }
   .hub-workspace .page-heading { align-items: flex-start; }
   .hub-home-layout, .hub-game-highlights.has-playing, .hub-resume-grid, .hub-resume-grid:has(> :nth-child(2):last-child) { grid-template-columns: minmax(0,1fr); }
-  .hub-tasks { border-top: 1px solid var(--border); padding-top: 15px; }
   .hub-records-strip button { flex-basis: 44%; }
   .hub-week-actions :is(.icon-button,.text-button) { min-height: 44px; }
   .hub-note-backdrop.modal-backdrop {

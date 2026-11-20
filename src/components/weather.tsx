@@ -198,7 +198,7 @@ export default function WeatherCard({ city, onCityChange, compact = false }: { c
   if (!compact) return panel;
   return <details className="hub-weather-summary">
     <summary><Icon size={20} aria-hidden="true"/><strong>{cityLabel}{weather && ` · ${degrees(weather.current.temperature)}`}</strong>
-      <span>{weatherSummary}</span>
+      <span className="hub-weather-detail">{weatherSummary}</span>
       <span className="hub-weather-toggle">예보</span>
     </summary>
     {panel}

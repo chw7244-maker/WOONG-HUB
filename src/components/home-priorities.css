@@ -1,3 +1,26 @@
+.hub-today-heading {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 12px 0 16px;
+}
+.hub-today-heading h1 { font-size: clamp(32px,5vw,50px); letter-spacing: -.06em; line-height: 1.12; }
+.hub-today-actions { display: flex; align-items: center; gap: 6px; }
+.hub-today-actions .icon-button { width: 44px; height: 44px; }
+.hub-today-actions .button { min-height: 44px; font-size: 14px; }
+.hub-today-context {
+  grid-column: 1/-1;
+  display: grid;
+  grid-template-columns: minmax(0,max-content) minmax(0,1fr);
+  align-items: center;
+  gap: 2px 14px;
+}
+.hub-date { font-size: 14px; color: var(--muted); }
+.hub-date small { font-size: 12px; white-space: nowrap; }
+.hub-today-context > .hub-weather-summary { min-width: 0; margin: 0; }
+.hub-today-context > .hub-weather-summary[open] { grid-column: 1/-1; }
+
 .hub-home-layout.hub-priority-grid {
   grid-template-columns: minmax(0,1.35fr) minmax(0,1fr);
   gap: 14px;
@@ -54,10 +77,60 @@
 .hub-next-event a svg { display: inline; vertical-align: middle; margin-inline-start: 4px; color: var(--blue); }
 .hub-next-card > .text-button { align-self: flex-start; margin-top: auto; color: var(--blue); font-size: 13px; min-height: 44px; }
 .hub-next-empty { color: var(--muted); font-size: 14px; margin: 12px 0 6px; }
-.hub-tasks-card .task-list { margin: 6px 0 8px; }
-.hub-tasks-card .task-title { overflow-wrap: anywhere; }
-.hub-tasks-card-actions { display: flex; flex-wrap: wrap; gap: 0 15px; margin-top: auto; }
-.hub-workspace .hub-tasks-card-actions .text-button { min-height: 44px; font-size: 13px; }
+.home-task-list { gap: 0; list-style: none; margin: 4px 0; padding: 0; }
+.home-task-list .task-row { gap: 2px; min-height: 44px; }
+.home-task-list .task-row + .task-row { border-top: 1px solid var(--border); }
+.home-task-list .task-checkbox { width: 44px; height: 44px; border: 0; border-radius: 8px; }
+.home-task-list .task-checkbox::before { content: ''; width: 18px; height: 18px; border: 1px solid var(--faint); border-radius: 5px; }
+.home-task-list .task-checkbox:hover::before { border-color: var(--blue); background: var(--blue-soft); }
+.home-task-list .task-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 5px 3px;
+  font-size: 15px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.home-task-list .task-title:hover { color: var(--blue); }
+.home-task-list .task-title :is(small,svg) { color: var(--muted); }
+.home-task-list .task-title small { font-size: 12px; }
+.home-task-group { border-top: 1px solid var(--border); }
+.home-task-group > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 3px;
+  font-size: 14px;
+  list-style: none;
+  cursor: pointer;
+}
+.home-task-group > summary::-webkit-details-marker { display: none; }
+.home-task-group > summary :is(.home-task-count,svg) { color: var(--muted); }
+.home-task-count { margin-inline-start: auto; font-size: 12px; }
+.home-task-group[open] > summary svg { rotate: 180deg; }
+.home-all-tasks { align-self: flex-start; margin-top: auto; min-height: 44px; color: var(--blue); font-size: 13px; }
+.dialog.home-add-dialog { width: min(100%,360px); }
+.home-add-options { display: grid; gap: 8px; }
+.home-add-options > button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 50px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  text-align: start;
+  font-size: 16px;
+}
+.home-add-options > button:hover { background: var(--hover); }
+.home-add-options svg { color: var(--blue); }
 
 .hub-home-panels .quick-links-section > .panel-heading { margin-bottom: 7px; }
 .hub-home-panels .quick-links-section h2 { font-size: 17px; }
@@ -111,6 +184,13 @@
 .hub-continuation-account select { width: 100%; min-width: 0; }
 
 @media (max-width:760px) {
+  .hub-today-heading { margin-top: 0; margin-bottom: 10px; }
+  .hub-today-context { grid-template-columns: minmax(0,1fr) auto; gap: 4px 8px; }
+  .hub-today-context .hub-weather-summary:not([open]) > summary { gap: 4px; padding-inline: 8px; }
+  .hub-today-context .hub-weather-summary:not([open]) > summary > svg { width: 16px; height: 16px; }
+  .hub-today-context .hub-weather-summary:not([open]) .hub-weather-detail { display: none; }
+  .hub-today-context .hub-weather-summary:not([open]) .hub-weather-toggle { margin-inline-start: 3px; }
+  .hub-today-context .hub-weather-summary:not([open]) .hub-weather-toggle::after { display: none; }
   .hub-home-layout.hub-priority-grid, .hub-home-layout.hub-priority-grid:has(> :nth-child(3)) { grid-template-columns: minmax(0,1fr); gap: 10px; }
   .hub-next-card, .hub-tasks-card { padding: 12px 13px; border-radius: 13px; }
   .hub-week-compact .hub-week-days button { min-height: 49px; }

@@ -59,6 +59,7 @@
   outline: 2px solid var(--blue); outline-offset: 2px;
 }
 .news-reading-details { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: start; gap: 0 12px; color: var(--muted); font-size: .8125rem; }
+.news-reading-details .news-work-link { min-height: 44px; font-size: inherit; }
 .news-reading-details > details { min-width: 0; }
 .news-reading-details > details[open] { flex-basis: 100%; }
 .news-reading-details summary { cursor: pointer; width: fit-content; padding: 9px 8px 9px 0; }

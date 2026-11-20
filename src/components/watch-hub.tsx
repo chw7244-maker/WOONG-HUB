@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowUpRight, BookOpen, Check, Clapperboard, Pencil, Plus, Search, Star, Trash2, Tv } from 'lucide-react';
 import { safeUrl, type Entry } from '@/lib/store';
 import { matchesSearch, searchTerms } from '@/lib/search';
-import { advanceWatch, isWatchEntry, koreanWeekday, progressLabel, watchDays, watchingNow, watchStatuses, watchTypes, type WatchCatalogItem, type WatchEntry, type WatchStatus, type WatchType } from '@/lib/watch';
+import { advanceWatch, isWatchEntry, koreanWeekday, progressLabel, watchDays, watchingNow, watchStatuses, watchTypes, webtoonNewsEventKeys, webtoonNewsEvents, type WatchCatalogItem, type WatchEntry, type WatchStatus, type WatchType } from '@/lib/watch';
 import Dialog from './dialog';
 
 const icons = { movie: Clapperboard, tv: Tv, webtoon: BookOpen };
@@ -41,20 +41,26 @@ function progressAction(entry: WatchEntry, onSave: (entry: Entry) => boolean) {
   return <button type="button" className="button secondary" onClick={() => onSave(advanceWatch(entry))} aria-label={`${entry.title} 다음 회차 기록`}><Plus size={15}/>다음 회차</button>;
 }
 
-function WatchItem({ entry, onEdit, onDelete, onSave, featured = false }: {
-  entry: WatchEntry; onEdit: (entry: Entry) => void; onDelete: (entry: Entry) => void; onSave: (entry: Entry) => boolean; featured?: boolean;
+function WatchItem({ entry, onEdit, onDelete, onSave, highlight }: {
+  entry: WatchEntry; onEdit: (entry: Entry) => void; onDelete: (entry: Entry) => void; onSave: (entry: Entry) => boolean; highlight?: 'continue' | 'news';
 }) {
   const { watch } = entry;
   const href = safeUrl(entry.url);
+  const featured = Boolean(highlight);
+  const followingNews = Boolean(watch.newsEvents?.length);
   return <article className={featured ? 'watch-feature' : 'watch-entry'}>
     <Cover key={watch.catalog?.posterPath ?? watch.type} entry={entry} featured={featured}/>
     <div className="watch-entry-copy">
-      <p className="watch-kicker">{featured ? '이어서 보기 · ' : ''}{watchTypes[watch.type]}{watch.catalog?.year && ` · ${watch.catalog.year}`}</p>
+      <p className="watch-kicker">{highlight === 'news' ? '뉴스에서 연 작품 · ' : featured ? '이어서 보기 · ' : ''}{watchTypes[watch.type]}{watch.catalog?.year && ` · ${watch.catalog.year}`}</p>
       <h2><button type="button" onClick={() => onEdit(entry)}>{entry.title}</button></h2>
       <p className="watch-entry-meta"><span>{progressLabel(watch)}</span>{watch.weekday !== undefined && <span>{watchDays[watch.weekday]}요일 연재</span>}{watch.rating !== undefined && <span><Star size={13}/> {watch.rating}/5</span>}</p>
       {entry.detail && <p className="watch-entry-note">{entry.detail}</p>}
       <div className="watch-entry-actions">
         {progressAction(entry, onSave)}
+        {watch.type === 'webtoon' && <button type="button" className="button secondary watch-news-follow" aria-pressed={followingNews} aria-label={`${entry.title} 작품 소식 팔로우`}
+          onClick={() => onSave({ ...entry, watch: { ...watch, newsEvents: followingNews ? undefined : [...webtoonNewsEventKeys] } })}>
+          {followingNews ? <Check size={15} aria-hidden="true"/> : <Plus size={15} aria-hidden="true"/>}{followingNews ? '소식 팔로우 중' : '이 작품 소식 팔로우'}
+        </button>}
         {href && <a className="text-button" href={href} target="_blank" rel="noreferrer">작품 열기<ArrowUpRight size={14}/></a>}
         <button type="button" className="icon-button" onClick={() => onEdit(entry)} aria-label={`${entry.title} 수정`}><Pencil size={16}/></button>
         <button type="button" className="icon-button" onClick={() => onDelete(entry)} aria-label={`${entry.title} 삭제`}><Trash2 size={16}/></button>
@@ -83,9 +89,12 @@ export default function WatchHub({ entries, now, onAdd, onEdit, onDelete, onSave
   const [type, setType] = useState<WatchType | 'all'>('all');
   const [status, setStatus] = useState<WatchStatus | 'all'>('all');
   const [query, setQuery] = useState('');
+  const [linkedId, setLinkedId] = useState<string | null>(null);
+  useEffect(() => { setLinkedId(new URLSearchParams(window.location.search).get('work')); }, []);
   const collection = entries.filter(isWatchEntry).sort((a, b) => Date.parse(b.watch.updatedAt) - Date.parse(a.watch.updatedAt));
   const browsing = type === 'all' && status === 'all' && !query.trim();
-  const featured = browsing ? watchingNow(collection)[0] : undefined;
+  const linked = linkedId ? collection.find(entry => entry.id === linkedId) : undefined;
+  const featured = browsing ? linked ?? watchingNow(collection)[0] : undefined;
   const today = now ? koreanWeekday(now) : -1;
   const airing = collection.filter(item => item.watch.type === 'webtoon' && item.watch.weekday === today && item.watch.status !== 'completed');
   const matches = collection.filter(item => (type === 'all' || item.watch.type === type) && (status === 'all' || item.watch.status === status) &&
@@ -93,7 +102,8 @@ export default function WatchHub({ entries, now, onAdd, onEdit, onDelete, onSave
   const lists = status === 'all' ? ['watching', 'planned', 'completed'] as const : [status];
 
   return <div className="watch-hub">
-    {featured && <WatchItem entry={featured} onEdit={onEdit} onSave={onSave} onDelete={onDelete} featured/>}
+    {linkedId && !linked && <p className="watch-feedback" role="status">연결된 작품 기록을 찾을 수 없어요.</p>}
+    {featured && <WatchItem entry={featured} onEdit={onEdit} onSave={onSave} onDelete={onDelete} highlight={linked ? 'news' : 'continue'}/>}
     <div className="watch-toolbar">
       <div className="tabs" role="group" aria-label="작품 종류">
         <button type="button" aria-pressed={type === 'all'} className={type === 'all' ? 'selected' : ''} onClick={() => setType('all')}>전체</button>
@@ -187,10 +197,13 @@ export function WatchEntryModal({ entry, defaultType = 'movie', onClose, onSave 
     if (url.trim() && !link) { setError('http:// 또는 https:// 주소를 입력해주세요.'); return; }
     const form = new FormData(event.currentTarget);
     const optionalNumber = (key: string) => form.get(key) ? Number(form.get(key)) : undefined;
+    const selectedEvents = form.getAll('newsEvents');
+    const newsEvents = webtoonNewsEventKeys.filter(event => selectedEvents.includes(event));
     const updatedAt = new Date().toISOString();
     onSave({ id: entry?.id ?? crypto.randomUUID(), kind: 'watch', title: name, detail: String(form.get('detail') ?? '').trim(),
       category: '', status: '', url: link, date: '', done: false, createdAt: entry?.createdAt ?? updatedAt,
-      watch: { type, status, catalog, updatedAt, progress: optionalNumber('progress'), season: optionalNumber('season'), rating: optionalNumber('rating'), weekday: optionalNumber('weekday') } });
+      watch: { type, status, catalog, updatedAt, progress: optionalNumber('progress'), season: optionalNumber('season'), rating: optionalNumber('rating'), weekday: optionalNumber('weekday'),
+        ...(type === 'webtoon' && newsEvents.length > 0 && { newsEvents }) } });
   }
 
   return <Dialog title={entry ? '작품 수정' : '작품 추가'} onClose={onClose} className="watch-dialog">
@@ -213,6 +226,12 @@ export function WatchEntryModal({ entry, defaultType = 'movie', onClose, onSave 
         {type === 'webtoon' && <label>연재 요일<select name="weekday" defaultValue={old?.type === type ? old.weekday ?? '' : ''}><option value="">미지정</option>{watchDays.map((day, index) => <option key={day} value={index}>{day}요일</option>)}</select></label>}
         <label>별점<select name="rating" defaultValue={old?.rating ?? ''}><option value="">미평가</option>{[5, 4, 3, 2, 1, 0].map(value => <option key={value} value={value}>{value}점</option>)}</select></label>
       </div>
+      {type === 'webtoon' && <fieldset className="watch-news-settings">
+        <legend>관심 뉴스에 받을 소식</legend>
+        <div>{webtoonNewsEventKeys.map(event => <label key={event}>
+          <input type="checkbox" name="newsEvents" value={event} defaultChecked={old?.newsEvents?.includes(event)}/>{webtoonNewsEvents[event]}
+        </label>)}</div>
+      </fieldset>}
       <label>{type === 'webtoon' ? '공식 작품 링크' : '작품 링크'} <input type="url" maxLength={2000} placeholder="https://" value={url} onChange={event => setUrl(event.target.value)}/></label>
       <label>감상 메모<textarea name="detail" maxLength={10000} rows={3} defaultValue={entry?.detail}/></label>
       {error && <p role="alert" className="form-error">{error}</p>}

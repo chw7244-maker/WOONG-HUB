@@ -31,6 +31,16 @@ test('works survive backup, three-way merge, searching and one-episode progressi
   assert.throws(() => validateData({ ...initial, preferences: { ...initial.preferences, homeOrder: ['unknown'] } }));
 });
 
+test('웹툰 소식 설정은 작품 백업과 회차 변경에 저장된다', () => {
+  const entry = { ...watch, watch: { type:'webtoon', status:'planned', updatedAt:watch.createdAt, newsEvents:['completion','resume','resume'] } };
+  const data = validateData(JSON.parse(JSON.stringify({ ...initial, entries:[entry] })));
+  assert.deepEqual(data.entries[0].watch.newsEvents,['resume','completion']);
+  assert.deepEqual(advanceWatch(data.entries[0]).watch.newsEvents,['resume','completion']);
+  assert.throws(() => validateData({ ...initial, entries:[{ ...entry, watch:{ ...entry.watch, newsEvents:['unrecognized'] } }] }));
+  assert.throws(() => validateData({ ...initial, entries:[{ ...watch, watch:{ ...watch.watch, newsEvents:['resume'] } }] }));
+  assert.equal(validateData({ ...initial, entries:[{ ...entry, watch:{ ...entry.watch, newsEvents:[] } }] }).entries[0].watch.newsEvents,undefined);
+});
+
 test('club calendar uses the newest revision, retains all competitions and keeps UTC for KST display', () => {
   assert.deepEqual(clubFixtures(feed).map(match => [match.competition, match.kickOff, match.postponed]), [
     ['Premier League', '2026-11-21T20:00:00Z', 'tentative'], ['Champions League', '2026-11-24T20:00:00Z', null],

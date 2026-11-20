@@ -83,7 +83,6 @@ function recommend(article, topics) {
   const retailer = article.sourceUrl.startsWith('https://www.schezade.co.kr/');
   const city = article.sourceUrl === 'https://kr.mancity.com/news';
   const official = Boolean(steamApp || retailer || city);
-  if (/\b(?:sponsored|paid partnership|advertorial)\b|유료광고|협찬\s*기사/iu.test(article.title)) return null;
   const title = ' ' + normalized(article.title) + ' ';
   const text = title + normalized(article.description) + ' ';
   const titleKinds = kindEntries.filter(([,pattern]) => pattern.test(article.title)).map(([kind]) => kind);
@@ -118,6 +117,52 @@ function recommend(article, topics) {
   return best && best.specificity > mutedSpecificity ? best : null;
 }
 
+const webtoonEventPatterns = [
+  ['resume', /연재(?:를)?\s*(?:재개|재시작|복귀)|휴재(?:를)?\s*(?:끝|종료)|(?:새|새로운)\s*시즌|시즌\s*\d+\s*(?:복귀|재개|공개|시작)/u],
+  ['completion', /완결|최종\s*화|마지막\s*(?:화|회차)|연재(?:를)?\s*종료/u],
+  ['hiatus', /휴재|연재(?:를)?\s*(?:(?:일시|잠정)\s*)?(?:중단|중지)/u],
+  ['start', /신작\s*웹툰|웹툰\s*신작|(?:첫|신규|동시)\s*연재|연재(?:를)?\s*(?:시작|개시)|웹툰(?:으로)?\s*(?:독점\s*)?공개/u],
+];
+const koreanTitleParticle = /(?:으로|에서|에게|까지|부터|의|이|가|은|는|을|를|과|와|도|로)$/u;
+
+function indexWebtoonTitles(works) {
+  const titles = new Map();
+  let maxLength = 0;
+  for (const work of works) {
+    const title = normalized(work.title).replaceAll(' ', '');
+    if (!title) continue;
+    if (!titles.has(title)) titles.set(title, []);
+    titles.get(title).push(work);
+    maxLength = Math.max(maxLength, title.length);
+  }
+  return { titles, maxLength };
+}
+
+function recommendWebtoon(article, index) {
+  if (!index.maxLength || !article.categories.includes('webtoon')) return null;
+  const event = (webtoonEventPatterns.find(([, pattern]) => pattern.test(article.title)) ??
+    webtoonEventPatterns.find(([, pattern]) => pattern.test(article.description)))?.[0];
+  if (!event) return null;
+  const words = normalized(article.title).split(' ');
+  let matched, longest = 0;
+  for (let start = 0; start < words.length; start++) {
+    let phrase = '';
+    for (let end = start; end < words.length; end++) {
+      phrase += words[end];
+      if (phrase.length > index.maxLength + 2) break;
+      for (const title of [phrase, phrase.replace(koreanTitleParticle, '')]) {
+        if (title.length <= longest) continue;
+        const work = index.titles.get(title)?.find(item => item.events.includes(event));
+        if (work) { matched = work; longest = title.length; }
+      }
+    }
+  }
+  if (!matched) return null;
+  const official = article.sourceUrl === 'https://www.webtoonscorp.com/ko/media';
+  return { topicId:'webtoon:'+matched.id, topicLabel:matched.title, kind:event === 'start' ? 'release' : 'serialization',
+    official, relevance:official ? 4 : 2, workId:matched.id, webtoonEvent:event };
+}
+
 const stopWords = new Set(['the','this','with','from','that','their','will','now','says','about','into','after','gets','your','what','after']);
 const versionTokens = title => (title.match(/\d+(?:\.\d+)*/gu) ?? []).join('|');
 function performanceDetails(title) {
@@ -130,7 +175,7 @@ function performanceDetails(title) {
   };
 }
 function sameStory(a, b) {
-  if (a.rec.topicId !== b.rec.topicId || a.rec.kind !== b.rec.kind ||
+  if (a.rec.topicId !== b.rec.topicId || a.rec.kind !== b.rec.kind || a.rec.webtoonEvent !== b.rec.webtoonEvent ||
     Math.abs(a.time - b.time) > 36 * 3_600_000) return false;
   if (a.steamApp && b.steamApp && a.steamApp !== b.steamApp) return false;
   if (a.title === b.title) return true;
@@ -143,11 +188,13 @@ function sameStory(a, b) {
   return common / (a.words.size + b.words.size - common) >= 0.82;
 }
 
-export function rankNews(articles, topics, sourcePreferences = []) {
+export function rankNews(articles, topics, sourcePreferences = [], followedWebtoons = []) {
   const rules = topics.map(topic => ({ ...topic, matches:topic.terms.map(termMatcher) }));
   const sourceModes = new Map(sourcePreferences.map(source => [source.host, source.mode]));
+  const webtoons = indexWebtoonTitles(followedWebtoons);
   const candidates = articles.flatMap(article => {
-    const rec = recommend(article, rules);
+    if (/\b(?:sponsored|paid partnership|advertorial)\b|유료광고|협찬\s*기사/iu.test(article.title)) return [];
+    const rec = recommendWebtoon(article, webtoons) ?? recommend(article, rules);
     if (!rec) return [];
     const time = Date.parse(article.publishedAt), title = normalized(article.title);
     const mode = sourceModes.size ? sourceModes.get(newsSourceHost(article.sourceUrl)) : undefined;
@@ -175,9 +222,9 @@ export function rankNews(articles, topics, sourcePreferences = []) {
     }
   }
   return [...groups.values()].flat().sort((a, b) => b.rank - a.rank || b.time - a.time || a.article.id.localeCompare(b.article.id)).map(entry => {
-    const { topicId, topicLabel, kind, official } = entry.rec;
+    const { topicId, topicLabel, kind, official, workId, webtoonEvent } = entry.rec;
     return { ...entry.article, rank:entry.rank, recommendation:{ topicId, topicLabel, kind, official,
-      ...(entry.sourceWeight > 0 && { preferredSource:true }) },
+      ...(entry.sourceWeight > 0 && { preferredSource:true }), ...(workId && { workId, webtoonEvent }) },
       ...(entry.related.length && { related:entry.related }) };
   });
 }

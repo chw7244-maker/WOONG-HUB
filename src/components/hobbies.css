@@ -136,6 +136,12 @@
 .watch-entry-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 3px 5px; }
 .watch-entry-actions :is(a,button) { min-height: 40px; font-size: 12px; }
 .watch-entry-actions .icon-button { width: 40px; }
+.watch-entry-actions .watch-news-follow[aria-pressed=true] { color: var(--blue); border-color: var(--blue); background: var(--blue-soft); }
+.watch-news-settings { min-width: 0; margin: 0; padding: 4px 10px; border: 1px solid var(--border); border-radius: 8px; }
+.watch-news-settings legend { padding-inline: 4px; font-size: .875rem; color: var(--text); }
+.watch-news-settings > div { display: flex; flex-wrap: wrap; gap: 0 12px; }
+.watch-news-settings label { display: inline-flex; flex-direction: row; align-items: center; gap: 5px; min-height: 44px; font-size: .875rem; }
+.entry-form .watch-news-settings input[type=checkbox] { flex: none; width: 18px; height: 18px; min-height: 0; accent-color: var(--blue); }
 .watch-list { display: grid; gap: 9px; }
 .watch-list > h2 { margin: 0; font-size: 17px; }
 .watch-list > h2 span { margin-left: 2px; font-size: 13px; font-weight: 500; color: var(--muted); }

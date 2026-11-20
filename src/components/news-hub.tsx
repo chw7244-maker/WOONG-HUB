@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ArrowDownToLine, ArrowUpRight, Bookmark, ChevronDown, Globe2, Newspaper, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
 import { newsCategories, newsCategory, newsKinds, newsSourceHost, newsSourceLabel, newsSourcePreferenceLimit, newsTime, type FeedStatus, type NewsArticle, type NewsPreferences, type NewsSourceMode } from '@/lib/news';
 import type { Entry } from '@/lib/store';
+import { webtoonNewsEvents } from '@/lib/watch';
 import { NewsPreferencesDialog } from './news-preferences';
 import { SectionFilters } from './section-controls';
 import { useNews, type NewsView } from './use-news';
@@ -42,7 +43,7 @@ function SourceMeta({ article }: { article: NewsArticle }) {
   </div>;
 }
 
-export default function NewsHub({ games }: { games: Entry[] }) {
+export default function NewsHub({ games, documentRevision }: { games: Entry[]; documentRevision: number }) {
   const [category, setCategory] = useState('all');
   const [view, setView] = useState<NewsView>('interest');
   const [search, setSearch] = useState('');
@@ -66,7 +67,7 @@ export default function NewsHub({ games }: { games: Entry[] }) {
   }, [search]);
 
   const applyUnread = unread && (view === 'interest' || view === 'all');
-  const news = useNews({ category, view, query, date, unread:applyUnread });
+  const news = useNews({ category, view, query, date, unread:applyUnread, documentRevision });
   const { response } = news;
   const visible = (response?.articles ?? []).filter(article =>
     article.hidden === (view === 'hidden') && (view !== 'saved' || article.saved) && (!applyUnread || !article.read));
@@ -206,7 +207,7 @@ export default function NewsHub({ games }: { games: Entry[] }) {
       <div className="journal-section-heading">
         <h2>{view === 'hidden' ? '숨긴 기사' : views.find(item => item.id === view)?.label}</h2>
         {view === 'saved' && <a href="/api/news/export" className="text-button muted" download><ArrowDownToLine size={15}/>스크랩 백업</a>}
-        {view === 'interest' && response && <span className="news-follow-count">팔로우 {activeTopics.length}개</span>}
+        {view === 'interest' && response && <span className="news-follow-count">주제 {activeTopics.length}개{response.followedWebtoons ? ` · 웹툰 ${response.followedWebtoons}편` : ''}</span>}
       </div>
       {news.loading && !response ? <div className="news-loading"><RefreshCw className="spinning" size={22}/><p>기사를 불러오는 중이에요.</p></div>
         : visible.length ? <div className="news-reading-list">
@@ -259,6 +260,7 @@ function NewsRow({ article, news, onMute, onSource, savingPreferences }: {
 }) {
   const category = newsCategory(article.categories[0]);
   const rec = article.recommendation;
+  const recommendationKind = rec?.webtoonEvent ? webtoonNewsEvents[rec.webtoonEvent] : rec?.kind ? newsKinds[rec.kind] : '';
   const sourceHost = newsSourceHost(article.sourceUrl);
   const sourceMode = news.response?.preferences.sourcePreferences?.find(source => source.host === sourceHost)?.mode;
   return <article className={`news-reading-row ${article.read ? 'article-read' : ''}`}>
@@ -267,13 +269,14 @@ function NewsRow({ article, news, onMute, onSource, savingPreferences }: {
         <h3>{article.title}<ArrowUpRight size={14} aria-hidden="true"/></h3>
       </a>
       <div className="news-reading-meta"><SourceMeta article={article}/><span className={`news-category-tag ${category.accent}`}>{category.label}</span></div>
-      {rec && <p className="news-recommendation">추천 · {rec.topicLabel}{rec.kind ? ` · ${newsKinds[rec.kind]}` : ''}{rec.official ? ' · 공식 원문' : ''}{rec.preferredSource ? ' · 선호 출처' : ''}</p>}
+      {rec && <p className="news-recommendation">추천 · {rec.topicLabel}{recommendationKind ? ` · ${recommendationKind}` : ''}{rec.official ? ' · 공식 원문' : ''}{rec.preferredSource ? ' · 선호 출처' : ''}</p>}
       {article.description && <p className="news-reading-description">{article.description}</p>}
     </div>
     <button type="button" className="news-bookmark" aria-pressed={article.saved} disabled={news.pending.has(`${article.id}:saved`)} aria-label={`${article.title} 스크랩`} title={article.saved ? '스크랩 해제' : '스크랩'} onClick={() => news.setArticleState(article, 'saved', !article.saved)}>
       <Bookmark size={20} fill={article.saved ? 'currentColor' : 'none'} aria-hidden="true"/>
     </button>
     <div className="news-reading-details">
+      {rec?.workId && <Link className="text-button blue news-work-link" href={`/watch/?${new URLSearchParams({ work:rec.workId })}`} aria-label={`${rec.topicLabel} 작품 기록 보기`}>작품 기록 보기</Link>}
       {!!article.related?.length && <details className="news-related">
         <summary>같은 소식 {article.related.length}건 더 보기</summary>
         <ul>{article.related.map(item => <li key={item.id}><a href={item.url} target="_blank" rel="noreferrer">{item.sourceName} · {item.title}<ArrowUpRight size={13} aria-hidden="true"/></a></li>)}</ul>
@@ -283,7 +286,7 @@ function NewsRow({ article, news, onMute, onSource, savingPreferences }: {
         <div className="news-row-actions">
           <button type="button" disabled={news.pending.has(`${article.id}:read`)} onClick={() => news.setArticleState(article, 'read', !article.read)}>{article.read ? '읽지 않음으로 표시' : '읽음으로 표시'}</button>
           <button type="button" disabled={news.pending.has(`${article.id}:hidden`)} onClick={() => news.setArticleState(article, 'hidden', !article.hidden)}>{article.hidden ? '숨김 해제' : '기사 숨기기'}</button>
-          {rec && <button type="button" disabled={savingPreferences} onClick={() => void onMute(rec.topicId, rec.topicLabel)}>이 주제 덜 보기</button>}
+          {rec && !rec.workId && <button type="button" disabled={savingPreferences} onClick={() => void onMute(rec.topicId, rec.topicLabel)}>이 주제 덜 보기</button>}
         </div>
         {sourceHost && <div className="news-row-actions" role="group" aria-label={`${article.sourceName} 출처 선호`}>
           <button type="button" aria-pressed={sourceMode === 'more'} disabled={savingPreferences} onClick={() => void onSource(article, 'more')}>이 출처 더 보기</button>
@@ -294,8 +297,8 @@ function NewsRow({ article, news, onMute, onSource, savingPreferences }: {
   </article>;
 }
 
-export function HomeNews() {
-  const news = useNews({ limit:12 });
+export function HomeNews({ documentRevision }: { documentRevision: number }) {
+  const news = useNews({ limit:12, documentRevision });
   const candidates = (news.response?.articles ?? []).filter(article => !article.hidden);
   const topics = new Set<string>();
   const diverse = candidates.filter(article => {

@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {FEEDS,parseFeed,canonicalUrl,fetchFeed,parseLaunchCalendar,parseWebtoonNews,steamNewsFeed} from '../worker/news-feeds.mjs';
 import {claimNewsSync,collectNews,handleNews} from '../worker/news.mjs';
 import {rankNews} from '../worker/news-interests.mjs';
+import {handleApi} from '../worker/api.mjs';
 import {starterNewsTopics} from '../src/lib/news.ts';
+import {initial} from '../src/lib/store.ts';
 import {createLocalDatabase,applyLocalMigrations} from '../scripts/local-db.mjs';
 
 const now=()=>new Date();
@@ -336,6 +338,43 @@ test('출처 선호는 계정별로 저장되고 기존 형식의 저장이나 �
   assert.deepEqual(otherAccount.preferences.sourcePreferences,[]);
   assert.deepEqual(otherAccount.articles.map(a=>a.id),[other,preferred]);
   assert.deepEqual((await (await write({...updated,sourcePreferences:[]})).json()).sourcePreferences,[]);
+});
+
+test('웹툰 팔로우는 계정의 작품명과 선택한 연재 상태가 맞는 기사만 연결한다',async t=>{
+  const {DB,req}=await setup(t);
+  const stamp=new Date().toISOString();
+  const entries=[{id:'work-1',kind:'watch',title:'화산귀환',detail:'',category:'',status:'',url:'',date:'',done:false,createdAt:stamp,
+    watch:{type:'webtoon',status:'watching',updatedAt:stamp,newsEvents:['resume','completion']}}];
+  const save=(revision,items)=>handleApi(new Request('https://hub.test/api/hub',{method:'PUT',
+    headers:{'Content-Type':'application/json',Origin:'https://hub.test','oai-authenticated-user-id':'owner'},
+    body:JSON.stringify({expectedRevision:revision,mutationId:'webtoon-'+revision,data:{...initial,entries:items}})}),{DB});
+  assert.equal((await save(0,entries)).status,200);
+  for(const account of ['owner','other']){
+    assert.equal((await req('/api/news/preferences',{method:'PUT',body:JSON.stringify({revision:0,topics:[]})},account)).status,200);
+  }
+  const insert=DB.prepare('INSERT INTO news_articles (id,title,url,source_name,source_url,description,published_at,first_seen_at,last_seen_at,categories,language) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+  const stories=[
+    ['a','웹툰 화산 귀환이 연재를 재개했다','', 'webtoon'],
+    ['b','화산귀환 휴재 일정 안내','', 'webtoon'],
+    ['c','화산귀환전 완결 공지','', 'webtoon'],
+    ['d','새 웹툰 목록 공개','지난해 화산귀환 연재 재개 기록', 'webtoon'],
+    ['e','화산귀환 최종화 공개','', 'webtoon'],
+    ['f','화산귀환 웹툰 완결 일정','', 'games'],
+    ['g','달빛연가 연재 재개 소식','', 'webtoon'],
+  ];
+  for(const [key,title,intro,category] of stories){
+    await insert.bind(key.repeat(64),title,'https://example.test/webtoon/'+key,'테스트 웹툰 매체','https://example.test/',intro,stamp,stamp,stamp,JSON.stringify([category]),'ko').run();
+  }
+  const interest=async (user='owner')=>(await req('/api/news?view=interest&category=webtoon',{},user)).json();
+  const result=await interest();
+  assert.equal(result.followedWebtoons,1);
+  assert.deepEqual(result.articles.map(({id,recommendation})=>[id[0],recommendation.workId,recommendation.webtoonEvent]),
+    [['a','work-1','resume'],['e','work-1','completion']]);
+  assert.deepEqual((await interest('other')).articles,[]);
+  assert.equal((await save(1,[{...entries[0],title:'달빛연가'}])).status,200);
+  assert.deepEqual((await interest()).articles.map(a=>a.id[0]),['g']);
+  assert.equal((await save(2,[])).status,200);
+  assert.deepEqual((await interest()).articles,[]);
 });
 
 test('관심 설정은 계정별 저장과 충돌 검증을 하고 전체 기사와 스크랩을 보존한다',async t=>{

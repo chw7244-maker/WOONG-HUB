@@ -3,6 +3,9 @@ import type { Entry } from './store.ts';
 export const watchTypes = { movie: '영화', tv: '드라마', webtoon: '웹툰' } as const;
 export const watchStatuses = { planned: '볼 예정', watching: '보는 중', completed: '완료' } as const;
 export const watchDays = ['월', '화', '수', '목', '금', '토', '일'] as const;
+export const webtoonNewsEvents = { start: '연재 시작', resume: '연재 재개', hiatus: '휴재', completion: '완결' } as const;
+export type WebtoonNewsEvent = keyof typeof webtoonNewsEvents;
+export const webtoonNewsEventKeys = Object.keys(webtoonNewsEvents) as WebtoonNewsEvent[];
 export type WatchType = keyof typeof watchTypes;
 export type WatchStatus = keyof typeof watchStatuses;
 export type WatchDetails = {
@@ -14,6 +17,7 @@ export type WatchDetails = {
   weekday?: number;
   updatedAt: string;
   catalog?: WatchCatalogItem;
+  newsEvents?: WebtoonNewsEvent[];
 };
 export type WatchCatalogItem = { id: number; title: string; year?: string; posterPath?: string };
 export type WatchEntry = Entry & { kind: 'watch'; watch: WatchDetails };
@@ -33,7 +37,7 @@ export function validateWatchCatalog(value: unknown): WatchCatalogItem {
 
 export function validateWatch(value: unknown): WatchDetails {
   if (!value || typeof value !== 'object') throw new Error('작품 기록을 확인해주세요.');
-  const { type, status, progress, season, rating, weekday, updatedAt, catalog } = value as WatchDetails;
+  const { type, status, progress, season, rating, weekday, updatedAt, catalog, newsEvents } = value as WatchDetails;
   const integer = (number: number | undefined, min: number, max: number) => number === undefined || (Number.isInteger(number) && number >= min && number <= max);
   if (!Object.hasOwn(watchTypes, type) || !Object.hasOwn(watchStatuses, status) ||
     typeof updatedAt !== 'string' || updatedAt.length > 50 || !Number.isFinite(Date.parse(updatedAt)) ||
@@ -42,8 +46,13 @@ export function validateWatch(value: unknown): WatchDetails {
     (type !== 'webtoon' && weekday !== undefined) || (type === 'webtoon' && catalog !== undefined)) {
     throw new Error('작품 분류, 별점 또는 회차를 확인해주세요.');
   }
+  if (newsEvents !== undefined && (type !== 'webtoon' || !Array.isArray(newsEvents) || newsEvents.length > webtoonNewsEventKeys.length ||
+    newsEvents.some(event => typeof event !== 'string' || !Object.hasOwn(webtoonNewsEvents, event)))) {
+    throw new Error('웹툰 소식 설정을 확인해주세요.');
+  }
   return { type, status, updatedAt, ...(progress !== undefined && { progress }), ...(season !== undefined && { season }),
-    ...(rating !== undefined && { rating }), ...(weekday !== undefined && { weekday }), ...(catalog !== undefined && { catalog: validateWatchCatalog(catalog) }) };
+    ...(rating !== undefined && { rating }), ...(weekday !== undefined && { weekday }), ...(catalog !== undefined && { catalog: validateWatchCatalog(catalog) }),
+    ...(newsEvents?.length && { newsEvents: webtoonNewsEventKeys.filter(event => newsEvents.includes(event)) }) };
 }
 
 export function watchingNow(entries: Entry[]) {

@@ -119,6 +119,16 @@ async function newsPreferences(db,userId){
     {revision:0,topics:starterNewsTopics,sourcePreferences:[]};
 }
 
+async function followedWebtoons(db,userId){
+  const rows=await db.prepare(
+    "SELECT json_extract(entry.value,'$.id') AS id,json_extract(entry.value,'$.title') AS title,"+
+    "json_extract(entry.value,'$.watch.newsEvents') AS events FROM hub_documents doc "+
+    "JOIN json_each(doc.data,'$.entries') entry WHERE doc.user_id=? AND json_extract(entry.value,'$.kind')='watch' "+
+    "AND json_extract(entry.value,'$.watch.type')='webtoon' AND json_array_length(entry.value,'$.watch.newsEvents')>0"
+  ).bind(userId).all();
+  return rows.results.map(({id,title,events})=>({id,title,events:JSON.parse(events)}));
+}
+
 async function updatePreferences(request,db,userId){
   if(!sameOrigin(request))return json({error:'origin_not_allowed'},403);
   if(!request.headers.get('Content-Type')?.startsWith('application/json'))return json({error:'json_required'},415);
@@ -213,22 +223,24 @@ export async function handleNews(request,env,ctx){
     }
     const limitValue=url.searchParams.get('limit')??'24';if(!/^\d+$/.test(limitValue))return json({error:'invalid_limit'},400);const limit=Math.max(1,Math.min(24,Number(limitValue)));
     const preferences=await newsPreferences(env.DB,userId);
-    const activeCategories=[...new Set(preferences.topics.filter(topic=>!topic.muted).map(topic=>topic.category))];
+    const webtoons=interest?await followedWebtoons(env.DB,userId):[];
+    const activeCategories=new Set(preferences.topics.filter(topic=>!topic.muted).map(topic=>topic.category));
+    if(webtoons.length)activeCategories.add('webtoon');
     if(interest&&!date){
       conditions.push('a.published_at>=?');
       params.push(new Date(Date.now()-30*86_400_000).toISOString());
     }
-    if(interest&&!activeCategories.includes('all')){
+    if(interest&&!activeCategories.has('all')){
       conditions.push('EXISTS(SELECT 1 FROM json_each(a.categories) WHERE value IN (SELECT value FROM json_each(?)))');
-      params.push(JSON.stringify(activeCategories));
+      params.push(JSON.stringify([...activeCategories]));
     }
     let ordered=[];
-    if(!interest||activeCategories.length){
+    if(!interest||activeCategories.size){
       const result=await env.DB.prepare(`SELECT a.*,s.is_read,s.is_saved,s.is_hidden,s.updated_at AS state_updated_at ${JOIN} WHERE ${conditions.join(' AND ')} ORDER BY a.published_at DESC,a.id ASC LIMIT ?`).bind(...params,interest?2500:limit+1).all();
       ordered=result.results.map(articleFrom);
     }
     if(interest){
-      ordered=rankNews(ordered,preferences.topics,preferences.sourcePreferences);
+      ordered=rankNews(ordered,preferences.topics,preferences.sourcePreferences,webtoons);
       if(after)ordered=ordered.filter(a=>a.rank<after.rank||(a.rank===after.rank&&(a.publishedAt<after.published||(a.publishedAt===after.published&&a.id>after.id))));
     }
     const page=ordered.slice(0,limit),last=page.at(-1);
@@ -236,6 +248,6 @@ export async function handleNews(request,env,ctx){
     const articles=page.map(({rank,...article})=>article);
     const counts=await env.DB.prepare(`SELECT SUM(CASE WHEN ${KOREAN_ARTICLE} THEN 1 ELSE 0 END) AS all_count,SUM(CASE WHEN COALESCE(s.is_read,0)=0 AND ${KOREAN_ARTICLE} THEN 1 ELSE 0 END) AS unread,SUM(CASE WHEN s.is_saved=1 THEN 1 ELSE 0 END) AS saved ${JOIN} WHERE COALESCE(s.is_hidden,0)=0`).bind(userId).first();
     const groups=await env.DB.prepare(`SELECT c.value AS category,COUNT(*) AS total ${JOIN} JOIN json_each(a.categories) c WHERE COALESCE(s.is_hidden,0)=0 AND ${KOREAN_ARTICLE} GROUP BY c.value`).bind(userId).all();
-    return json({articles,preferences,counts:{all:counts.all_count??0,unread:counts.unread??0,saved:counts.saved??0},categoryCounts:Object.fromEntries(groups.results.map(g=>[g.category,g.total])),sync:syncInfo(row,Date.now(),scheduled&&!!row?.lease_until),nextCursor});
+    return json({articles,preferences,counts:{all:counts.all_count??0,unread:counts.unread??0,saved:counts.saved??0},categoryCounts:Object.fromEntries(groups.results.map(g=>[g.category,g.total])),sync:syncInfo(row,Date.now(),scheduled&&!!row?.lease_until),nextCursor,...(interest&&{followedWebtoons:webtoons.length})});
   }catch{return json({error:'news_unavailable'},503);}
 }

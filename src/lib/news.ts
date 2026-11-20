@@ -1,3 +1,5 @@
+import type { WebtoonNewsEvent } from './watch.ts';
+
 export const newsCategories = [
   {id:'audio-music',label:'오디오 기기',short:'AUDIO',accent:'violet'},
   {id:'games',label:'게임',short:'GAMES',accent:'blue'},
@@ -47,11 +49,11 @@ export const starterNewsTopics: NewsTopic[] = [
   { id:'pc-hardware', label:'PC 하드웨어', terms:['CPU','GPU','RTX','GeForce','Radeon','Ryzen','그래픽카드','모니터','SSD','메모리'], category:'pc-it', kinds:['release','update','deal','performance','review'], muted:false },
 ];
 export type NewsRelated = {id:string;url:string;title:string;sourceName:string};
-export type NewsRecommendation = {topicId:string;topicLabel:string;kind?:NewsKind;official:boolean;preferredSource?:boolean};
+export type NewsRecommendation = {topicId:string;topicLabel:string;kind?:NewsKind;official:boolean;preferredSource?:boolean;workId?:string;webtoonEvent?:WebtoonNewsEvent};
 export type NewsArticle = NewsRelated & {sourceUrl:string;description:string;publishedAt:string;firstSeenAt:string;categories:NewsCategory[];language:string;read:boolean;saved:boolean;hidden:boolean;stateUpdatedAt:string|null;recommendation?:NewsRecommendation;related?:NewsRelated[]};
 export type FeedStatus = {id:string;name:string;website:string;category:NewsCategory;language:string;checkedAt:string;lastSuccessAt:string|null;ok:boolean;count:number;error:string|null};
 export type NewsSync = {running:boolean;lastAttemptAt:string|null;lastSuccessAt:string|null;finishedAt:string|null;nextAutoAt:string|null;sources:FeedStatus[];count:number};
-export type NewsResponse = {articles:NewsArticle[];counts:{all:number;unread:number;saved:number};categoryCounts:Record<string,number>;sync:NewsSync;nextCursor:string|null;preferences:NewsPreferences};
+export type NewsResponse = {articles:NewsArticle[];counts:{all:number;unread:number;saved:number};categoryCounts:Record<string,number>;sync:NewsSync;nextCursor:string|null;preferences:NewsPreferences;followedWebtoons?:number};
 export function newsCategory(id:string){return newsCategories.find(c=>c.id===id)??newsCategories[0];}
 export function newsTime(date:string,dateOnly=false){return new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',...(dateOnly?{}:{hour:'2-digit',minute:'2-digit',hourCycle:'h23'})}).format(new Date(date));}
 export function newsSourceHost(value: string) {

@@ -26,7 +26,7 @@ import { isSetup } from '@/lib/audio';
 import { useHubSync } from './sync-provider';
 import { CloudStorageSettings, SyncIndicator, SyncNotice } from './sync-status';
 import { type Entry, type HubData, type Kind, validateData, todayKST, koreanDate, safeUrl, mediaWidgets, mediaWidgetVisible, homeSections, newWidgets } from '@/lib/store';
-import { watchTypes, type WatchType } from '@/lib/watch';
+import { advanceWatch, isWatchEntry, restoreWatchProgress, watchTypes, type WatchDetails, type WatchEntry, type WatchType } from '@/lib/watch';
 import HobbyDirectory from './hobby-directory';
 import FootballHub, { HomeMatch, useFootball } from './football-hub';
 import { saveFixture, savedFixtureEvents, type Fixture } from '@/lib/football';
@@ -57,6 +57,7 @@ const shortcuts = [
   {title:'IEM Atlas',subtitle:'이어폰 탐색',url:'https://iem-atlas.woong22222.chatgpt.site',icon:Headphones,color:'purple'},
   {title:'스토어 인사이트',subtitle:'매출 · 광고 분석',url:'https://naver-sales-insight.woong22222.chatgpt.site',icon:BriefcaseBusiness,color:'green'}
 ];
+type HubToast = { message: string; undo?: { id: string; before: WatchDetails; advanced: WatchDetails } };
 
 function Empty({icon:Icon,title,description,action,label='추가하기'}:{icon:LucideIcon;title:string;description?:string;action?:()=>void;label?:string}) {return <div className="empty"><div className="empty-icon"><Icon size={24} strokeWidth={1.5}/></div><h3>{title}</h3>{description&&<p>{description}</p>}{action&&<button className="text-button blue" onClick={action}><Plus size={14}/>{label}</button>}</div>;}
 function PanelHeading({title,sub,children}:{title:string;sub?:string;children?:React.ReactNode}){return <div className="panel-heading"><h2>{title}{sub&&<span className="heading-count">{sub}</span>}</h2>{children}</div>;}
@@ -67,7 +68,8 @@ export default function Hub({section}:{section:string}) {
   const calendar=useCalendarSnapshot(ready&&['home','calendar','settings'].includes(section));
   const [now,setNow]=useState<Date|null>(null);
   const [quickAddOpen,setQuickAddOpen]=useState(false);
-  const [modal,setModal]=useState<{kind:Kind;entry?:Entry;watchType?:WatchType}|null>(null),[searchOpen,setSearchOpen]=useState(false),[query,setQuery]=useState(''),[toast,setToast]=useState(''),[libraryTab,setLibraryTab]=useState<Kind>('note'),[filter,setFilter]=useState('전체'),[pendingImport,setPendingImport]=useState<HubData|null>(null),[deleteEntry,setDeleteEntry]=useState<Entry|null>(null),[notificationOpen,setNotificationOpen]=useState(false),[editWidgets,setEditWidgets]=useState(false);
+  const [toast,setToast]=useState<HubToast|null>(null);
+  const [modal,setModal]=useState<{kind:Kind;entry?:Entry;watchType?:WatchType}|null>(null),[searchOpen,setSearchOpen]=useState(false),[query,setQuery]=useState(''),[libraryTab,setLibraryTab]=useState<Kind>('note'),[filter,setFilter]=useState('전체'),[pendingImport,setPendingImport]=useState<HubData|null>(null),[deleteEntry,setDeleteEntry]=useState<Entry|null>(null),[notificationOpen,setNotificationOpen]=useState(false),[editWidgets,setEditWidgets]=useState(false);
   const fileRef=useRef<HTMLInputElement>(null);
   useEffect(()=>{
     const refresh=()=>setNow(new Date());
@@ -78,7 +80,8 @@ export default function Hub({section}:{section:string}) {
     return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',resume);};
   },[]);
   useEffect(()=>{if(!ready)return;document.documentElement.dataset.theme=data.preferences.theme;},[ready,data.preferences.theme]);
-  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),4500);return()=>clearTimeout(t);},[toast]);
+  useEffect(()=>{setToast(null);},[sync.userId]);
+  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),toast.undo?12000:4500);return()=>clearTimeout(t);},[toast]);
   useEffect(()=>{setFilter('전체');},[section]);
   useEffect(()=>{
     if(section!=='library')return;
@@ -87,9 +90,33 @@ export default function Hub({section}:{section:string}) {
   },[section]);
   useEffect(()=>{const handle=(event:KeyboardEvent)=>{if(document.querySelector('[role="dialog"]'))return;if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'){event.preventDefault();setSearchOpen(true);}if(event.key==='Escape')setNotificationOpen(false);};document.addEventListener('keydown',handle);return()=>document.removeEventListener('keydown',handle);},[]);
   function persist(next:HubData) {return sync.client.change(next);}
-  function notify(message:string){setToast(message);}
+  function notify(message:string){setToast({message});}
   function addCalendarEvent(date:string){setModal({kind:'event',entry:{id:crypto.randomUUID(),kind:'event',title:'',detail:'',category:'',status:'',url:'',date:date+'T09:00',done:false,createdAt:new Date().toISOString()}});}
-  function save(entry:Entry){const exists=data.entries.some(e=>e.id===entry.id);if(persist({...data,entries:exists?data.entries.map(e=>e.id===entry.id?entry:e):[entry,...data.entries]})){setModal(null);notify(`${entry.music?.type==='playlist'?'플레이리스트':kindLabels[entry.kind]} ${exists?'수정했어요':'기록했어요'}`);return true;}return false;}
+  function save(entry:Entry, feedback?:HubToast){
+    const exists=data.entries.some(e=>e.id===entry.id);
+    if(!persist({...data,entries:exists?data.entries.map(e=>e.id===entry.id?entry:e):[entry,...data.entries]}))return false;
+    setModal(null);
+    setToast(feedback??{message:`${entry.music?.type==='playlist'?'플레이리스트':kindLabels[entry.kind]} ${exists?'수정했어요':'기록했어요'}`});
+    return true;
+  }
+  function recordWatchProgress(entry:WatchEntry){
+    const current=data.entries.find(item=>item.id===entry.id);
+    if(!current||!isWatchEntry(current)||current.watch.status==='completed')return;
+    if(current.watch.type==='movie'){
+      save({...current,watch:{...current.watch,status:'completed',updatedAt:new Date().toISOString()}});
+      return;
+    }
+    const advanced=advanceWatch(current);
+    if(advanced!==current)save(advanced,{message:`${advanced.watch.progress}화까지 기록했어요.`,undo:{id:current.id,before:current.watch,advanced:advanced.watch}});
+  }
+  function undoWatchProgress(){
+    if(!toast?.undo)return;
+    const {id,before,advanced}=toast.undo;
+    const current=data.entries.find(entry=>entry.id===id);
+    const restored=current&&isWatchEntry(current)?restoreWatchProgress(current,before,advanced):null;
+    if(restored)save(restored,{message:'이전 회차로 되돌렸어요.'});
+    else notify('작품 기록이 바뀌어 회차를 되돌릴 수 없어요.');
+  }
   function toggle(e:Entry){persist({...data,entries:data.entries.map(x=>x.id===e.id?{...x,done:!x.done}:x)});}
   function remove(){if(deleteEntry&&persist({...data,entries:data.entries.filter(e=>e.id!==deleteEntry.id)})){setDeleteEntry(null);notify('기록을 삭제했어요.');}}
   function preference(update:Partial<HubData['preferences']>){persist({...data,preferences:{...data.preferences,...update}});}
@@ -190,7 +217,7 @@ export default function Hub({section}:{section:string}) {
           <div className="hub-home-panels">{homeOrder.map(id=><Fragment key={id}>{homePanels[id]}</Fragment>)}</div>
         </>:<>
           {section!=='news'&&<div className="page-heading section-heading"><div><h1>{currentInfo?.title}</h1><p>{currentInfo?.description}</p></div>{currentInfo?.kind&&!['audio','music','calendar'].includes(section)&&<button className="button primary" onClick={()=>setModal({kind:activeKind})}><Plus size={15}/>{kindLabels[activeKind]} 추가</button>}</div>}
-          {section==='hobbies'?<HobbyDirectory/>:section==='football'?<FootballHub saved={savedFixtureIds} onSave={addFixture}/>:section==='watch'?<WatchHub entries={entries('watch')} now={now} onAdd={watchType=>setModal({kind:'watch',watchType})} onEdit={openEntry} onDelete={setDeleteEntry} onSave={save}/>:section==='settings'?<div className="settings-grid settings-sections">
+          {section==='hobbies'?<HobbyDirectory/>:section==='football'?<FootballHub saved={savedFixtureIds} onSave={addFixture}/>:section==='watch'?<WatchHub entries={entries('watch')} today={today} onProgress={recordWatchProgress} onAdd={watchType=>setModal({kind:'watch',watchType})} onEdit={openEntry} onDelete={setDeleteEntry} onSave={save}/>:section==='settings'?<div className="settings-grid settings-sections">
             <nav className="settings-jump" aria-label="설정 항목">
               <a href="#connections">서비스 연결</a><a href="#appearance">표시와 테마</a><a href="#widgets">홈 위젯</a><a href="#sync">데이터와 백업</a>
             </nav>
@@ -217,7 +244,10 @@ export default function Hub({section}:{section:string}) {
         <footer className="footer"><span><span className="footer-wordmark">W.</span>조금 더 나다운 일상을 위해.</span><span>WOONG HUB<span className="footer-separator">/</span>Made for your everyday</span></footer>
       </main>
     </div>
-    {toast&&<div className="toast" role="status"><Check size={16}/>{toast}<button className="icon-button" aria-label="알림 닫기" onClick={()=>setToast('')}><X size={14}/></button></div>}
+    {toast&&<div className={`toast${toast.undo?' watch-progress-toast':''}`}><Check size={16} aria-hidden="true"/><span role="status">{toast.message}</span>
+      {toast.undo&&<button type="button" className="text-button blue" onClick={undoWatchProgress}>되돌리기</button>}
+      <button type="button" className="icon-button" aria-label="알림 닫기" onClick={()=>setToast(null)}><X size={14}/></button>
+    </div>}
     {quickAddOpen&&<Dialog title="빠른 추가" onClose={()=>setQuickAddOpen(false)} className="home-add-dialog" focusField={false}>
       <div className="home-add-options">
         <button type="button" disabled={!today} onClick={()=>{setQuickAddOpen(false);addCalendarEvent(today);}}><CalendarDays size={19} aria-hidden="true"/>일정 추가</button>

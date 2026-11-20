@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowUpRight, BookOpen, Check, Clapperboard, Pencil, Plus, Search, Star, Trash2, Tv } from 'lucide-react';
-import { safeUrl, type Entry } from '@/lib/store';
+import { ArrowUpRight, BookOpen, CalendarDays, Check, Clapperboard, Pencil, Plus, Search, Star, Trash2, Tv } from 'lucide-react';
+import { isCalendarDay } from '@/lib/calendar';
+import { koreanDate, safeUrl, type Entry } from '@/lib/store';
 import { matchesSearch, searchTerms } from '@/lib/search';
-import { advanceWatch, isWatchEntry, koreanWeekday, progressLabel, watchDays, watchingNow, watchStatuses, watchTypes, webtoonNewsEventKeys, webtoonNewsEvents, type WatchCatalogItem, type WatchEntry, type WatchStatus, type WatchType } from '@/lib/watch';
+import { isWatchEntry, progressLabel, watchDays, watchingNow, watchStatuses, watchTypes, webtoonNewsEventKeys, webtoonNewsEvents, weeklyWatchPlan, type WatchCatalogItem, type WatchEntry, type WatchStatus, type WatchType } from '@/lib/watch';
 import Dialog from './dialog';
 
 const icons = { movie: Clapperboard, tv: Tv, webtoon: BookOpen };
@@ -34,15 +35,16 @@ function Cover({ entry, featured = false }: { entry: WatchEntry; featured?: bool
   </div>;
 }
 
-function progressAction(entry: WatchEntry, onSave: (entry: Entry) => boolean) {
+function ProgressAction({ entry, onProgress }: { entry: WatchEntry; onProgress: (entry: WatchEntry) => void }) {
   if (entry.watch.status === 'completed') return null;
-  if (entry.watch.type === 'movie') return <button type="button" className="button secondary" onClick={() => onSave({ ...entry, watch: { ...entry.watch, status: 'completed', updatedAt: new Date().toISOString() } })}><Check size={15}/>감상 완료</button>;
+  if (entry.watch.type === 'movie') return <button type="button" className="button secondary" onClick={() => onProgress(entry)} aria-label={`${entry.title} 감상 완료`}><Check size={15} aria-hidden="true"/>감상 완료</button>;
   if ((entry.watch.progress ?? 0) >= 99999) return null;
-  return <button type="button" className="button secondary" onClick={() => onSave(advanceWatch(entry))} aria-label={`${entry.title} 다음 회차 기록`}><Plus size={15}/>다음 회차</button>;
+  return <button type="button" className="button secondary" onClick={() => onProgress(entry)} aria-label={`${entry.title} 다음 회차 기록`}><Plus size={15} aria-hidden="true"/>다음 회차</button>;
 }
 
-function WatchItem({ entry, onEdit, onDelete, onSave, highlight }: {
-  entry: WatchEntry; onEdit: (entry: Entry) => void; onDelete: (entry: Entry) => void; onSave: (entry: Entry) => boolean; highlight?: 'continue' | 'news';
+function WatchItem({ entry, onEdit, onDelete, onSave, onProgress, onPlan, highlight }: {
+  entry: WatchEntry; onEdit: (entry: Entry) => void; onDelete: (entry: Entry) => void; onSave: (entry: Entry) => boolean;
+  onProgress: (entry: WatchEntry) => void; onPlan: (entry: WatchEntry) => void; highlight?: 'continue' | 'news';
 }) {
   const { watch } = entry;
   const href = safeUrl(entry.url);
@@ -56,7 +58,11 @@ function WatchItem({ entry, onEdit, onDelete, onSave, highlight }: {
       <p className="watch-entry-meta"><span>{progressLabel(watch)}</span>{watch.weekday !== undefined && <span>{watchDays[watch.weekday]}요일 연재</span>}{watch.rating !== undefined && <span><Star size={13}/> {watch.rating}/5</span>}</p>
       {entry.detail && <p className="watch-entry-note">{entry.detail}</p>}
       <div className="watch-entry-actions">
-        {progressAction(entry, onSave)}
+        <ProgressAction entry={entry} onProgress={onProgress}/>
+        {watch.type !== 'webtoon' && watch.status !== 'completed' && <button type="button" className="button secondary watch-plan-action" onClick={() => onPlan(entry)}
+          aria-label={`${entry.title} 감상 예정일 ${watch.plannedDate ? '변경' : '정하기'}`}>
+          <CalendarDays size={15} aria-hidden="true"/>{watch.plannedDate ? `${koreanDate(watch.plannedDate)} 예정` : '날짜 정하기'}
+        </button>}
         {watch.type === 'webtoon' && <button type="button" className="button secondary watch-news-follow" aria-pressed={followingNews} aria-label={`${entry.title} 작품 소식 팔로우`}
           onClick={() => onSave({ ...entry, watch: { ...watch, newsEvents: followingNews ? undefined : [...webtoonNewsEventKeys] } })}>
           {followingNews ? <Check size={15} aria-hidden="true"/> : <Plus size={15} aria-hidden="true"/>}{followingNews ? '소식 팔로우 중' : '이 작품 소식 팔로우'}
@@ -67,6 +73,59 @@ function WatchItem({ entry, onEdit, onDelete, onSave, highlight }: {
       </div>
     </div>
   </article>;
+}
+
+function WatchWeek({ entries, today, type, onEdit, onProgress }: {
+  entries: WatchEntry[]; today: string; type: WatchType | 'all'; onEdit: (entry: Entry) => void; onProgress: (entry: WatchEntry) => void;
+}) {
+  const [chosenDay, setChosenDay] = useState('');
+  const days = weeklyWatchPlan(entries, today);
+  const selected = days.find(day => day.date === chosenDay) ?? days.find(day => day.date === today);
+  if (!selected) return null;
+
+  return <section className="panel watch-week" aria-labelledby="watch-week-title">
+    <header><h2 id="watch-week-title"><CalendarDays size={18} aria-hidden="true"/>이번 주 볼 것</h2><span>{koreanDate(days[0].date)} ~ {koreanDate(days[6].date)}</span></header>
+    <div className="watch-week-days" role="group" aria-label="감상 날짜 선택">
+      {days.map(day => <button key={day.date} type="button" aria-pressed={day.date === selected.date}
+        aria-current={day.date === today ? 'date' : undefined} aria-label={`${koreanDate(day.date)} ${day.label}요일, ${day.entries.length}개`}
+        onClick={() => setChosenDay(day.date)}>
+        <span>{day.date === today ? '오늘' : day.label}</span><strong>{Number(day.date.slice(8))}</strong>
+        <span className="watch-week-dot" data-has-plans={day.entries.length > 0} aria-hidden="true"/>
+      </button>)}
+    </div>
+    <div className="watch-day-heading"><h3>{selected.date === today ? '오늘' : `${selected.label}요일`}</h3><span>{selected.entries.length}개 작품</span></div>
+    {selected.entries.length > 0 ? <ul className="watch-week-items">
+      {selected.entries.map(entry => <li key={entry.id}>
+        <div className="watch-week-entry"><button type="button" onClick={() => onEdit(entry)}>{entry.title}</button>
+          <small>{watchTypes[entry.watch.type]} · {entry.watch.type === 'webtoon' ? '연재 예정 · ' : ''}{progressLabel(entry.watch)}</small>
+        </div>
+        <ProgressAction entry={entry} onProgress={onProgress}/>
+      </li>)}
+    </ul> : <p className="watch-week-empty">이날 예정된 작품이 없어요. {type === 'webtoon' ? '작품에 연재 요일을 등록해보세요.' : '영화·드라마 카드에서 볼 날짜를 정할 수 있어요.'}</p>}
+    {type === 'webtoon' && <div className="watch-week-links"><a className="text-button muted" href="https://comic.naver.com/webtoon" target="_blank" rel="noreferrer">네이버웹툰</a><a className="text-button muted" href="https://webtoon.kakao.com/" target="_blank" rel="noreferrer">카카오웹툰</a></div>}
+  </section>;
+}
+
+function WatchPlanDialog({ entry, today, onClose, onSave }: {
+  entry: WatchEntry; today: string; onClose: () => void; onSave: (entry: Entry) => boolean;
+}) {
+  function save(plannedDate?: string) {
+    if (onSave({ ...entry, watch: { ...entry.watch, plannedDate } })) onClose();
+  }
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const date = new FormData(event.currentTarget).get('plannedDate');
+    if (isCalendarDay(date)) save(date);
+  }
+  return <Dialog title="감상 예정일" onClose={onClose} className="watch-plan-dialog">
+    <form onSubmit={submit}>
+      <div className="entry-form"><p className="watch-plan-title">{entry.title}</p><label>볼 날짜<input type="date" name="plannedDate" max="9999-12-31" required defaultValue={entry.watch.plannedDate ?? today}/></label></div>
+      <div className="dialog-footer">
+        {entry.watch.plannedDate && <button type="button" className="button secondary" onClick={() => save()}>예정일 지우기</button>}
+        <button type="submit" className="button primary">저장하기</button>
+      </div>
+    </form>
+  </Dialog>;
 }
 
 export function HomeWatch({ entries, onEdit }: { entries: Entry[]; onEdit: (entry: Entry) => void }) {
@@ -83,27 +142,29 @@ export function HomeWatch({ entries, onEdit }: { entries: Entry[]; onEdit: (entr
   </div>;
 }
 
-export default function WatchHub({ entries, now, onAdd, onEdit, onDelete, onSave }: {
-  entries: Entry[]; now: Date | null; onAdd: (type: WatchType) => void; onEdit: (entry: Entry) => void; onDelete: (entry: Entry) => void; onSave: (entry: Entry) => boolean;
+export default function WatchHub({ entries, today, onAdd, onEdit, onDelete, onSave, onProgress }: {
+  entries: Entry[]; today: string; onAdd: (type: WatchType) => void; onEdit: (entry: Entry) => void; onDelete: (entry: Entry) => void;
+  onSave: (entry: Entry) => boolean; onProgress: (entry: WatchEntry) => void;
 }) {
   const [type, setType] = useState<WatchType | 'all'>('all');
   const [status, setStatus] = useState<WatchStatus | 'all'>('all');
   const [query, setQuery] = useState('');
   const [linkedId, setLinkedId] = useState<string | null>(null);
+  const [planId, setPlanId] = useState<string | null>(null);
   useEffect(() => { setLinkedId(new URLSearchParams(window.location.search).get('work')); }, []);
   const collection = entries.filter(isWatchEntry).sort((a, b) => Date.parse(b.watch.updatedAt) - Date.parse(a.watch.updatedAt));
   const browsing = type === 'all' && status === 'all' && !query.trim();
   const linked = linkedId ? collection.find(entry => entry.id === linkedId) : undefined;
   const featured = browsing ? linked ?? watchingNow(collection)[0] : undefined;
-  const today = now ? koreanWeekday(now) : -1;
-  const airing = collection.filter(item => item.watch.type === 'webtoon' && item.watch.weekday === today && item.watch.status !== 'completed');
+  const planEntry = collection.find(item => item.id === planId && item.watch.type !== 'webtoon' && item.watch.status !== 'completed');
+  const onPlan = (entry: WatchEntry) => setPlanId(entry.id);
   const matches = collection.filter(item => (type === 'all' || item.watch.type === type) && (status === 'all' || item.watch.status === status) &&
     matchesSearch([item.title, item.detail, watchTypes[item.watch.type]], searchTerms(query)));
   const lists = status === 'all' ? ['watching', 'planned', 'completed'] as const : [status];
 
   return <div className="watch-hub">
     {linkedId && !linked && <p className="watch-feedback" role="status">연결된 작품 기록을 찾을 수 없어요.</p>}
-    {featured && <WatchItem entry={featured} onEdit={onEdit} onSave={onSave} onDelete={onDelete} highlight={linked ? 'news' : 'continue'}/>}
+    {featured && linked && <WatchItem entry={featured} onEdit={onEdit} onSave={onSave} onDelete={onDelete} onProgress={onProgress} onPlan={onPlan} highlight="news"/>}
     <div className="watch-toolbar">
       <div className="tabs" role="group" aria-label="작품 종류">
         <button type="button" aria-pressed={type === 'all'} className={type === 'all' ? 'selected' : ''} onClick={() => setType('all')}>전체</button>
@@ -115,11 +176,8 @@ export default function WatchHub({ entries, now, onAdd, onEdit, onDelete, onSave
       </select>
       <button type="button" className="button primary" onClick={() => onAdd(type === 'all' ? 'movie' : type)}><Plus size={16}/>작품 추가</button>
     </div>
-    {today >= 0 && status === 'all' && !query.trim() && (type === 'webtoon' || (browsing && airing.length > 0)) && <section className="panel airing-webtoons" aria-label="오늘 연재 예정 웹툰">
-      <h2><BookOpen size={17}/> {watchDays[today]}요일 연재 예정</h2>
-      {airing.length ? <ul>{airing.map(item => <li key={item.id}><button type="button" className="text-button" onClick={() => onEdit(item)}>{item.title}<ArrowUpRight size={13}/></button></li>)}</ul> : <p>오늘 연재로 등록한 웹툰이 없어요.</p>}
-      <div><a className="text-button muted" href="https://comic.naver.com/webtoon" target="_blank" rel="noreferrer">네이버웹툰<ArrowUpRight size={12}/></a><a className="text-button muted" href="https://webtoon.kakao.com/" target="_blank" rel="noreferrer">카카오웹툰<ArrowUpRight size={12}/></a></div>
-    </section>}
+    {status === 'all' && !query.trim() && <WatchWeek entries={matches} today={today} type={type} onEdit={onEdit} onProgress={onProgress}/>}
+    {featured && !linked && <WatchItem entry={featured} onEdit={onEdit} onSave={onSave} onDelete={onDelete} onProgress={onProgress} onPlan={onPlan} highlight="continue"/>}
     {matches.length === 0 && <section className="watch-empty panel">
       <Clapperboard size={28} aria-hidden="true"/>
       <h2>{collection.length ? '조건에 맞는 작품이 없어요' : '보고 싶은 작품부터 모아보세요'}</h2>
@@ -129,10 +187,11 @@ export default function WatchHub({ entries, now, onAdd, onEdit, onDelete, onSave
       const items = matches.filter(item => item.watch.status === group && item.id !== featured?.id);
       return items.length > 0 && <section className="watch-list" key={group} aria-label={watchStatuses[group]}>
         <h2>{watchStatuses[group]} <span>{items.length}</span></h2>
-        <div>{items.map(entry => <WatchItem entry={entry} key={entry.id} onEdit={onEdit} onSave={onSave} onDelete={onDelete}/>)}</div>
+        <div>{items.map(entry => <WatchItem entry={entry} key={entry.id} onEdit={onEdit} onSave={onSave} onDelete={onDelete} onProgress={onProgress} onPlan={onPlan}/>)}</div>
       </section>;
     })}
     {collection.some(item => item.watch.catalog) && <TmdbCredit/>}
+    {planEntry && <WatchPlanDialog key={planEntry.id} entry={planEntry} today={today} onClose={() => setPlanId(null)} onSave={onSave}/>}
   </div>;
 }
 
@@ -197,12 +256,15 @@ export function WatchEntryModal({ entry, defaultType = 'movie', onClose, onSave 
     if (url.trim() && !link) { setError('http:// 또는 https:// 주소를 입력해주세요.'); return; }
     const form = new FormData(event.currentTarget);
     const optionalNumber = (key: string) => form.get(key) ? Number(form.get(key)) : undefined;
+    const plannedDate = String(form.get('plannedDate') ?? '');
+    if (plannedDate && !isCalendarDay(plannedDate)) { setError('유효한 감상 예정일을 선택해주세요.'); return; }
     const selectedEvents = form.getAll('newsEvents');
     const newsEvents = webtoonNewsEventKeys.filter(event => selectedEvents.includes(event));
     const updatedAt = new Date().toISOString();
     onSave({ id: entry?.id ?? crypto.randomUUID(), kind: 'watch', title: name, detail: String(form.get('detail') ?? '').trim(),
       category: '', status: '', url: link, date: '', done: false, createdAt: entry?.createdAt ?? updatedAt,
       watch: { type, status, catalog, updatedAt, progress: optionalNumber('progress'), season: optionalNumber('season'), rating: optionalNumber('rating'), weekday: optionalNumber('weekday'),
+        ...(type !== 'webtoon' && plannedDate && { plannedDate }),
         ...(type === 'webtoon' && newsEvents.length > 0 && { newsEvents }) } });
   }
 
@@ -224,6 +286,7 @@ export function WatchEntryModal({ entry, defaultType = 'movie', onClose, onSave 
         {type === 'tv' && <label>시즌<input name="season" type="number" min={1} max={999} defaultValue={old?.type === type ? old.season : undefined}/></label>}
         {type !== 'movie' && <label>마지막으로 본 회차<input name="progress" type="number" min={0} max={99999} defaultValue={old?.type === type ? old.progress : undefined}/></label>}
         {type === 'webtoon' && <label>연재 요일<select name="weekday" defaultValue={old?.type === type ? old.weekday ?? '' : ''}><option value="">미지정</option>{watchDays.map((day, index) => <option key={day} value={index}>{day}요일</option>)}</select></label>}
+        {type !== 'webtoon' && <label>감상 예정일 (선택)<input type="date" name="plannedDate" defaultValue={old?.plannedDate}/></label>}
         <label>별점<select name="rating" defaultValue={old?.rating ?? ''}><option value="">미평가</option>{[5, 4, 3, 2, 1, 0].map(value => <option key={value} value={value}>{value}점</option>)}</select></label>
       </div>
       {type === 'webtoon' && <fieldset className="watch-news-settings">

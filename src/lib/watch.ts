@@ -1,4 +1,5 @@
 import type { Entry } from './store.ts';
+import { addCalendarDays, isCalendarDay } from './calendar.ts';
 
 export const watchTypes = { movie: '영화', tv: '드라마', webtoon: '웹툰' } as const;
 export const watchStatuses = { planned: '볼 예정', watching: '보는 중', completed: '완료' } as const;
@@ -15,6 +16,7 @@ export type WatchDetails = {
   season?: number;
   rating?: number;
   weekday?: number;
+  plannedDate?: string;
   updatedAt: string;
   catalog?: WatchCatalogItem;
   newsEvents?: WebtoonNewsEvent[];
@@ -37,7 +39,7 @@ export function validateWatchCatalog(value: unknown): WatchCatalogItem {
 
 export function validateWatch(value: unknown): WatchDetails {
   if (!value || typeof value !== 'object') throw new Error('작품 기록을 확인해주세요.');
-  const { type, status, progress, season, rating, weekday, updatedAt, catalog, newsEvents } = value as WatchDetails;
+  const { type, status, progress, season, rating, weekday, plannedDate, updatedAt, catalog, newsEvents } = value as WatchDetails;
   const integer = (number: number | undefined, min: number, max: number) => number === undefined || (Number.isInteger(number) && number >= min && number <= max);
   if (!Object.hasOwn(watchTypes, type) || !Object.hasOwn(watchStatuses, status) ||
     typeof updatedAt !== 'string' || updatedAt.length > 50 || !Number.isFinite(Date.parse(updatedAt)) ||
@@ -50,8 +52,10 @@ export function validateWatch(value: unknown): WatchDetails {
     newsEvents.some(event => typeof event !== 'string' || !Object.hasOwn(webtoonNewsEvents, event)))) {
     throw new Error('웹툰 소식 설정을 확인해주세요.');
   }
+  if (plannedDate !== undefined && (type === 'webtoon' || !isCalendarDay(plannedDate))) throw new Error('감상 예정일을 확인해주세요.');
   return { type, status, updatedAt, ...(progress !== undefined && { progress }), ...(season !== undefined && { season }),
     ...(rating !== undefined && { rating }), ...(weekday !== undefined && { weekday }), ...(catalog !== undefined && { catalog: validateWatchCatalog(catalog) }),
+    ...(plannedDate !== undefined && { plannedDate }),
     ...(newsEvents?.length && { newsEvents: webtoonNewsEventKeys.filter(event => newsEvents.includes(event)) }) };
 }
 
@@ -69,6 +73,28 @@ export function advanceWatch(entry: WatchEntry, now = new Date()): WatchEntry {
   const { watch } = entry;
   if (watch.type === 'movie' || watch.status === 'completed' || (watch.progress ?? 0) >= 99999) return entry;
   return { ...entry, watch: { ...watch, status: 'watching', progress: (watch.progress ?? 0) + 1, updatedAt: now.toISOString() } };
+}
+
+export function restoreWatchProgress(entry: WatchEntry, before: WatchDetails, advanced: WatchDetails): WatchEntry | null {
+  const { watch } = entry;
+  const progressKeys = ['type', 'season', 'status', 'progress', 'updatedAt'] as const;
+  if (progressKeys.some(key => watch[key] !== advanced[key])) return null;
+  return { ...entry, watch: { ...watch, progress: before.progress, status: before.status, updatedAt: before.updatedAt } };
+}
+
+export function weeklyWatchPlan(entries: WatchEntry[], today: string) {
+  if (!isCalendarDay(today)) return [];
+  const weekday = koreanWeekday(new Date(`${today}T00:00:00+09:00`));
+  const monday = addCalendarDays(today, -weekday);
+  const days = watchDays.map((label, index) => ({ label, date: addCalendarDays(monday, index), entries: [] as WatchEntry[] }));
+  const byDate = new Map(days.map(day => [day.date, day]));
+  for (const entry of entries) {
+    const { watch } = entry;
+    if (watch.status === 'completed') continue;
+    const date = watch.type === 'webtoon' ? days[watch.weekday ?? -1]?.date : watch.plannedDate;
+    if (date) byDate.get(date)?.entries.push(entry);
+  }
+  return days;
 }
 
 export function koreanWeekday(now: Date) {

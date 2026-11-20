@@ -1,13 +1,9 @@
-import { eventOnDay, localCalendarEvent, type CalendarEvent, type CalendarSnapshot } from './calendar.ts';
+import { addCalendarDays, eventOnDay, localCalendarEvent, type CalendarEvent, type CalendarSnapshot } from './calendar.ts';
 import { isSetup } from './audio.ts';
 import { lastListenedAt } from './music.ts';
 import type { Entry } from './store.ts';
 
-export function addCalendarDays(day: string, days: number) {
-  const date = new Date(day + 'T00:00:00Z');
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
+export { addCalendarDays } from './calendar.ts';
 
 export function dashboardEvents(entries: Entry[], snapshot: CalendarSnapshot | null | undefined, hidden: string[], fixtures: CalendarEvent[] = []) {
   const local = entries.map(localCalendarEvent).filter((event): event is CalendarEvent => event !== null);

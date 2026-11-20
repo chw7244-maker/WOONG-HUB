@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { advanceWatch, koreanWeekday, watchingNow } from '../src/lib/watch.ts';
-import { initial, validateData } from '../src/lib/store.ts';
+import { advanceWatch, koreanWeekday, restoreWatchProgress, watchingNow, weeklyWatchPlan } from '../src/lib/watch.ts';
+import { initial, todayKST, validateData } from '../src/lib/store.ts';
 import { mergeData } from '../src/lib/merge.ts';
 import { searchEntries } from '../src/lib/search.ts';
 import { clubFixtures, handleFootball, leagueTable, premierLeagueSeason } from '../worker/football.mjs';
@@ -41,6 +41,40 @@ test('웹툰 소식 설정은 작품 백업과 회차 변경에 저장된다', (
   assert.throws(() => validateData({ ...initial, entries:[{ ...entry, watch:{ ...entry.watch, newsEvents:['unrecognized'] } }] }));
   assert.throws(() => validateData({ ...initial, entries:[{ ...watch, watch:{ ...watch.watch, newsEvents:['resume'] } }] }));
   assert.equal(validateData({ ...initial, entries:[{ ...entry, watch:{ ...entry.watch, newsEvents:[] } }] }).entries[0].watch.newsEvents,undefined);
+});
+
+test('주간 감상 계획은 KST 새해의 월~일과 완료 상태를 구분하고 백업에 남는다', () => {
+  const work = (id, details) => ({ ...watch, id, watch: { updatedAt:watch.createdAt,status:'planned',...details } });
+  const entries = [
+    work('movie',{type:'movie',plannedDate:'2026-12-31'}),
+    work('drama',{type:'tv',plannedDate:'2027-01-03'}),
+    work('webtoon',{type:'webtoon',weekday:4}),
+    work('completed',{type:'tv',status:'completed',plannedDate:'2027-01-01'}),
+    work('out-of-week',{type:'movie',plannedDate:'2027-01-04'}),
+    work('no-date',{type:'movie'}),
+  ];
+  const restored = validateData(JSON.parse(JSON.stringify({...initial,entries}))).entries;
+  const now = new Date('2026-12-31T15:30:00Z');
+  assert.equal(todayKST(now),'2027-01-01');
+  assert.deepEqual(weeklyWatchPlan(restored,todayKST(now)).map(day=>[day.date,day.entries.map(entry=>entry.id)]),[
+    ['2026-12-28',[]],['2026-12-29',[]],['2026-12-30',[]],['2026-12-31',['movie']],
+    ['2027-01-01',['webtoon']],['2027-01-02',[]],['2027-01-03',['drama']],
+  ]);
+  assert.throws(()=>validateData({...initial,entries:[work('invalid',{type:'movie',plannedDate:'2027-02-29'})]}));
+  assert.throws(()=>validateData({...initial,entries:[work('webtoon',{type:'webtoon',plannedDate:'2027-01-01'})]}));
+});
+
+test('회차 되돌리기는 직전 진행도와 상태를 복원하고 새 회차나 별도 예정일을 덮지 않는다', () => {
+  const old = { ...watch,watch:{...watch.watch,progress:undefined} };
+  const advanced = advanceWatch(old,new Date(day+1000));
+  assert.equal(advanced.watch.progress,1);
+  assert.equal(advanced.watch.status,'watching');
+  const scheduled = {...advanced,watch:{...advanced.watch,plannedDate:'2026-11-20'}};
+  const restored = restoreWatchProgress(scheduled,old.watch,advanced.watch);
+  assert.equal(restored.watch.progress,undefined);
+  assert.equal(restored.watch.status,'planned');
+  assert.equal(restored.watch.plannedDate,'2026-11-20');
+  assert.equal(restoreWatchProgress(advanceWatch(advanced,new Date(day+2000)),old.watch,advanced.watch),null);
 });
 
 test('club calendar uses the newest revision, retains all competitions and keeps UTC for KST display', () => {

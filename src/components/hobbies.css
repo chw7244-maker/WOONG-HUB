@@ -153,14 +153,42 @@
 .watch-empty { display: grid; justify-items: center; align-content: center; gap: 8px; padding: 35px 15px; color: var(--muted); text-align: center; }
 .watch-empty h2 { margin: 0; color: var(--text); font-size: 17px; }
 .watch-empty p { margin: 0; font-size: 14px; }
-.airing-webtoons { display: grid; gap: 5px; padding: 12px 15px; }
-.airing-webtoons h2 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 15px; }
-.airing-webtoons ul { padding: 0; margin: 0; list-style: none; }
-.airing-webtoons p, .watch-source, .watch-feedback { margin: 0; color: var(--muted); font-size: 13px; }
+.watch-week { display: grid; gap: 9px; padding: clamp(10px,3vw,18px); }
+.watch-week > header, .watch-day-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 10px; flex-wrap: wrap; }
+.watch-week h2 { display: flex; align-items: center; gap: 7px; font-size: 18px; }
+.watch-week h2 svg { color: var(--blue); }
+.watch-week header > span, .watch-day-heading > span, .watch-week-empty { color: var(--muted); font-size: 13px; }
+.watch-week-days { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 4px; }
+.watch-week-days > button {
+  display: grid; justify-items: center; align-content: center; gap: 3px;
+  min-height: 56px; min-width: 0; padding: 4px 1px; border: 1px solid var(--border);
+  border-radius: 8px; color: var(--muted); font-size: 12px; line-height: 1.25;
+}
+.watch-week-days > button strong { color: var(--text); font-size: 16px; }
+.watch-week-days > button:hover { background: var(--hover); }
+.watch-week-days > button[aria-pressed=true] { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
+.watch-week-days > button[aria-pressed=true] strong { color: inherit; }
+.watch-week-dot { width: 4px; height: 4px; border-radius: 50%; }
+.watch-week-dot[data-has-plans=true] { background: var(--blue); }
+.watch-day-heading h3 { font-size: 14px; font-weight: 650; }
+.watch-week-items { list-style: none; margin: 0; padding: 0; }
+.watch-week-items li { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px 10px; align-items: center; border-top: 1px solid var(--border); padding: 6px 0; }
+.watch-week-entry { display: grid; gap: 0; min-width: 0; }
+.watch-week-entry button { min-height: 34px; padding: 0; text-align: start; font-size: 15px; font-weight: 650; overflow-wrap: anywhere; }
+.watch-week-entry button:hover { color: var(--blue); }
+.watch-week-entry small { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.watch-week-items li > button { min-height: 44px; font-size: 13px; }
+.watch-week-links { display: flex; gap: 0 14px; }
+.watch-week-links .text-button { min-height: 44px; font-size: 13px; }
+.watch-plan-title { font-size: 16px; font-weight: 650; overflow-wrap: anywhere; }
+.dialog.watch-plan-dialog { width: min(100%,390px); }
+.toast.watch-progress-toast { left: 50%; padding-block: 4px; }
+.watch-progress-toast .text-button { min-height: 44px; padding-inline: 6px; font-size: 14px; }
+.watch-progress-toast > .icon-button { flex: none; width: 44px; height: 44px; margin-inline-start: 0; }
+.watch-source, .watch-feedback { margin: 0; color: var(--muted); font-size: 13px; }
 .watch-source { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 10px; }
 .watch-source a { display: grid; align-content: center; min-height: 44px; }
 .watch-source img { display: block; width: 84px; height: auto; }
-.airing-webtoons .text-button { min-height: 44px; margin-inline-end: 12px; font-size: 13px; }
 .watch-title-fields { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 8px; }
 .watch-title-fields > button { min-height: 44px; }
 .watch-search-results { list-style: none; padding: 0; margin: 0; }
@@ -171,6 +199,8 @@
   .watch-toolbar :is(select,input) { font-size: 16px; }
   .watch-entry-actions :is(a,button), .football-source a { min-height: 44px; }
   .watch-entry-actions .icon-button { width: 44px; }
+  .watch-week-entry button { min-height: 44px; }
+  .watch-plan-dialog input[type=date], .watch-dialog input[type=date] { font-size: 16px; }
 }
 @media (max-width: 540px) {
   .hobby-directory, .football-overview { grid-template-columns: minmax(0,1fr); }

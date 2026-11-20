@@ -1,0 +1,320 @@
+@font-face {
+  font-family: 'Journal Today';
+  src: url('/journal/noto-serif-kr-today.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  unicode-range: U+B298, U+C624;
+}
+
+@font-face {
+  font-family: 'Journal Numbers';
+  src: url('/journal/dm-sans-numbers.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  unicode-range: U+0030-003A;
+}
+
+.journal-home {
+  --bg: #211a16;
+  --sidebar: #272019;
+  --panel: #2d241e;
+  --panel-soft: #362a22;
+  --hover: #45362b;
+  --border: #503f33;
+  --text: #f6ebdf;
+  --muted: #c9b6a5;
+  --faint: #ad9684;
+  --blue: #ecc1a7;
+  --blue-soft: #4b3529;
+  --input: #2d241e;
+  --journal-hero: #352820;
+  --journal-button: #dfae91;
+  --journal-button-text: #271a12;
+  --journal-gap: clamp(1rem, 2.8vw, 2.375rem);
+  --journal-columns: minmax(0, 1.85fr) minmax(0, 1fr);
+  --journal-serif: 'Noto Serif KR', AppleMyungjo, Batang, serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+:root[data-theme=light] .journal-home {
+  --bg: #f6f1e8;
+  --sidebar: #f9f5ed;
+  --panel: #fbf7f0;
+  --panel-soft: #eee6da;
+  --hover: #e9ded0;
+  --border: #dad0c1;
+  --text: #261c17;
+  --muted: #69594c;
+  --faint: #806e60;
+  --blue: #754733;
+  --blue-soft: #eaddd0;
+  --input: #f9f5ed;
+  --journal-hero: #f0e6d8;
+  --journal-button: #754733;
+  --journal-button-text: #fff8f0;
+}
+
+.journal-home .hub-header { background: var(--sidebar); }
+
+.journal-home .hub-header-inner {
+  max-width: 1440px;
+  min-height: calc(70px + env(safe-area-inset-top));
+  padding-inline: max(clamp(16px, 4vw, 56px), env(safe-area-inset-left)) max(clamp(16px, 4vw, 56px), env(safe-area-inset-right));
+}
+
+.journal-home .hub-wordmark { font-size: .9375rem; }
+.journal-home .hub-brand-mark { width: 33px; height: 33px; }
+
+.journal-icon {
+  display: inline-block;
+  flex: none;
+  width: var(--journal-icon-size);
+  height: var(--journal-icon-size);
+  background-color: currentColor;
+  mask: var(--journal-icon) center / contain no-repeat;
+}
+.journal-brand-icon { --journal-icon: url('/journal/brand.svg'); --journal-icon-size: 25px; }
+.journal-search-icon { --journal-icon: url('/journal/search.svg'); --journal-icon-size: 18px; }
+.journal-plus-icon { --journal-icon: url('/journal/plus.svg'); --journal-icon-size: 17px; }
+.journal-calendar-icon { --journal-icon: url('/journal/calendar.svg'); --journal-icon-size: 15px; }
+
+.journal-home .button.primary {
+  color: var(--journal-button-text);
+  background: var(--journal-button);
+}
+.journal-home .button.primary:hover {
+  background: color-mix(in srgb, var(--journal-button), var(--journal-button-text) 12%);
+}
+.journal-quick-add {
+  gap: .4375rem;
+  min-height: 44px;
+  padding-inline: .8125rem;
+  border-radius: 8px;
+  font-size: .875rem;
+  font-weight: 700;
+}
+
+.journal-home .main-content {
+  width: min(100%, calc(1240px + 2 * clamp(20px, 5vw, 100px)));
+  max-width: none;
+  padding: 10px max(clamp(20px, 5vw, 100px), env(safe-area-inset-right)) 40px max(clamp(20px, 5vw, 100px), env(safe-area-inset-left));
+}
+
+.journal-home .hub-today-heading {
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .5rem clamp(.625rem, 2vw, 1.375rem);
+  min-width: 0;
+  margin: .3rem 0 .95rem;
+  padding-bottom: .85rem;
+  border-bottom: 1px solid var(--border);
+}
+.journal-home .hub-today-heading h1 {
+  font-family: 'Journal Today', var(--journal-serif);
+  font-size: clamp(2rem, 4.2vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -.045em;
+}
+.journal-home .hub-date { color: var(--muted); font-size: .9375rem; font-weight: 650; }
+.journal-home .journal-widget-settings {
+  grid-column: 4;
+  grid-row: 1;
+  min-width: 44px;
+  min-height: 44px;
+  justify-self: end;
+}
+.journal-home .hub-today-heading > .hub-weather-summary {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 0;
+  margin: 0;
+}
+.journal-home .hub-today-heading > .hub-weather-summary[open] { grid-area: 2 / 1 / auto / -1; }
+.journal-home .hub-weather-summary:not([open]) > summary {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 0 .4rem;
+  gap: .375rem;
+  border-color: transparent;
+  background: transparent;
+}
+.journal-home .hub-weather-summary:not([open]) > summary:hover { background: var(--panel-soft); }
+.journal-home .hub-weather-summary:not([open]) > summary > strong { color: var(--muted); }
+.journal-home .hub-weather-summary:not([open]) .hub-weather-detail { display: none; }
+
+.journal-home .hub-summary-card { --hub-summary-radius: 6px; }
+.journal-home .hub-summary-heading h2, .journal-home .panel-heading h2 { font-size: 1.0625rem; font-weight: 700; }
+.journal-home .hub-summary-action {
+  min-height: 44px;
+  padding-inline: 0;
+  color: var(--blue);
+  background: transparent;
+}
+.journal-home .hub-summary-action:hover { text-decoration: underline; }
+
+.journal-home .hub-week-compact { margin-top: 0; padding: .72rem .875rem .45rem; }
+.journal-home .hub-week-compact .hub-summary-heading { margin-bottom: .4rem; }
+.journal-home .hub-week-actions .icon-button {
+  width: clamp(34px, 6vw, 44px);
+  min-height: 44px;
+}
+.journal-home .hub-week-actions .text-button { min-width: 38px; color: var(--blue); font-size: .8125rem; }
+.journal-home .journal-week-range { margin-inline-end: .375rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.journal-home .hub-week-days button {
+  min-height: 52px;
+  border-radius: 4px;
+}
+.journal-home .hub-week-days button small { font-size: .75rem; }
+.journal-home .hub-week-days button strong {
+  font-family: 'Journal Numbers', 'DM Sans', system-ui, sans-serif;
+  font-weight: 700;
+}
+.journal-home .hub-week-days button:hover { border-color: var(--blue); }
+.journal-home .hub-week-days button[aria-pressed=true] { border-color: transparent; background: var(--blue-soft); }
+.journal-home .hub-week-days button[aria-pressed=true] small { color: inherit; }
+.journal-home .hub-week-summary > button { flex: 1; gap: .375rem; padding-inline: 0; }
+.journal-home .hub-week-summary > button > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: .875rem;
+  font-weight: 550;
+}
+.journal-home .hub-week-summary > button small { flex: none; font-size: .75rem; }
+.journal-home .hub-week-summary .journal-calendar-icon { color: var(--muted); }
+
+.journal-overview, .journal-home .hub-home-panels {
+  display: grid;
+  grid-template-columns: var(--journal-columns);
+  gap: 1rem var(--journal-gap);
+  align-items: start;
+  margin-top: 1rem;
+}
+.journal-overview:has(> :only-child), .journal-home .hub-home-panels:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+.journal-overview:empty, .journal-home .hub-home-panels:empty { display: none; }
+.journal-home .hub-home-panels > * { min-width: 0; }
+.journal-news-column { display: grid; gap: .875rem; min-width: 0; }
+
+.journal-home .journal-next-schedule {
+  display: grid;
+  grid-template-columns: minmax(0, .45fr) minmax(0, .55fr);
+  align-items: stretch;
+  min-height: 205px;
+  padding: 0;
+  background: var(--journal-hero);
+}
+.journal-next-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: .95rem clamp(.875rem, 2vw, 1.5rem) .4rem;
+}
+.journal-next-copy h2 { color: var(--muted); font-size: .875rem; font-weight: 700; }
+.journal-next-event { display: grid; gap: .25rem; min-width: 0; margin-top: .275rem; }
+.journal-next-event > time {
+  font-family: 'Journal Numbers', 'DM Sans', system-ui, sans-serif;
+  font-size: clamp(2.25rem, 4.2vw, 3.75rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -.055em;
+  line-height: 1.04;
+}
+.journal-next-event small { color: var(--muted); font-size: .8125rem; overflow-wrap: anywhere; }
+.journal-event-title > :is(button, a, strong) {
+  display: inline-block;
+  padding: 0;
+  color: var(--text);
+  font-family: var(--journal-serif);
+  font-size: clamp(1.125rem, 1.8vw, 1.5rem);
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: start;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.journal-event-title > :is(button, a):hover { text-decoration: underline; }
+.journal-next-copy > .hub-summary-action { margin-top: auto; }
+.journal-next-art {
+  position: relative;
+  min-width: 0;
+  border-start-end-radius: 5px;
+  border-end-end-radius: 5px;
+  overflow: hidden;
+}
+.journal-next-art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.journal-home .hub-resume-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .375rem .8rem; }
+.journal-home .hub-resume-grid:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+.journal-home .hub-continuation-item { border-radius: 5px; background: transparent; }
+.journal-home .hub-continuation-copy :is(a, button) { font-size: .9375rem; }
+.journal-home .hub-news-highlights { border-radius: 6px; padding: .9rem 1rem; }
+.journal-home .home-news-list h3 { font-size: .9375rem; line-height: 1.45; }
+.journal-home .home-news-list > a > svg { display: none; }
+.journal-home .home-match .hub-summary-heading h2 svg { display: none; }
+
+@media (width > 900px) {
+  .journal-home :is(.journal-home-tasks, .hub-news-highlights) {
+    padding-inline: 1rem .5rem;
+    border: 0;
+    background: transparent;
+  }
+  .journal-home .journal-home-tasks {
+    padding-top: .65rem;
+    border-inline-start: 1px solid var(--border);
+    border-radius: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .journal-overview, .journal-home .hub-home-panels { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 760px) {
+  .journal-home .hub-header-inner {
+    min-height: calc(64px + env(safe-area-inset-top));
+    gap: .375rem;
+  }
+  .journal-home .main-content { padding-bottom: calc(var(--hub-bottom-nav-height) + 16px); }
+  .journal-home .hub-today-heading { gap: .25rem .45rem; margin-bottom: .7rem; padding-bottom: 0; border: 0; }
+  .journal-home .hub-date { font-size: .8125rem; }
+  .journal-home .hub-weather-summary:not([open]) > summary { gap: .2rem; padding-inline: .2rem; font-size: .75rem; }
+  .journal-home .hub-weather-summary:not([open]) > summary > svg { display: none; }
+  .journal-home .hub-weather-summary:not([open]) .hub-weather-toggle { margin: 0; }
+  .journal-home .hub-weather-summary:not([open]) .hub-weather-toggle::after { display: none; }
+  .journal-home .hub-week-compact { padding-inline: .75rem; }
+  .journal-home .hub-week-days { gap: 4px; }
+  .journal-home .journal-next-schedule { min-height: 155px; grid-template-columns: minmax(0, .48fr) minmax(0, .52fr); }
+  .journal-next-copy { padding: .65rem .8125rem .2rem; }
+  .journal-next-event > time { font-size: 2.125rem; }
+  .journal-event-title > :is(button, a, strong) { font-size: 1rem; }
+  .journal-home .hub-resume-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 370px) {
+  .journal-home .hub-brand-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .journal-home .hub-today-heading {
+    grid-template-columns: max-content minmax(0, 1fr) auto;
+  }
+  .journal-home .journal-widget-settings { grid-column: 3; }
+  .journal-home .hub-today-heading > .hub-weather-summary { grid-area: 2 / 1 / auto / -1; }
+}

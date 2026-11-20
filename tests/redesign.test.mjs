@@ -61,9 +61,9 @@ test('Next schedule prioritizes active and remaining timed events and respects h
   const running = timed('running','notion','2026-12-31T13:55:00Z','2026-12-31T14:15:00Z');
   assert.deepEqual(nextDashboardEvent([...events,running],now,day),{event:running,live:true});
   assert.equal(nextDashboardEvent(events.filter(e=>e.id==='today'),Date.parse('2026-12-31T15:00:00Z'),'2027-01-01'),null);
-  assert.equal(dashboardWeekStart('2026-12-31','2027-01-02'),'2026-12-31');
-  assert.equal(dashboardWeekStart('2026-12-31','2026-12-30'),'2026-12-24');
-  assert.equal(dashboardWeekStart('2026-12-31','2027-01-08'),'2027-01-07');
+  assert.equal(dashboardWeekStart('2027-01-02'),'2026-12-28');
+  assert.equal(dashboardWeekStart('2026-12-27'),'2026-12-21');
+  assert.equal(dashboardWeekStart('2027-01-08'),'2027-01-04');
 });
 
 test('Note drafts are scoped to account and record and recover concurrent changes as a copy', () => {

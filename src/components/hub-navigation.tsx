@@ -14,6 +14,7 @@ const sharedPages = [
 const libraryPage = { id: 'library', label: '기록', icon: StickyNote };
 const newsPage = { id: 'news', label: '뉴스', icon: Newspaper };
 const desktopPages = [...sharedPages, libraryPage];
+const homeDesktopPages = [...sharedPages, newsPage, libraryPage];
 const mobilePages = [...sharedPages, newsPage];
 const utilityPages = [
   { id: 'work', label: '업무', icon: BriefcaseBusiness },
@@ -27,12 +28,14 @@ const morePages: { id: string; label: string; icon: LucideIcon; layout?: 'deskto
 const href = (id: string) => id === 'home' ? '/' : `/${id}/`;
 
 export default function HubNavigation({
-  section, dark, hasNotifications, notificationOpen, onSearch, onTheme, onNotifications,
+  section, dark, hasNotifications, notificationOpen, onSearch, onTheme, onNotifications, onQuickAdd,
 }: {
   section: string; dark: boolean; hasNotifications: boolean; notificationOpen: boolean;
   onSearch: () => void; onTheme: () => void; onNotifications: () => void;
+  onQuickAdd?: () => void;
 }) {
   const [more, setMore] = useState(false);
+  const isHome = section === 'home';
   const active = hobbyPages.some(page => page.id === section) || ['spotify', 'steam'].includes(section) ? 'hobbies' : section;
   const utilityActive = utilityPages.some(page => page.id === section);
   const moreButton = (mobile: boolean) => {
@@ -44,17 +47,18 @@ export default function HubNavigation({
   return <>
     <header className="hub-header">
       <div className="hub-header-inner">
-        <Link href="/" className="hub-wordmark"><span><AudioLines size={19} aria-hidden="true" /></span>WOONG HUB</Link>
+        <Link href="/" className="hub-wordmark" aria-label="WOONG HUB"><span className="hub-brand-mark">{isHome ? <span className="journal-icon journal-brand-icon" aria-hidden="true"/> : <AudioLines size={19} aria-hidden="true"/>}</span><span className="hub-brand-name">WOONG HUB</span></Link>
         <nav className="hub-desktop-nav" aria-label="주 메뉴">
-          {desktopPages.map(({ id, label }) => (
+          {(isHome ? homeDesktopPages : desktopPages).map(({ id, label }) => (
             <Link key={id} href={href(id)} aria-current={active === id ? section === id ? 'page' : 'location' : undefined}>{label}</Link>
           ))}
           {moreButton(false)}
         </nav>
         <div className="hub-header-actions">
-          <button type="button" className="icon-button" aria-label="내 공간 검색" onClick={onSearch}><Search size={18}/></button>
+          <button type="button" className="icon-button" aria-label="내 공간 검색" onClick={onSearch}>{isHome ? <span className="journal-icon journal-search-icon" aria-hidden="true"/> : <Search size={18}/>}</button>
           <button type="button" className="icon-button" aria-label={dark ? '라이트 테마로 전환' : '다크 테마로 전환'} onClick={onTheme}>{dark ? <Sun size={18}/> : <Moon size={18}/>}</button>
           <button type="button" className="icon-button notification-button" aria-label="알림 보기" aria-expanded={notificationOpen} onClick={onNotifications}><Bell size={18}/>{hasNotifications && <i/>}</button>
+          {onQuickAdd && <button type="button" className="button primary journal-quick-add" aria-haspopup="dialog" onClick={onQuickAdd}><span className="journal-icon journal-plus-icon" aria-hidden="true"/>추가</button>}
         </div>
       </div>
     </header>
@@ -65,7 +69,7 @@ export default function HubNavigation({
       {moreButton(true)}
     </nav>
     {more && <Dialog title="더보기" onClose={() => setMore(false)} className="hub-more-dialog" focusField={false}>
-      <nav aria-label="더보기 메뉴">{morePages.map(({ id, label, icon: Icon, layout }) => <Link key={id} href={href(id)} data-layout={layout} aria-current={section === id ? 'page' : undefined} onClick={() => setMore(false)}>
+      <nav aria-label="더보기 메뉴">{morePages.filter(page => !isHome || page.id !== 'news').map(({ id, label, icon: Icon, layout }) => <Link key={id} href={href(id)} data-layout={layout} aria-current={section === id ? 'page' : undefined} onClick={() => setMore(false)}>
         <Icon size={19} aria-hidden="true"/><span>{label}</span><ArrowUpRight size={15} aria-hidden="true"/>
       </Link>)}</nav>
     </Dialog>}

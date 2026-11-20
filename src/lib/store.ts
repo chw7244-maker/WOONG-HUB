@@ -13,7 +13,7 @@ export const kinds: Kind[] = ['todo','note','bookmark','audio','games','music','
 export const widgets = ['weather','calendar','todos','bookmarks','news','interests','note'];
 export const mediaWidgets = ['spotify','steam'];
 export const newWidgets = ['football','watch'];
-export const homeSections = ['resume','week','recent','links','news'];
+export const homeSections = ['week','resume','news','recent','links'];
 export const mediaWidgetVisible=(preferences:Preferences,id:string)=>(preferences.mediaWidgets??mediaWidgets).includes(id);
 export const initial: HubData = {version:1, entries:[], preferences:{theme:'dark',city:defaultWeatherCity,widgets}};
 export function safeUrl(value: string): string { try { const url = new URL(value); return ['https:','http:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } }

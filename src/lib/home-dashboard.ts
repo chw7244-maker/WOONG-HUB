@@ -16,9 +16,9 @@ export function dashboardDay(events: CalendarEvent[], day: string) {
   );
 }
 
-export function dashboardWeekStart(today: string, selected: string) {
-  const days = (Date.parse(selected) - Date.parse(today)) / 86_400_000;
-  return addCalendarDays(today, Math.floor(days / 7) * 7);
+export function dashboardWeekStart(day: string) {
+  const weekday = new Date(day+'T00:00:00Z').getUTCDay();
+  return addCalendarDays(day, -((weekday + 6) % 7));
 }
 
 export function nextDashboardEvent(events: CalendarEvent[], now: number, today: string) {

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowUpRight, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ListTodo, Pencil, Plus } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { calendarPeriod, eventOnDay, eventStartDay, isCalendarDay, type CalendarEvent } from '@/lib/calendar';
 import { addCalendarDays, dashboardDay, dashboardTasks, dashboardWeekStart, nextDashboardEvent } from '@/lib/home-dashboard';
@@ -24,7 +24,7 @@ type AgendaProps = {
 
 function AgendaLink({ event, entry, onEdit }: { event: CalendarEvent; entry?: Entry; onEdit: (entry: Entry) => void }) {
   return entry ? <button type="button" onClick={() => onEdit(entry)}>{event.title}</button> :
-    event.url ? <a href={event.url} target="_blank" rel="noreferrer">{event.title}<ArrowUpRight size={14} aria-hidden="true"/></a> :
+    event.url ? <a href={event.url} target="_blank" rel="noreferrer">{event.title}</a> :
     <strong>{event.title}</strong>;
 }
 
@@ -35,21 +35,19 @@ export function NextSchedule({ now, today, events, entries, calendar, onEdit }: 
   const source = event?.sourceId === 'hub-local' ? 'HUB' : event?.sourceId === footballSourceId ? footballSourceName :
     calendar.data?.snapshot?.sources.find(source => source.id === event?.sourceId)?.name ?? '외부 캘린더';
   const context = next?.live ? '지금 진행 중' : day <= today ? '오늘' : day === addCalendarDays(today, 1) ? '내일 · '+label(day) : label(day);
-  return <section className="hub-summary-card hub-summary-stack" aria-labelledby="home-next-title">
-    <div className="hub-summary-heading">
-      <h2 id="home-next-title"><CalendarDays size={18} aria-hidden="true"/>다음 일정</h2>
-      {event && <small>{source}{calendar.error&&event.sourceId!=='hub-local'&&event.sourceId!==footballSourceId?' · 마지막 반영본':''}</small>}
+  return <section className="hub-summary-card journal-next-schedule" aria-labelledby="home-next-title">
+    <div className="journal-next-copy">
+      <h2 id="home-next-title">다음 일정</h2>
+      {event ? <div className="journal-next-event">
+        <time dateTime={event.start}>{event.allDay ? '종일' : clock.format(new Date(event.start))}</time>
+        <div className="journal-event-title"><AgendaLink event={event} entry={event.sourceId === 'hub-local' ? entries.find(entry => entry.id === event.id) : undefined} onEdit={onEdit}/></div>
+        <small>{[context, source, calendar.error&&event.sourceId!=='hub-local'&&event.sourceId!==footballSourceId?'마지막 반영본':'', event.note].filter(Boolean).join(' · ')}</small>
+      </div> : <p className="hub-summary-empty" role="status">
+        {calendar.loading || !today ? '일정을 확인하고 있어요.' : calendar.error ? '일정 목록을 확인해주세요.' : '예정된 일정이 없어요.'}
+      </p>}
+      <Link className="hub-summary-action" href={day ? '/calendar/?date='+encodeURIComponent(day < today ? today : day) : '/calendar/'}>일정 보기</Link>
     </div>
-    {event ? <div className="hub-next-event">
-      <time dateTime={event.start}>{event.allDay ? '종일' : clock.format(new Date(event.start))}</time>
-      <div>
-        <small>{[context, event.note].filter(Boolean).join(' · ')}</small>
-        <AgendaLink event={event} entry={event.sourceId === 'hub-local' ? entries.find(entry => entry.id === event.id) : undefined} onEdit={onEdit}/>
-      </div>
-    </div> : <p className="hub-summary-empty" role="status">
-      {calendar.loading || !today ? '일정을 확인하고 있어요.' : calendar.error ? '일정 목록을 확인해주세요.' : '예정된 일정이 없어요.'}
-    </p>}
-    <Link className="hub-summary-action" href={day ? '/calendar/?date='+encodeURIComponent(day < today ? today : day) : '/calendar/'}>일정 보기</Link>
+    <div className="journal-next-art"><img src="/journal/schedule.jpg" alt="" width={1120} height={630} fetchPriority="high"/></div>
   </section>;
 }
 
@@ -75,9 +73,9 @@ export function HomeTasks({ entries, today, onToggle, onEdit }: TaskActions & { 
     { title: '마감일 없는 할 일', tasks: undated, showDate: false },
   ];
 
-  return <section className="hub-summary-card hub-summary-stack" aria-labelledby="home-tasks-title">
+  return <section className="hub-summary-card hub-summary-stack journal-home-tasks" aria-labelledby="home-tasks-title">
     <div className="hub-summary-heading">
-      <h2 id="home-tasks-title"><ListTodo size={18} aria-hidden="true"/>오늘 할 일</h2>
+      <h2 id="home-tasks-title">오늘 할 일</h2>
       <small aria-live="polite">오늘 마감 {dueToday.length}개</small>
     </div>
     {dueToday.length > 0
@@ -118,17 +116,21 @@ export default function WeekAgenda({ today, events, entries, hidden, calendar, o
 
   if (!today) return null;
   const selected = chosen || today;
-  const first = dashboardWeekStart(today, selected);
+  const first = dashboardWeekStart(selected);
   const days = Array.from({ length: 7 }, (_, index) => addCalendarDays(first, index));
   const agenda = dashboardDay(events, selected);
+  const agendaTitle = selected === today ? '오늘의 전체 일정' : label(selected);
+  const firstEvent = agenda[0];
+  const agendaPreview = firstEvent ? `${firstEvent.allDay ? '종일' : clock.format(new Date(firstEvent.start))} · ${firstEvent.title}` : '표시할 일정이 없어요.';
   const snapshot = calendar.data?.snapshot;
   const outside = snapshot && snapshot.sources.some(source => !hidden.includes(source.id)) &&
     (selected < snapshot.rangeStart || selected >= snapshot.rangeEnd);
 
   return <section className="hub-week hub-week-compact hub-summary-card" aria-labelledby="home-week-title">
     <div className="hub-summary-heading">
-      <div className="hub-summary-labels"><h2 id="home-week-title"><CalendarDays size={18} aria-hidden="true"/>주간 일정</h2><small>{days[0].slice(5).replace('-', '.')} – {days[6].slice(5).replace('-', '.')}</small></div>
+      <h2 id="home-week-title">주간 일정</h2>
       <div className="hub-week-actions">
+        <small className="journal-week-range">{days[0].slice(5).replace('-', '.')} – {days[6].slice(5).replace('-', '.')}</small>
         <button type="button" className="icon-button" aria-label="이전 주" onClick={() => choose(addCalendarDays(first, -7))}><ChevronLeft size={17}/></button>
         <button type="button" className="text-button" onClick={() => choose('')}>오늘</button>
         <button type="button" className="icon-button" aria-label="다음 주" onClick={() => choose(addCalendarDays(first, 7))}><ChevronRight size={17}/></button>
@@ -137,7 +139,7 @@ export default function WeekAgenda({ today, events, entries, hidden, calendar, o
     <div className="hub-week-days" role="group" aria-label="일정 날짜 선택">
       {days.map(day => {
         const count = events.filter(event => eventOnDay(event, day)).length;
-        return <button type="button" key={day} aria-label={`${label(day)}, 일정 ${count}개`} aria-pressed={selected === day} onClick={() => choose(day)}>
+        return <button type="button" key={day} aria-label={`${label(day)}, 일정 ${count}개`} aria-pressed={selected === day} aria-current={day===today?'date':undefined} onClick={() => choose(day)}>
           <small>{day === today ? '오늘' : weekday.format(new Date(day + 'T00:00:00Z'))}</small>
           <strong>{Number(day.slice(-2))}</strong>
           <span className={count ? 'has-events' : ''} aria-hidden="true"/>
@@ -145,8 +147,9 @@ export default function WeekAgenda({ today, events, entries, hidden, calendar, o
       })}
     </div>
     <div className="hub-week-summary">
-      <button type="button" aria-expanded={open} aria-controls="home-week-agenda" onClick={() => setOpen(value => !value)}>
-        <ChevronDown size={16} aria-hidden="true"/><strong>{selected === today ? '오늘의 전체 일정' : label(selected)}</strong><small>{agenda.length}건</small>
+      <button type="button" aria-label={`${agendaTitle}, ${agenda.length}건${open ? '' : `, ${agendaPreview}`}`} aria-expanded={open} aria-controls="home-week-agenda" onClick={() => setOpen(value => !value)}>
+        <span className="journal-icon journal-calendar-icon" aria-hidden="true"/>
+        <strong>{open ? agendaTitle : agendaPreview}</strong><small>{agenda.length}건</small><ChevronDown size={14} aria-hidden="true"/>
       </button>
       <Link className="hub-summary-action" href={'/calendar/?date='+encodeURIComponent(selected)}>캘린더</Link>
     </div>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowUpRight, AudioLines, Bell, CalendarDays, Check, ChevronDown, ChevronLeft, CirclePlay, Gamepad2, Headphones, ListTodo, Moon, Newspaper, Plus, SlidersHorizontal, Sun, X, BriefcaseBusiness, Link2, Database, type LucideIcon, SquarePen } from 'lucide-react';
+import { ArrowUpRight, AudioLines, Bell, CalendarDays, Check, ChevronDown, ChevronLeft, Gamepad2, Headphones, ListTodo, Moon, Newspaper, Plus, SlidersHorizontal, Sun, X, BriefcaseBusiness, Link2, Database, type LucideIcon, SquarePen } from 'lucide-react';
 import WeatherCard, { WeatherCitySelect } from './weather';
 import NewsHub, { HomeNews } from './news-hub';
 import AudioHub, { AudioEntryModal } from './audio-hub';
@@ -127,7 +127,7 @@ export default function Hub({section}:{section:string}) {
   const recentRecords=section==='home'?data.entries.filter(e=>['note','audio','games','music','watch'].includes(e.kind)).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).slice(0,4):[];
   const hiddenNewWidgets=data.preferences.hiddenNewWidgets??[];
   const visible=(w:string)=>newWidgets.includes(w)?!hiddenNewWidgets.includes(w):mediaWidgets.includes(w)?mediaWidgetVisible(data.preferences,w):data.preferences.widgets.includes(w);
-  const homeOrder=[...new Set([...(data.preferences.homeOrder??[]),...homeSections])];
+  const homeOrder=[...new Set([...(data.preferences.homeOrder??[]),...homeSections])].filter(id=>id!=='week');
   const calendarEntries=entries('event');
   const hiddenCalendars=data.preferences.calendarHiddenSources??[];
   const savedFixtures=data.preferences.savedFixtures??[];
@@ -160,9 +160,8 @@ export default function Hub({section}:{section:string}) {
   const widgetsEditor=<HomeWidgetControls order={homeOrder} visible={visible} onToggle={toggleWidget} onOrder={order=>preference({homeOrder:order})}/>;
   const openEntry=(entry:Entry)=>setModal({kind:entry.kind,entry});
   const homePanels:Record<string,React.ReactNode>=section==='home'?{
-    week:visible('calendar')&&<WeekAgenda userId={sync.userId} today={today} events={homeEvents} entries={calendarEntries} hidden={hiddenCalendars} calendar={calendar} onEdit={editEvent} onAdd={addCalendarEvent}/>,
     resume:['interests','spotify','steam','watch'].some(visible)&&<section className="hub-summary-card hub-resume-card" aria-labelledby="home-resume-title">
-      <div className="hub-summary-heading"><h2 id="home-resume-title"><CirclePlay size={18} aria-hidden="true"/>이어서 하기</h2><Link href="/hobbies/" className="hub-summary-action">취미 보기</Link></div>
+      <div className="hub-summary-heading"><h2 id="home-resume-title">이어서 하기</h2><Link href="/hobbies/" className="hub-summary-action">취미 보기</Link></div>
       <div className="hub-resume-grid hub-continuation">
         {visible('watch')&&<HomeWatch entries={entries('watch')} onEdit={openEntry}/>}
         {visible('steam')&&<SteamHome compact key={sync.userId}/>}
@@ -184,14 +183,18 @@ export default function Hub({section}:{section:string}) {
       </a>)}</div>
       {entries('bookmark').length>0&&<div className="personal-links">{entries('bookmark').slice(0,6).map(e=><a href={safeUrl(e.url)} target="_blank" rel="noreferrer" key={e.id}><Link2 size={12}/>{e.title}<ArrowUpRight size={12}/></a>)}</div>}
     </section>,
-    news:visible('news')&&<HomeNews documentRevision={sync.revision}/>,
+    news:(visible('news')||visible('football'))&&<div className="journal-news-column">
+      {visible('news')&&<HomeNews documentRevision={sync.revision}/>}
+      {visible('football')&&<HomeMatch now={now} football={football} saved={savedFixtureIds} onSave={addFixture}/>}
+    </div>,
   }:{};
 
-  return <div className="app-shell">
+  return <div className={section==='home'?'app-shell journal-home':'app-shell'}>
     <HubNavigation section={section} dark={data.preferences.theme==='dark'}
       hasNotifications={events.some(event=>event.date.startsWith(today))} notificationOpen={notificationOpen}
       onSearch={()=>setSearchOpen(true)} onTheme={()=>preference({theme:data.preferences.theme==='dark'?'light':'dark'})}
-      onNotifications={()=>setNotificationOpen(value=>!value)}/>
+      onNotifications={()=>setNotificationOpen(value=>!value)}
+      onQuickAdd={section==='home'&&ready?()=>setQuickAddOpen(true):undefined}/>
     <div className="workspace hub-workspace">
       {notificationOpen&&<section className="notification-popover panel"><PanelHeading title="오늘의 알림"><button className="icon-button" aria-label="알림 닫기" onClick={()=>setNotificationOpen(false)}><X size={16}/></button></PanelHeading>{events.filter(e=>e.date.startsWith(today)).length?events.filter(e=>e.date.startsWith(today)).map(e=><button key={e.id} className="notification-row" onClick={()=>{setNotificationOpen(false);setModal({kind:'event',entry:e});}}><CalendarDays size={16}/><span>{e.title}<small>{koreanDate(e.date)}</small></span></button>):<Empty icon={Bell} title="지금은 새 알림이 없어요" description="오늘 등록한 일정이 여기에 표시돼요."/>}</section>}
       <main className="main-content">
@@ -200,19 +203,14 @@ export default function Hub({section}:{section:string}) {
         {!ready?<div className="loading-state"><AudioLines size={36}/><p>{sync.phase==='connecting'?'나의 서버 저장소를 확인하고 있어요.':'서버에 다시 연결하면 기록을 불러옵니다.'}</p>{sync.phase!=='connecting'&&<button className="button secondary" onClick={()=>void sync.client.retry()}>다시 연결</button>}</div>:section==='home'?<>
           <header className="hub-today-heading">
             <h1>오늘</h1>
-            <div className="hub-today-actions">
-              <button type="button" className="icon-button" aria-label="홈 위젯 설정" aria-haspopup="dialog" onClick={()=>setEditWidgets(true)}><SlidersHorizontal size={18}/></button>
-              <button type="button" className="button primary" aria-haspopup="dialog" onClick={()=>setQuickAddOpen(true)}><Plus size={17} aria-hidden="true"/>추가</button>
-            </div>
-            <div className="hub-today-context">
-              <p className="hub-date">{today ? <><time dateTime={today}>{dateLabel}</time> <small>KST</small></> : '한국 시간 확인 중'}</p>
-              {visible('weather')&&<WeatherCard city={data.preferences.city} onCityChange={city=>preference({city})} compact/>}
-            </div>
+            <p className="hub-date">{today ? <time dateTime={today}>{dateLabel}</time> : '한국 시간 확인 중'}</p>
+            {visible('weather')&&<WeatherCard city={data.preferences.city} onCityChange={city=>preference({city})} compact/>}
+            <button type="button" className="icon-button journal-widget-settings" aria-label="홈 위젯 설정" aria-haspopup="dialog" onClick={()=>setEditWidgets(true)}><SlidersHorizontal size={18}/></button>
           </header>
-          <div className="hub-home-layout hub-priority-grid">
+          {visible('calendar')&&<WeekAgenda userId={sync.userId} today={today} events={homeEvents} entries={calendarEntries} hidden={hiddenCalendars} calendar={calendar} onEdit={editEvent} onAdd={addCalendarEvent}/>}
+          <div className="journal-overview">
             {visible('calendar')&&<NextSchedule now={now?.getTime()??0} today={today} events={homeEvents} entries={calendarEntries} calendar={calendar} onEdit={editEvent}/>}
             {visible('todos')&&<HomeTasks today={today} entries={data.entries} onEdit={openEntry} onToggle={toggle}/>}
-            {visible('football')&&<HomeMatch now={now} football={football} saved={savedFixtureIds} onSave={addFixture}/>}
           </div>
           <div className="hub-home-panels">{homeOrder.map(id=><Fragment key={id}>{homePanels[id]}</Fragment>)}</div>
         </>:<>

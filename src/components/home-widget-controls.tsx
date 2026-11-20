@@ -6,7 +6,7 @@ export const widgetLabels: Record<string, string> = {
   football: '맨시티 다음 경기', watch: '보던 작품 이어서 보기',
 };
 
-const sectionLabels: Record<string, string> = { resume: '이어서 하기', week: '주간 일정', recent: '최근 기록', links: '즐겨찾기', news: '관심 뉴스' };
+const sectionLabels: Record<string, string> = { resume: '이어서 하기', recent: '최근 기록', links: '즐겨찾기', news: '관심 뉴스와 다음 경기' };
 
 export default function HomeWidgetControls({ order, visible, onToggle, onOrder }: {
   order: string[]; visible: (id: string) => boolean; onToggle: (id: string, enabled: boolean) => void; onOrder: (order: string[]) => void;

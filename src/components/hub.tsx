@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowUpRight, AudioLines, Bell, CalendarDays, Check, ChevronDown, ChevronLeft, Gamepad2, Headphones, ListTodo, Moon, Newspaper, Plus, SlidersHorizontal, Sun, X, BriefcaseBusiness, Link2, Database, type LucideIcon, SquarePen } from 'lucide-react';
+import { ArrowUpRight, AudioLines, Bell, CalendarDays, Check, ChevronDown, ChevronLeft, CirclePlay, Gamepad2, Headphones, ListTodo, Moon, Newspaper, Plus, SlidersHorizontal, Sun, X, BriefcaseBusiness, Link2, Database, type LucideIcon, SquarePen } from 'lucide-react';
 import WeatherCard, { WeatherCitySelect } from './weather';
 import NewsHub, { HomeNews } from './news-hub';
 import AudioHub, { AudioEntryModal } from './audio-hub';
@@ -161,8 +161,8 @@ export default function Hub({section}:{section:string}) {
   const openEntry=(entry:Entry)=>setModal({kind:entry.kind,entry});
   const homePanels:Record<string,React.ReactNode>=section==='home'?{
     week:visible('calendar')&&<WeekAgenda userId={sync.userId} today={today} events={homeEvents} entries={calendarEntries} hidden={hiddenCalendars} calendar={calendar} onEdit={editEvent} onAdd={addCalendarEvent}/>,
-    resume:['interests','spotify','steam','watch'].some(visible)&&<section className="hub-home-section" aria-labelledby="home-resume-title">
-      <div className="hub-section-heading"><h2 id="home-resume-title">이어서 하기</h2><Link href="/hobbies/" className="text-button muted">취미 보기<ArrowUpRight size={13}/></Link></div>
+    resume:['interests','spotify','steam','watch'].some(visible)&&<section className="hub-summary-card hub-resume-card" aria-labelledby="home-resume-title">
+      <div className="hub-summary-heading"><h2 id="home-resume-title"><CirclePlay size={18} aria-hidden="true"/>이어서 하기</h2><Link href="/hobbies/" className="hub-summary-action">취미 보기</Link></div>
       <div className="hub-resume-grid hub-continuation">
         {visible('watch')&&<HomeWatch entries={entries('watch')} onEdit={openEntry}/>}
         {visible('steam')&&<SteamHome compact key={sync.userId}/>}

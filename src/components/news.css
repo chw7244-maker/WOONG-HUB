@@ -28,6 +28,16 @@
 .news-condition svg { flex: none; }
 .news-active-conditions .text-button { min-height: 36px; padding-inline: 6px; font-size: .8125rem; }
 .news-hub .news-source-meta, .hub-news-highlights .news-source-meta { font-size: .75rem; }
+.home-news-thumbnail {
+  flex: none;
+  width: 48px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: .375rem;
+  background: var(--panel-soft);
+  object-fit: cover;
+}
+.home-news-list > a:first-child h3 { font-size: .875rem; line-height: 1.45; -webkit-line-clamp: 3; }
 .news-hub .news-category-tag, .news-hub .news-language { font-size: .72rem; }
 .news-hub .journal-section-heading { align-items: center; gap: 8px; margin-bottom: 10px; }
 .news-follow-count { color: var(--muted); font-size: .875rem; }

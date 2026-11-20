@@ -7,7 +7,7 @@ const root=path.resolve('out');
 await mkdir('.sites-runtime',{recursive:true});
 const DB=createLocalDatabase('.sites-runtime/local.sqlite');
 await applyLocalMigrations(DB);
-const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.json':'application/json','.webmanifest':'application/manifest+json','.png':'image/png','.ico':'image/x-icon','.woff2':'font/woff2','.txt':'text/plain; charset=utf-8'};
+const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.json':'application/json','.webmanifest':'application/manifest+json','.png':'image/png','.jpg':'image/jpeg','.ico':'image/x-icon','.woff2':'font/woff2','.txt':'text/plain; charset=utf-8'};
 const loopback=new Set(['127.0.0.1','::1','::ffff:127.0.0.1']);
 const server=http.createServer(async(req,res)=>{
   try {

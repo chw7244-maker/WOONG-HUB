@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, CalendarCheck, CalendarPlus, Goal, RefreshCw } from 'lucide-react';
+import { ArrowUpRight, CalendarCheck, CalendarPlus, Goal, RefreshCw, Trophy } from 'lucide-react';
 import { clubFixturesUrl, clubName, fixtureCalendarHref, matchup, matchStatusLabel, type Fixture, type FixtureSource } from '@/lib/football';
 
 const tableUrl = 'https://www.premierleague.com/en/tables/premier-league';
@@ -70,16 +70,16 @@ function SourceNote<T>({ source, url, name }: { source?: Source<T> | null; url: 
 export function HomeMatch({ now, football, saved, onSave }: FixtureActions & { now: Date | null; football: ReturnType<typeof useFootball> }) {
   const { data, busy, error } = football;
   const match = data?.fixtures?.items.find(item => item.postponed !== 'cancelled' && Date.parse(item.kickOff) >= (now?.getTime() ?? Date.now()));
-  return <section className="hub-next-card home-match" aria-labelledby="home-match-title">
-    <div className="hub-next-heading"><h2 id="home-match-title"><Goal size={17} aria-hidden="true"/>맨시티 다음 경기</h2></div>
+  return <section className="hub-summary-card hub-summary-stack home-match" aria-labelledby="home-match-title">
+    <div className="hub-summary-heading"><h2 id="home-match-title"><Goal size={18} aria-hidden="true"/>맨시티 다음 경기</h2></div>
     {match ? <>
-      <Link href="/football/#fixtures" className="home-match-name">{matchup(match)}<ArrowUpRight size={14} aria-hidden="true"/></Link>
+      <Link href="/football/#fixtures" className="home-match-name">{matchup(match)}</Link>
       <p><time dateTime={match.kickOff}>{kst.format(new Date(match.kickOff))} KST</time><span>{match.competition}</span></p>
       {(data?.fixtures?.stale || error || kickOffLabel(match)) && <small>{[data?.fixtures?.stale || error ? '마지막 조회 정보' : '', kickOffLabel(match)].filter(Boolean).join(' · ')}</small>}
-    </> : <p role="status">{busy && !data ? '경기 일정을 불러오는 중' : data?.fixtures ? '예정된 경기가 없어요.' : '일정을 불러오지 못했어요.'}</p>}
+    </> : <p className="hub-summary-empty" role="status">{busy && !data ? '경기 일정을 불러오는 중' : data?.fixtures ? '예정된 경기가 없어요.' : '일정을 불러오지 못했어요.'}</p>}
     <div className="home-match-actions">
       {match && <FixtureAction match={match} saved={saved} onSave={onSave}/>}
-      <Link href="/football/" className="text-button muted">경기 일정 · EPL 순위표</Link>
+      <Link href="/football/" className="hub-summary-action">경기 일정 · EPL 순위표</Link>
     </div>
   </section>;
 }
@@ -96,14 +96,17 @@ export default function FootballHub({ saved, onSave }: FixtureActions) {
   const city = data?.standings?.items.find(team => team.city);
   return <div className="football-hub">
     <div className="football-overview">
-      <section className="football-feature" aria-label="맨시티 다음 경기">
-        <p><Goal size={17} aria-hidden="true"/> 맨시티 다음 경기</p>
-        {next ? <><h2>{matchup(next)}</h2><div><time dateTime={next.kickOff}>{kst.format(new Date(next.kickOff))} KST</time> · {next.competition}{kickOffLabel(next) && ` · ${kickOffLabel(next)}`}</div></>
-          : <h2>{busy ? '경기 확인 중' : data?.fixtures ? '예정 경기 없음' : '공식 일정 확인'}</h2>}
+      <section className="hub-summary-card football-feature" aria-labelledby="football-feature-title">
+        <div className="hub-summary-heading"><h2 id="football-feature-title"><Goal size={18} aria-hidden="true"/>맨시티 다음 경기</h2></div>
+        {next ? <><strong className="football-matchup">{matchup(next)}</strong><p className="football-kickoff"><time dateTime={next.kickOff}>{kst.format(new Date(next.kickOff))} KST</time> · {next.competition}{kickOffLabel(next) && ` · ${kickOffLabel(next)}`}</p></>
+          : <p className="hub-summary-empty" role="status">{busy ? '경기 확인 중' : data?.fixtures ? '예정 경기 없음' : '공식 일정 확인'}</p>}
         {next && <FixtureAction match={next} saved={saved} onSave={onSave}/>}
         <SourceNote source={data?.fixtures} url={clubFixturesUrl} name="맨시티 공식 일정"/>
       </section>
-      {city && <section className="football-position" aria-label="맨시티 리그 순위"><span>맨시티 · 프리미어리그</span><strong>{city.rank}<small>위</small></strong><span>{city.matches}경기 · 승점 {city.points}{(data?.standings?.stale || error) && ' · 마지막 조회'}</span></section>}
+      {city && <section className="hub-summary-card football-position" aria-labelledby="football-position-title">
+        <div className="hub-summary-heading"><h2 id="football-position-title"><Trophy size={18} aria-hidden="true"/>맨시티 리그 순위</h2></div>
+        <strong>{city.rank}<small>위</small></strong><span>{city.matches}경기 · 승점 {city.points}{(data?.standings?.stale || error) && ' · 마지막 조회'}</span>
+      </section>}
     </div>
     <div className="football-toolbar">
       <div className="tabs" role="group" aria-label="축구 보기">

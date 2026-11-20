@@ -310,8 +310,9 @@ export function HomeNews({ documentRevision }: { documentRevision: number }) {
   const articles = [...diverse, ...candidates.filter(article => !diverse.includes(article))].slice(0,3);
   return <section className="panel hub-news-highlights">
     <div className="panel-heading"><h2>관심 뉴스</h2><Link className="text-button muted" href="/news/">뉴스 더 보기<ArrowUpRight size={14}/></Link></div>
-    {articles.length ? <div className="home-news-list">{articles.map(article => <a key={article.id} href={article.url} target="_blank" rel="noreferrer" onClick={() => { if (!article.read) news.setArticleState(article, 'read', true); }}>
-      <span className={`home-news-dot ${newsCategory(article.categories[0]).accent}`}/>
+    {articles.length ? <div className="home-news-list">{articles.map((article, index) => <a key={article.id} href={article.url} target="_blank" rel="noreferrer" onClick={() => { if (!article.read) news.setArticleState(article, 'read', true); }}>
+      {index === 0 ? <img className="home-news-thumbnail" src="/news-fallback.jpg" width={48} height={36} alt="" loading="lazy"/>
+        : <span className={`home-news-dot ${newsCategory(article.categories[0]).accent}`}/>}
       <div><h3>{article.title}</h3><SourceMeta article={article}/></div><ArrowUpRight size={14}/>
     </a>)}</div> : <div className="home-news-empty">
       <Newspaper size={24}/><p>{news.error || (news.loading || news.response?.sync.running ? '새 소식을 확인하고 있어요.' : '새 관심 뉴스가 없어요.')}</p>

@@ -83,8 +83,8 @@ function WatchWeek({ entries, today, type, onEdit, onProgress }: {
   const selected = days.find(day => day.date === chosenDay) ?? days.find(day => day.date === today);
   if (!selected) return null;
 
-  return <section className="panel watch-week" aria-labelledby="watch-week-title">
-    <header><h2 id="watch-week-title"><CalendarDays size={18} aria-hidden="true"/>이번 주 볼 것</h2><span>{koreanDate(days[0].date)} ~ {koreanDate(days[6].date)}</span></header>
+  return <section className="hub-summary-card watch-week" aria-labelledby="watch-week-title">
+    <header className="hub-summary-heading"><h2 id="watch-week-title"><CalendarDays size={18} aria-hidden="true"/>이번 주 볼 것</h2><small>{koreanDate(days[0].date)} ~ {koreanDate(days[6].date)}</small></header>
     <div className="watch-week-days" role="group" aria-label="감상 날짜 선택">
       {days.map(day => <button key={day.date} type="button" aria-pressed={day.date === selected.date}
         aria-current={day.date === today ? 'date' : undefined} aria-label={`${koreanDate(day.date)} ${day.label}요일, ${day.entries.length}개`}
@@ -101,7 +101,7 @@ function WatchWeek({ entries, today, type, onEdit, onProgress }: {
         </div>
         <ProgressAction entry={entry} onProgress={onProgress}/>
       </li>)}
-    </ul> : <p className="watch-week-empty">이날 예정된 작품이 없어요. {type === 'webtoon' ? '작품에 연재 요일을 등록해보세요.' : '영화·드라마 카드에서 볼 날짜를 정할 수 있어요.'}</p>}
+    </ul> : <p className="hub-summary-empty">이날 예정된 작품이 없어요. {type === 'webtoon' ? '작품에 연재 요일을 등록해보세요.' : '영화·드라마 카드에서 볼 날짜를 정할 수 있어요.'}</p>}
     {type === 'webtoon' && <div className="watch-week-links"><a className="text-button muted" href="https://comic.naver.com/webtoon" target="_blank" rel="noreferrer">네이버웹툰</a><a className="text-button muted" href="https://webtoon.kakao.com/" target="_blank" rel="noreferrer">카카오웹툰</a></div>}
   </section>;
 }

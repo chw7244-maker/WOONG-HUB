@@ -35,9 +35,9 @@ export function NextSchedule({ now, today, events, entries, calendar, onEdit }: 
   const source = event?.sourceId === 'hub-local' ? 'HUB' : event?.sourceId === footballSourceId ? footballSourceName :
     calendar.data?.snapshot?.sources.find(source => source.id === event?.sourceId)?.name ?? '외부 캘린더';
   const context = next?.live ? '지금 진행 중' : day <= today ? '오늘' : day === addCalendarDays(today, 1) ? '내일 · '+label(day) : label(day);
-  return <section className="hub-next-card" aria-labelledby="home-next-title">
-    <div className="hub-next-heading">
-      <h2 id="home-next-title"><CalendarDays size={17} aria-hidden="true"/>다음 일정</h2>
+  return <section className="hub-summary-card hub-summary-stack" aria-labelledby="home-next-title">
+    <div className="hub-summary-heading">
+      <h2 id="home-next-title"><CalendarDays size={18} aria-hidden="true"/>다음 일정</h2>
       {event && <small>{source}{calendar.error&&event.sourceId!=='hub-local'&&event.sourceId!==footballSourceId?' · 마지막 반영본':''}</small>}
     </div>
     {event ? <div className="hub-next-event">
@@ -46,10 +46,10 @@ export function NextSchedule({ now, today, events, entries, calendar, onEdit }: 
         <small>{[context, event.note].filter(Boolean).join(' · ')}</small>
         <AgendaLink event={event} entry={event.sourceId === 'hub-local' ? entries.find(entry => entry.id === event.id) : undefined} onEdit={onEdit}/>
       </div>
-    </div> : <p className="hub-next-empty" role="status">
+    </div> : <p className="hub-summary-empty" role="status">
       {calendar.loading || !today ? '일정을 확인하고 있어요.' : calendar.error ? '일정 목록을 확인해주세요.' : '예정된 일정이 없어요.'}
     </p>}
-    <Link className="text-button" href={day ? '/calendar/?date='+encodeURIComponent(day < today ? today : day) : '/calendar/'}>일정 보기<ArrowUpRight size={13} aria-hidden="true"/></Link>
+    <Link className="hub-summary-action" href={day ? '/calendar/?date='+encodeURIComponent(day < today ? today : day) : '/calendar/'}>일정 보기</Link>
   </section>;
 }
 
@@ -75,19 +75,19 @@ export function HomeTasks({ entries, today, onToggle, onEdit }: TaskActions & { 
     { title: '마감일 없는 할 일', tasks: undated, showDate: false },
   ];
 
-  return <section className="hub-tasks-card" aria-labelledby="home-tasks-title">
-    <div className="hub-next-heading">
-      <h2 id="home-tasks-title"><ListTodo size={17} aria-hidden="true"/>오늘 할 일</h2>
+  return <section className="hub-summary-card hub-summary-stack" aria-labelledby="home-tasks-title">
+    <div className="hub-summary-heading">
+      <h2 id="home-tasks-title"><ListTodo size={18} aria-hidden="true"/>오늘 할 일</h2>
       <small aria-live="polite">오늘 마감 {dueToday.length}개</small>
     </div>
     {dueToday.length > 0
       ? <TaskList tasks={dueToday.slice(0, previewCount)} onToggle={onToggle} onEdit={onEdit}/>
-      : <p className="hub-next-empty">{today ? '오늘 마감인 할 일이 없어요.' : '할 일을 확인하고 있어요.'}</p>}
+      : <p className="hub-summary-empty">{today ? '오늘 마감인 할 일이 없어요.' : '할 일을 확인하고 있어요.'}</p>}
     {groups.filter(group => group.tasks.length > 0).map(({ title, tasks, showDate }) => <details key={title} className="home-task-group">
       <summary><span>{title}</span><span className="home-task-count">{tasks.length}개</span><ChevronDown size={15} aria-hidden="true"/></summary>
       <TaskList tasks={tasks} showDate={showDate} onToggle={onToggle} onEdit={onEdit}/>
     </details>)}
-    <Link href="/library/?tab=todo" className="text-button home-all-tasks">전체 할 일</Link>
+    <Link href="/library/?tab=todo" className="hub-summary-action">전체 할 일</Link>
   </section>;
 }
 
@@ -125,9 +125,9 @@ export default function WeekAgenda({ today, events, entries, hidden, calendar, o
   const outside = snapshot && snapshot.sources.some(source => !hidden.includes(source.id)) &&
     (selected < snapshot.rangeStart || selected >= snapshot.rangeEnd);
 
-  return <section className="hub-week hub-week-compact" aria-labelledby="home-week-title">
-    <div className="hub-section-heading">
-      <div><h2 id="home-week-title">주간 일정</h2><p>{days[0].slice(5).replace('-', '.')} – {days[6].slice(5).replace('-', '.')}</p></div>
+  return <section className="hub-week hub-week-compact hub-summary-card" aria-labelledby="home-week-title">
+    <div className="hub-summary-heading">
+      <div className="hub-summary-labels"><h2 id="home-week-title"><CalendarDays size={18} aria-hidden="true"/>주간 일정</h2><small>{days[0].slice(5).replace('-', '.')} – {days[6].slice(5).replace('-', '.')}</small></div>
       <div className="hub-week-actions">
         <button type="button" className="icon-button" aria-label="이전 주" onClick={() => choose(addCalendarDays(first, -7))}><ChevronLeft size={17}/></button>
         <button type="button" className="text-button" onClick={() => choose('')}>오늘</button>
@@ -148,7 +148,7 @@ export default function WeekAgenda({ today, events, entries, hidden, calendar, o
       <button type="button" aria-expanded={open} aria-controls="home-week-agenda" onClick={() => setOpen(value => !value)}>
         <ChevronDown size={16} aria-hidden="true"/><strong>{selected === today ? '오늘의 전체 일정' : label(selected)}</strong><small>{agenda.length}건</small>
       </button>
-      <Link className="text-button blue" href={'/calendar/?date='+encodeURIComponent(selected)}>캘린더<ArrowUpRight size={13}/></Link>
+      <Link className="hub-summary-action" href={'/calendar/?date='+encodeURIComponent(selected)}>캘린더</Link>
     </div>
     <div id="home-week-agenda" hidden={!open}>
       {agenda.length ? <ul className="hub-agenda-list">

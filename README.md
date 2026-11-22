@@ -16,7 +16,7 @@
 - [개발](#개발)
 - [배포](#배포)
 - [문서](#문서)
-- [남은 작업](#남은-작업)
+- [작업 이어가기](#작업-이어가기): [새 PC 준비](#1-새-pc-준비) · [작업 흐름](#3-작업-흐름) · [현재 상태](#4-현재-상태-2026-11-23) · [다음 작업](#5-다음-작업)
 
 ## 화면 구성
 
@@ -223,9 +223,97 @@ pnpm preview    # http://127.0.0.1:3000
 | [docs/verification.md](docs/verification.md) | 변경별 검증 기록 |
 | [docs/design-source.md](docs/design-source.md) | 초기 설계안 원문 |
 
-## 남은 작업
+## 작업 이어가기
 
-- 일정·취미·뉴스·기록 등 다른 페이지의 카드를 홈과 같은 떠 있는 면 스타일로 맞추기
-- 실제 아이폰에서 로그인, 저장·동기화 왕복, 새 홈 배치 확인
-- 필요한 경우 뉴스 출처·수집량·언어 설정 확장
-- 모바일 설치용 웹 앱 매니페스트는 있지만, 오프라인 실행과 푸시 알림은 아직 없습니다.
+다른 PC(회사 등)에서 이어서 작업할 때 필요한 준비와 현재 상태입니다.
+
+### 1. 새 PC 준비
+
+1. **Git**과 **Node.js 24 이상**을 설치합니다. Windows는 아래 명령으로 설치할 수 있습니다. 설치한 뒤에는 터미널(또는 Claude 앱)을 새로 열어야 `node`가 인식됩니다.
+
+   ```powershell
+   winget install Git.Git
+   winget install OpenJS.NodeJS
+   ```
+
+2. **pnpm 11.25.0**을 설치합니다. Node.js 25부터는 corepack이 함께 들어 있지 않으므로 npm으로 설치합니다. 최신 pnpm 12로 올리라는 안내가 나와도 이 버전을 유지합니다.
+
+   ```powershell
+   npm install -g pnpm@11.25.0
+   pnpm --version
+   ```
+
+3. 저장소를 받고 의존성을 설치한 뒤, 검사·테스트·빌드가 통과하는지 확인합니다.
+
+   ```powershell
+   git clone https://github.com/chw7244-maker/WOONG-HUB.git
+   cd WOONG-HUB
+   pnpm install
+   pnpm check
+   pnpm test
+   pnpm build
+   pnpm preview
+   ```
+
+4. `http://127.0.0.1:3000`을 엽니다. 로컬 DB(`.sites-runtime/local.sqlite`)는 PC마다 새로 만들어지므로 처음에는 기록이 비어 있습니다. 화면 확인용 할 일이나 일정은 로컬에서 직접 추가해도 운영 데이터에 영향이 없습니다.
+
+`.npmrc`와 `pnpm-workspace.yaml`이 pnpm 저장소를 `.sites-runtime/pnpm-store`(Git 제외)에 두도록 설정되어 있어, 설치 파일은 저장소 폴더 안에만 생깁니다.
+
+### 2. Claude Code 환경 (선택)
+
+이 저장소의 디자인 작업은 Claude Code 데스크톱 앱에서 아래 도구로 진행했습니다. 같은 claude.ai 계정으로 로그인하면 커넥터는 그대로 이어지고, 플러그인은 PC마다 설치합니다.
+
+| 종류 | 이름 | 용도 |
+| --- | --- | --- |
+| 플러그인 | `design@anthropic-plugin-directory` | 디자인 평가, 접근성 점검, 디자인 시스템 정리 |
+| 플러그인 | `frontend-design@claude-plugins-official` | 화면 구현 가이드 |
+| 플러그인 | `figma@claude-plugins-official` | Figma 읽기·쓰기 작업 지침 |
+| 커넥터 | Figma, Adobe | 시안 읽기, 글꼴 추천, 이미지 생성 |
+
+플러그인은 Claude 앱의 플러그인 관리 화면에서 설치하거나, Claude Code 명령줄 도구가 있으면 `claude plugin install <이름>`으로 설치합니다. 설치한 플러그인은 새 세션부터 적용됩니다. Figma 플러그인은 설치 후 `/mcp`에서 로그인합니다. Adobe 플러그인의 별도 로그인은 Adobe 쪽에서 앱의 로그인 주소를 거부해 실패할 수 있습니다. 이때는 이미 연결된 Adobe 커넥터를 쓰면 됩니다.
+
+앱의 브라우저 패널로 로컬 미리보기를 띄우려면 `.claude/launch.json`을 만듭니다(Git에 올리지 않음).
+
+```json
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "woong-hub-preview", "runtimeExecutable": "node", "runtimeArgs": ["scripts/serve.mjs"], "port": 3000, "url": "http://127.0.0.1:3000" }
+  ]
+}
+```
+
+`node`를 찾지 못하면 `runtimeExecutable`에 `C:/Program Files/nodejs/node.exe`처럼 슬래시(`/`)로 쓴 전체 경로를 넣습니다. 미리보기는 `pnpm build` 결과를 보여주므로, 코드를 바꾼 뒤에는 다시 빌드합니다.
+
+### 3. 작업 흐름
+
+[AGENTS.md](AGENTS.md)의 규칙을 따릅니다.
+
+1. `main`에서 작업 브랜치를 만듭니다. 예: `git switch -c design/pages-v2`
+2. 수정한 뒤 `pnpm check`, `pnpm test`, `pnpm build`를 실행합니다. 화면을 바꿨다면 로컬 미리보기에서 PC·모바일, 다크·라이트를 확인합니다.
+3. 사용법이나 동작이 바뀌었으면 README와 [docs/verification.md](docs/verification.md)를 고칩니다. 디자인 기준이 바뀌었으면 [docs/home-design.md](docs/home-design.md)도 고칩니다.
+4. 해당 작업의 파일만 커밋하고 `origin`의 작업 브랜치로 푸시합니다. 로컬 커밋과 원격 브랜치가 같은지 확인합니다.
+5. 확인이 끝나면 `main`에 합쳐 푸시하고, ChatGPT의 사이트 관리 채팅에서 최신 `main` 배포를 요청합니다. 배포 후 운영 사이트에서 다시 확인합니다.
+
+토큰, 실제 캘린더 일정, 개인 계정 ID는 소스나 문서에 넣지 않습니다.
+
+### 4. 현재 상태 (2026-11-23)
+
+- `main`과 운영 사이트는 같은 버전입니다. 홈 재구성(시안 2), 저널 톤 전체 통일, 최소 글자 12px, QHD·4K 배율, 하단 카드 시안 맞춤까지 반영되어 있습니다.
+- 운영 사이트에서 375·1024·1440·1920·2560px로 확인했습니다. 실제 아이폰과 실제 QHD 모니터에서는 아직 확인하지 않았습니다.
+- 디자인 시안은 Claude의 [홈 재구성 시안 캔버스](https://claude.ai/artifact/4EinW9jEKPy6py9HkT7AnB)에 있습니다(본인 계정 전용). ‘시안 2’ 페이지가 현재 홈의 기준이고, ‘시안 1’은 비교용입니다.
+- 시안 2는 [gyupage](https://gyupage.vercel.app/)의 큰 날짜 숫자, 날씨가 들어간 7일 달력과 Pinterest ‘웹디’ 보드의 떠 있는 면, 알약 메뉴, 벤토 배치를 참고했습니다.
+- 작업이 끝난 브랜치 `design/journal-tone`, `design/home-v2`, `design/qhd-weather-fix`는 모두 `main`에 합쳐져 있어 지워도 됩니다.
+
+### 5. 다음 작업
+
+우선순위 순서입니다.
+
+1. **다른 페이지를 새 디자인으로 통일** — 일정·뉴스·취미(게임·음악·작품·축구·오디오)·기록·설정 페이지는 아직 얇은 테두리 카드입니다. 페이지 제목 영역, 카드(`.panel`, `.hub-summary-card`), 탭, 필터, 빈 화면을 홈과 같은 `--panel` 면과 `--raise` 그림자, 둥근 모서리, 알약 버튼으로 바꿉니다. 관련 파일은 `src/components/hub-redesign.css`, `hub-sections.css`, `home-priorities.css`, `news.css`, `games.css`, `hobbies.css`, `music.css`, `calendar.css`입니다. 기준은 [docs/home-design.md](docs/home-design.md)에 있습니다.
+2. **게임 목록 줄이기** — 모바일 게임 페이지가 약 30화면 길이입니다. 게임 56개가 각각 큰 카드로 나오고, 첫 게임이 두 번째 화면에서 보입니다. 한 줄 목록형을 기본으로 하고 위쪽 Steam 요약을 접습니다. 대상은 `src/components/games-hub.tsx`, `games.css`입니다. 뉴스 카드(한 장에 약 228px)도 같은 방식으로 촘촘하게 할 수 있습니다.
+3. **취미 메뉴 단계 줄이기** — 지금은 ‘취미’ 목록 페이지를 거쳐 한 번 더 눌러야 게임·음악에 들어갑니다. 취미 안에서 탭으로 바로 전환하도록 `src/components/hobby-directory.tsx`, `hub-navigation.tsx`를 바꿉니다.
+4. **테마 깜빡임** — 페이지를 열면 기본 다크 테마가 잠깐 보였다가 저장된 테마로 바뀝니다. `hub.tsx`가 동기화가 끝난 뒤에 `data-theme`를 설정하기 때문입니다. 마지막 테마를 브라우저에 기억해 두고 첫 화면 전에 적용하면 해결됩니다.
+5. **쓰지 않는 CSS 정리** — 화면에서 더 이상 쓰지 않는 옛 스타일이 남아 있습니다. `globals.css`의 `.welcome-card`, `.planet`, `.orbit`, `.satellite`, `.nav-item`, `.brand-symbol`, `.interest-card`, `.calendar-grid`, `.news-feature-art`, `news.css`의 `.journal-lead`·`.lead-*`, `home-priorities.css`의 `.hub-week-compact`, `hobbies.css`의 `.hub-weather-summary`입니다. 지우기 전에 `src`의 `.tsx`에서 클래스 이름을 검색해 쓰이지 않는지 확인합니다.
+6. **실기기 확인** — 실제 아이폰에서 로그인, 저장·동기화 왕복, 새 홈 배치를 확인합니다. QHD 모니터에서 125% 배율이 적당한지도 봅니다.
+
+그 밖에 필요하면 뉴스 출처·수집량·언어 설정을 넓힐 수 있습니다. 모바일 설치용 웹 앱 매니페스트는 있지만, 오프라인 실행과 푸시 알림은 아직 없습니다.

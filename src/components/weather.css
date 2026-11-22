@@ -17,11 +17,11 @@
 .weather-card .weather-main { justify-content: start; gap: 12px; }
 .weather-card .weather-symbol { height: 64px; width: 64px; margin: 0 0 0 auto; }
 .weather-card .weather-main p { margin-top: 4px; font-size: 13px; }
-.weather-card .weather-main p > span { display: inline; margin-inline-start: 8px; font-size: 11px; }
+.weather-card .weather-main p > span { display: inline; margin-inline-start: 8px; font-size: 12px; }
 .weather-card .weather-highlow { font-size: 12px; margin-top: 7px; }
 .weather-card .weather-highlow > span { color: var(--muted); }
 .weather-card .weather-meta { flex-wrap: wrap; gap: 5px 12px; margin: 10px 0 0; padding-top: 8px; }
-.weather-card .weather-meta span, .weather-card .weather-source { font-size: 11px; }
+.weather-card .weather-meta span, .weather-card .weather-source { font-size: 12px; }
 .weather-card .weather-retry { min-height: 44px; }
 
 .weather-period { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; gap: 3px; background: var(--panel-soft); border: 1px solid var(--border); border-radius: 11px; }

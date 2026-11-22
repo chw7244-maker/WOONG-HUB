@@ -44,7 +44,7 @@
 }
 .hub-week-days button:hover { border-color: var(--border); }
 .hub-week-days button[aria-pressed=true] { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
-.hub-week-days button small { color: var(--muted); font-size: 11px; }
+.hub-week-days button small { color: var(--muted); font-size: 12px; }
 .hub-week-days button strong { font-size: 19px; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .hub-week-days button > span { width: 4px; height: 4px; border-radius: 50%; }
 .hub-week-days button > .has-events { background: var(--accent); }
@@ -71,7 +71,7 @@
 .hub-records-strip { display: flex; flex-wrap: wrap; gap: 8px; }
 .hub-records-strip button { flex: 1 1 10rem; min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 1px 6px; align-items: center; text-align: start; padding: 8px 11px; min-height: 52px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
 .hub-records-strip button:hover, .hub-highlight-row:hover { background: var(--hover); }
-.hub-records-strip small { grid-column: 1/-1; font-size: 11px; color: var(--muted); }
+.hub-records-strip small { grid-column: 1/-1; font-size: 12px; color: var(--muted); }
 .hub-records-strip strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hub-records-strip svg { color: var(--muted); }
 .hub-highlight, .hub-game-highlights, .hub-music-highlight { margin-bottom: 18px; }

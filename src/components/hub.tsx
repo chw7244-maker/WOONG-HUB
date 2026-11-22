@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowUpRight, AudioLines, Bell, CalendarDays, Check, ChevronDown, ChevronLeft, Gamepad2, Headphones, ListTodo, Moon, Newspaper, Plus, SlidersHorizontal, Sun, X, BriefcaseBusiness, Link2, Database, type LucideIcon, SquarePen } from 'lucide-react';
-import WeatherCard, { WeatherCitySelect } from './weather';
+import WeatherCard, { WeatherCitySelect, useForecast } from './weather';
 import NewsHub, { HomeNews } from './news-hub';
 import AudioHub, { AudioEntryModal } from './audio-hub';
 import GamesHub, { GameEntryModal } from './games-hub';
@@ -15,7 +15,7 @@ import UnifiedSearch from './unified-search';
 import {spotifyMusicDraft} from '@/lib/music';
 import CalendarHub, { useCalendarSnapshot } from './calendar-hub';
 import HubNavigation from './hub-navigation';
-import WeekAgenda, { HomeTasks, NextSchedule } from './home-dashboard';
+import WeekBoard, { HomeHero, HomeTasks } from './home-dashboard';
 import NoteEditor from './note-editor';
 import { HomeMusic } from './hobby-highlights';
 import RecordList from './record-list';
@@ -128,6 +128,8 @@ export default function Hub({section}:{section:string}) {
   const hiddenNewWidgets=data.preferences.hiddenNewWidgets??[];
   const visible=(w:string)=>newWidgets.includes(w)?!hiddenNewWidgets.includes(w):mediaWidgets.includes(w)?mediaWidgetVisible(data.preferences,w):data.preferences.widgets.includes(w);
   const homeOrder=[...new Set([...(data.preferences.homeOrder??[]),...homeSections])].filter(id=>id!=='week');
+  const homeForecast=useForecast(data.preferences.city,ready&&section==='home'&&(visible('weather')||visible('calendar')));
+  function addTodo(title:string){return save({id:crypto.randomUUID(),kind:'todo',title,detail:'',category:'',status:'',url:'',date:today,done:false,createdAt:new Date().toISOString()},{message:'오늘 할 일에 추가했어요.'});}
   const calendarEntries=entries('event');
   const hiddenCalendars=data.preferences.calendarHiddenSources??[];
   const savedFixtures=data.preferences.savedFixtures??[];
@@ -149,7 +151,6 @@ export default function Hub({section}:{section:string}) {
   }
   const editEvent=(entry:Entry)=>setModal({kind:'event',entry});
   function toggleWidget(id:string,enabled:boolean){if(newWidgets.includes(id)){preference({hiddenNewWidgets:enabled?hiddenNewWidgets.filter(w=>w!==id):[...hiddenNewWidgets,id]});}else if(mediaWidgets.includes(id)){const current=data.preferences.mediaWidgets??mediaWidgets;preference({mediaWidgets:enabled?[...current,id]:current.filter(w=>w!==id)});}else preference({widgets:enabled?[...data.preferences.widgets,id]:data.preferences.widgets.filter(w=>w!==id)});}
-  const dateLabel=now?new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'long',day:'numeric',weekday:'long'}).format(now):'오늘의 공간을 준비하고 있어요';
   function exportData(){const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`woong-hub-${today}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notify('HUB 백업 파일을 내보냈어요.');}
   function exportLegacy(){if(!sync.migration)return;const url=URL.createObjectURL(new Blob([JSON.stringify(sync.migration,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`woong-hub-before-migration-${today}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   async function importFile(file?:File){if(!file)return;try{if(file.size>10*1024*1024)throw new Error('10MB 이하의 백업 파일을 선택해주세요.');setPendingImport(validateData(JSON.parse(await file.text())));}catch(e){notify(e instanceof Error?e.message:'백업을 읽지 못했어요.');}if(fileRef.current)fileRef.current.value='';}
@@ -190,9 +191,9 @@ export default function Hub({section}:{section:string}) {
   }:{};
 
   return <div className={section==='home'?'app-shell journal-home':'app-shell'}>
-    <HubNavigation section={section} dark={data.preferences.theme==='dark'}
+    <HubNavigation section={section}
       hasNotifications={events.some(event=>event.date.startsWith(today))} notificationOpen={notificationOpen}
-      onSearch={()=>setSearchOpen(true)} onTheme={()=>preference({theme:data.preferences.theme==='dark'?'light':'dark'})}
+      onSearch={()=>setSearchOpen(true)}
       onNotifications={()=>setNotificationOpen(value=>!value)}
       onQuickAdd={section==='home'&&ready?()=>setQuickAddOpen(true):undefined}/>
     <div className="workspace hub-workspace">
@@ -201,18 +202,16 @@ export default function Hub({section}:{section:string}) {
         <div className="sync-status-row"><SyncIndicator/></div>
         <SyncNotice onLegacyBackup={exportLegacy}/>
         {!ready?<div className="loading-state"><AudioLines size={36}/><p>{sync.phase==='connecting'?'나의 서버 저장소를 확인하고 있어요.':'서버에 다시 연결하면 기록을 불러옵니다.'}</p>{sync.phase!=='connecting'&&<button className="button secondary" onClick={()=>void sync.client.retry()}>다시 연결</button>}</div>:section==='home'?<>
-          <header className="hub-today-heading">
-            <h1>오늘</h1>
-            <p className="hub-date">{today ? <time dateTime={today}>{dateLabel}</time> : '한국 시간 확인 중'}</p>
-            {visible('weather')&&<WeatherCard city={data.preferences.city} onCityChange={city=>preference({city})} compact/>}
-            <button type="button" className="icon-button journal-widget-settings" aria-label="홈 위젯 설정" aria-haspopup="dialog" onClick={()=>setEditWidgets(true)}><SlidersHorizontal size={18}/></button>
+          <header className="home-hero">
+            <HomeHero now={now?.getTime()??0} today={today} events={homeEvents} entries={data.entries}/>
+            {visible('weather')&&<WeatherCard city={data.preferences.city} onCityChange={city=>preference({city})} compact state={homeForecast}/>}
+            <button type="button" className="home-round home-widget-settings" aria-label="홈 위젯 설정" aria-haspopup="dialog" onClick={()=>setEditWidgets(true)}><SlidersHorizontal size={18}/></button>
           </header>
-          {visible('calendar')&&<WeekAgenda userId={sync.userId} today={today} events={homeEvents} entries={calendarEntries} hidden={hiddenCalendars} calendar={calendar} onEdit={editEvent} onAdd={addCalendarEvent}/>}
-          <div className="journal-overview">
-            {visible('calendar')&&<NextSchedule now={now?.getTime()??0} today={today} events={homeEvents} entries={calendarEntries} calendar={calendar} onEdit={editEvent}/>}
-            {visible('todos')&&<HomeTasks today={today} entries={data.entries} onEdit={openEntry} onToggle={toggle}/>}
+          <div className="home-main" data-single={!(visible('calendar')&&visible('todos'))||undefined}>
+            {visible('calendar')&&<WeekBoard now={now?.getTime()??0} userId={sync.userId} today={today} events={homeEvents} entries={calendarEntries} hidden={hiddenCalendars} calendar={calendar} forecast={homeForecast.weather} onEdit={editEvent} onAdd={addCalendarEvent}/>}
+            {visible('todos')&&<HomeTasks today={today} entries={data.entries} onEdit={openEntry} onToggle={toggle} onAdd={addTodo}/>}
           </div>
-          <div className="hub-home-panels">{homeOrder.map(id=><Fragment key={id}>{homePanels[id]}</Fragment>)}</div>
+          <div className="hub-home-panels home-bento">{homeOrder.map(id=><Fragment key={id}>{homePanels[id]}</Fragment>)}</div>
         </>:<>
           {section!=='news'&&<div className="page-heading section-heading"><div><h1>{currentInfo?.title}</h1><p>{currentInfo?.description}</p></div>{currentInfo?.kind&&!['audio','music','calendar'].includes(section)&&<button className="button primary" onClick={()=>setModal({kind:activeKind})}><Plus size={15}/>{kindLabels[activeKind]} 추가</button>}</div>}
           {section==='hobbies'?<HobbyDirectory/>:section==='football'?<FootballHub saved={savedFixtureIds} onSave={addFixture}/>:section==='watch'?<WatchHub entries={entries('watch')} today={today} onProgress={recordWatchProgress} onAdd={watchType=>setModal({kind:'watch',watchType})} onEdit={openEntry} onDelete={setDeleteEntry} onSave={save}/>:section==='settings'?<div className="settings-grid settings-sections">

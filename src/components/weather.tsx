@@ -100,15 +100,19 @@ function DailyForecast({ forecast }: { forecast: Forecast }) {
   </ol>;
 }
 
-type WeatherForecast = Omit<Forecast,'hours'> & { hours: (Forecast['hours'][number] & { rainAmount?: number | null })[]; source?: 'met-norway' };
+export type WeatherForecast = Omit<Forecast,'hours'> & { hours: (Forecast['hours'][number] & { rainAmount?: number | null })[]; source?: 'met-norway' };
 type RequestResult = { city: string; retry: number; forecast: WeatherForecast | null };
+export type ForecastState = { settled: boolean; weather: WeatherForecast | null; retry: () => void };
 
-export default function WeatherCard({ city, onCityChange, compact = false }: { city: string; onCityChange: (city: string) => void; compact?: boolean }) {
+export { condition as weatherCondition, degrees as weatherDegrees };
+
+/** Loads one city's forecast; the home page shares a single request between the weather widget and the weekly board. */
+export function useForecast(city: string, enabled = true): ForecastState {
   const [result, setResult] = useState<RequestResult>();
   const [retry, setRetry] = useState(0);
-  const [period, setPeriod] = useState<'hourly' | 'daily'>('hourly');
 
   useEffect(() => {
+    if (!enabled) return;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
     let active = true;
@@ -137,10 +141,18 @@ export default function WeatherCard({ city, onCityChange, compact = false }: { c
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [city, retry]);
+  }, [city, retry, enabled]);
 
   const settled = result?.city === city && result.retry === retry;
-  const weather = settled ? result.forecast : null;
+  return { settled, weather: settled ? result.forecast : null, retry: () => setRetry(value => value + 1) };
+}
+
+export default function WeatherCard({ city, onCityChange, compact = false, state }: {
+  city: string; onCityChange: (city: string) => void; compact?: boolean; state?: ForecastState;
+}) {
+  const own = useForecast(city, !state);
+  const { settled, weather, retry } = state ?? own;
+  const [period, setPeriod] = useState<'hourly' | 'daily'>('hourly');
   const today = weather?.days.find(day => day.time === weather.current.time.slice(0, 10));
   const { Icon, label } = condition(weather?.current.code ?? null, weather?.current.night);
   const hasForecast = period === 'hourly' ? weather?.hours.length : weather?.days.length;
@@ -161,7 +173,7 @@ export default function WeatherCard({ city, onCityChange, compact = false }: { c
     {!settled ? <div className="weather-pending" role="status"><Cloud size={42}/><p>날씨를 불러오는 중</p></div>
       : !weather ? <div className="weather-pending" role="status">
         <Cloud size={38}/><p>날씨를 불러오지 못했어요</p>
-        <button type="button" className="text-button blue weather-retry" onClick={() => setRetry(value => value + 1)}><RefreshCw size={13}/>다시 시도</button>
+        <button type="button" className="text-button blue weather-retry" onClick={retry}><RefreshCw size={13}/>다시 시도</button>
       </div>
       : <>
         <div className="weather-layout">
@@ -196,11 +208,33 @@ export default function WeatherCard({ city, onCityChange, compact = false }: { c
   </section>;
 
   if (!compact) return panel;
-  return <details className="hub-weather-summary">
-    <summary><Icon size={20} aria-hidden="true"/><strong>{cityLabel}{weather && ` · ${degrees(weather.current.temperature)}`}</strong>
-      <span className="hub-weather-detail">{weatherSummary}</span>
-      <span className="hub-weather-toggle">예보</span>
+  const hours = weather?.hours.slice(0, 24) ?? [];
+  const alert = wetHour ? weatherSummary : '';
+  return <details className="home-weather">
+    <summary aria-label={`${cityLabel ?? '날씨'} ${weather ? degrees(weather.current.temperature)+' '+label : weatherSummary}, 예보 펼치기`}>
+      <Icon className="home-weather-icon" size={34} strokeWidth={1.7} aria-hidden="true"/>
+      <span className="home-weather-now">
+        <strong>{weather ? degrees(weather.current.temperature) : '–'}</strong>
+        <span>{weather ? label : weatherSummary}</span>
+      </span>
+      <span className="home-weather-meta">{cityLabel}{today && ` · 최고 ${degrees(today.high)} 최저 ${degrees(today.low)}`}</span>
+      {alert && <span className="home-weather-alert">{alert}</span>}
+      {hours.length > 1 && <HourlySpark hours={hours}/>}
     </summary>
     {panel}
   </details>;
+}
+
+/** A small temperature curve for the next 24 hours, drawn from the same hourly forecast as the detailed list. */
+function HourlySpark({ hours }: { hours: WeatherForecast['hours'] }) {
+  const temps = hours.map(hour => hour.temperature ?? NaN);
+  const known = temps.filter(Number.isFinite);
+  if (known.length < 2) return null;
+  const min = Math.min(...known), max = Math.max(...known), span = max - min || 1;
+  const points = temps.map((temp, index) => Number.isFinite(temp) ? `${(index / (temps.length - 1) * 300).toFixed(1)},${(36 - (temp - min) / span * 30).toFixed(1)}` : '').filter(Boolean);
+  const marks = [0, 6, 12, 18].filter(index => index < hours.length).map(index => ({ index, text: index === 0 ? '지금' : `${hours[index].time.slice(11, 13)}시` }));
+  return <span className="home-weather-spark" aria-hidden="true">
+    <svg viewBox="0 0 300 40" preserveAspectRatio="none"><path className="home-weather-area" d={`M${points.join(' L')} L300,40 L0,40 Z`}/><path className="home-weather-line" d={`M${points.join(' L')}`}/></svg>
+    <span>{marks.map(mark => <span key={mark.index}>{mark.text}</span>)}</span>
+  </span>;
 }

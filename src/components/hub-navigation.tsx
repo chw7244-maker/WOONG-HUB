@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Ellipsis, House, Layers3, Moon, Newspaper, Settings2, StickyNote, Sun, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Ellipsis, House, Layers3, Newspaper, Settings2, StickyNote, type LucideIcon } from 'lucide-react';
 import Dialog from './dialog';
 import { hobbyPages } from './hobby-directory';
 
@@ -26,10 +26,10 @@ const morePages: { id: string; label: string; icon: LucideIcon; layout?: 'deskto
 const href = (id: string) => id === 'home' ? '/' : `/${id}/`;
 
 export default function HubNavigation({
-  section, dark, hasNotifications, notificationOpen, onSearch, onTheme, onNotifications, onQuickAdd,
+  section, hasNotifications, notificationOpen, onSearch, onNotifications, onQuickAdd,
 }: {
-  section: string; dark: boolean; hasNotifications: boolean; notificationOpen: boolean;
-  onSearch: () => void; onTheme: () => void; onNotifications: () => void;
+  section: string; hasNotifications: boolean; notificationOpen: boolean;
+  onSearch: () => void; onNotifications: () => void;
   onQuickAdd?: () => void;
 }) {
   const [more, setMore] = useState(false);
@@ -52,10 +52,9 @@ export default function HubNavigation({
           {moreButton(false)}
         </nav>
         <div className="hub-header-actions">
-          <button type="button" className="icon-button" aria-label="내 공간 검색" onClick={onSearch}><span className="journal-icon journal-search-icon" aria-hidden="true"/></button>
-          <button type="button" className="icon-button" aria-label={dark ? '라이트 테마로 전환' : '다크 테마로 전환'} onClick={onTheme}>{dark ? <Sun size={18}/> : <Moon size={18}/>}</button>
-          <button type="button" className="icon-button notification-button" aria-label="알림 보기" aria-expanded={notificationOpen} onClick={onNotifications}><Bell size={18}/>{hasNotifications && <i/>}</button>
-          {onQuickAdd && <button type="button" className="button primary journal-quick-add" aria-haspopup="dialog" onClick={onQuickAdd}><span className="journal-icon journal-plus-icon" aria-hidden="true"/>추가</button>}
+          <button type="button" className="hub-search-trigger" aria-label="내 공간 검색" onClick={onSearch}><span className="journal-icon journal-search-icon" aria-hidden="true"/><span className="hub-search-label">검색</span><kbd>Ctrl K</kbd></button>
+          <button type="button" className="hub-round-button notification-button" aria-label="알림 보기" aria-expanded={notificationOpen} onClick={onNotifications}><Bell size={18}/>{hasNotifications && <i/>}</button>
+          {onQuickAdd && <button type="button" className="button primary journal-quick-add" aria-haspopup="dialog" aria-label="추가" onClick={onQuickAdd}><span className="journal-icon journal-plus-icon" aria-hidden="true"/><span className="journal-quick-add-label">추가</span></button>}
         </div>
       </div>
     </header>

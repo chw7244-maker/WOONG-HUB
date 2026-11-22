@@ -1,7 +1,7 @@
 .hub-home-panels > :is(.hub-home-section,.hub-week-compact,.quick-links-section,.briefing-card) { margin-top: 0; }
 .hub-summary-card {
   --hub-summary-muted: color-mix(in srgb, var(--muted) 82%, var(--text));
-  --hub-summary-accent: color-mix(in srgb, var(--blue) 88%, var(--text));
+  --hub-summary-accent: color-mix(in srgb, var(--accent) 88%, var(--text));
   --hub-summary-padding: 1rem;
   --hub-summary-radius: 1rem;
   min-width: 0;
@@ -35,7 +35,7 @@
   box-sizing: content-box;
   padding: .375rem;
   border-radius: .5rem;
-  background: var(--blue-soft);
+  background: var(--accent-soft);
   color: var(--hub-summary-accent);
 }
 .hub-summary-heading small {
@@ -70,7 +70,7 @@
 .home-task-list .task-row + .task-row { border-top: 1px solid var(--border); }
 .home-task-list .task-checkbox { width: 44px; height: 44px; border: 0; border-radius: 8px; }
 .home-task-list .task-checkbox::before { content: ''; width: 18px; height: 18px; border: 1px solid var(--hub-summary-muted); border-radius: 5px; }
-.home-task-list .task-checkbox:hover::before { border-color: var(--blue); background: var(--blue-soft); }
+.home-task-list .task-checkbox:hover::before { border-color: var(--accent); background: var(--accent-soft); }
 .home-task-list .task-title {
   display: flex;
   align-items: center;
@@ -86,7 +86,7 @@
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
-.home-task-list .task-title:hover { color: var(--blue); }
+.home-task-list .task-title:hover { color: var(--accent); }
 .home-task-list .task-title :is(small,svg) { color: var(--hub-summary-muted); }
 .home-task-list .task-title small { font-size: .8125rem; }
 .home-task-group { border-top: 1px solid var(--border); }
@@ -120,7 +120,7 @@
   font-size: 16px;
 }
 .home-add-options > button:hover { background: var(--hover); }
-.home-add-options svg { color: var(--blue); }
+.home-add-options svg { color: var(--accent); }
 
 .hub-home-panels .quick-links-section > .panel-heading { margin-bottom: 7px; }
 .hub-home-panels .quick-links-section h2 { font-size: 17px; }
@@ -143,13 +143,13 @@
 .hub-week-compact { margin-top: 18px; }
 .hub-week-compact .hub-summary-heading, .hub-resume-card .hub-summary-heading { margin-bottom: .625rem; }
 .hub-week-compact .hub-week-days button { min-height: 52px; gap: 1px; border-radius: 8px; background: var(--panel-soft); }
-.hub-week-compact .hub-week-days button[aria-pressed=true] { background: var(--blue-soft); }
+.hub-week-compact .hub-week-days button[aria-pressed=true] { background: var(--accent-soft); }
 .hub-week-compact .hub-week-days button strong { font-size: 16px; }
 .hub-week-compact .hub-week-actions .icon-button { min-height: 44px; width: 44px; }
 .hub-workspace .hub-week-compact .hub-week-actions .text-button { min-height: 44px; }
 .hub-week-summary { display: flex; justify-content: space-between; align-items: center; gap: 6px 12px; margin-top: 4px; }
 .hub-week-summary > button { min-width: 0; text-align: start; min-height: 44px; display: flex; align-items: center; gap: 6px; }
-.hub-week-summary > button svg { flex-shrink: 0; color: var(--blue); }
+.hub-week-summary > button svg { flex-shrink: 0; color: var(--accent); }
 .hub-week-summary > button[aria-expanded=true] svg { rotate: 180deg; }
 .hub-week-summary small { color: var(--muted); font-size: 12px; }
 .hub-week-summary > a, .hub-week-compact #home-week-agenda > button { flex-shrink: 0; min-height: 44px; }
@@ -165,7 +165,7 @@
   background: var(--panel-soft);
   border-radius: 11px;
 }
-.hub-continuation-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 8px; background: var(--blue-soft); color: var(--blue); }
+.hub-continuation-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
 .hub-continuation-copy { display: grid; gap: 1px; flex: 1; min-width: 0; }
 .hub-continuation-copy :is(a,button) { text-align: start; font-weight: 650; font-size: 14px; overflow-wrap: anywhere; justify-self: start; }
 .hub-continuation-copy :is(a,button):hover { text-decoration: underline; }

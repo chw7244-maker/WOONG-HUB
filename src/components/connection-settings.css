@@ -33,7 +33,7 @@
 
 .connection-title svg {
   flex-shrink: 0;
-  color: var(--blue);
+  color: var(--accent);
 }
 
 .connection-title .badge {

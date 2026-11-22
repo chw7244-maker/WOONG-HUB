@@ -16,11 +16,11 @@
   gap: 18px;
 }
 .hub-wordmark { display: inline-flex; align-items: center; gap: 9px; white-space: nowrap; font-size: 14px; font-weight: 700; letter-spacing: .045em; }
-.hub-brand-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--blue-soft); color: var(--blue); }
+.hub-brand-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); }
 .hub-desktop-nav, .hub-header-actions { display: flex; align-items: center; gap: 5px; }
 .hub-desktop-nav > :is(a,button) { display: inline-grid; place-items: center; min-height: 44px; padding: 0 14px; color: var(--muted); font-size: 14px; white-space: nowrap; border-radius: 8px; }
 .hub-desktop-nav > :is(a,button):hover { background: var(--hover); color: var(--text); }
-.hub-desktop-nav :is([aria-current],[data-active=true],[aria-expanded=true]) { color: var(--blue); background: var(--blue-soft); font-weight: 650; }
+.hub-desktop-nav :is([aria-current],[data-active=true],[aria-expanded=true]) { color: var(--accent); background: var(--accent-soft); font-weight: 650; }
 .hub-header-actions > .icon-button { width: 36px; height: 40px; }
 .hub-header-actions .notification-button i { top: 10px; right: 8px; }
 .hub-bottom-nav { display: none; }
@@ -43,11 +43,11 @@
   background: var(--panel); padding: 5px 0; border: 1px solid transparent; border-radius: 9px;
 }
 .hub-week-days button:hover { border-color: var(--border); }
-.hub-week-days button[aria-pressed=true] { color: var(--blue); background: var(--blue-soft); border-color: var(--blue); }
+.hub-week-days button[aria-pressed=true] { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
 .hub-week-days button small { color: var(--muted); font-size: 11px; }
 .hub-week-days button strong { font-size: 19px; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .hub-week-days button > span { width: 4px; height: 4px; border-radius: 50%; }
-.hub-week-days button > .has-events { background: var(--blue); }
+.hub-week-days button > .has-events { background: var(--accent); }
 .hub-agenda-heading { display: flex; align-items: center; justify-content: space-between; gap: 7px; margin-top: 7px; }
 .hub-agenda-heading h3 { margin: 0; font-size: 14px; }
 .hub-agenda-list { display: grid; list-style: none; padding: 0; margin: 0; }
@@ -55,7 +55,7 @@
 .hub-agenda-list li small { color: var(--muted); font-size: 12px; }
 .hub-agenda-list li :is(button, a, span) { text-align: start; justify-self: start; min-width: 0; overflow-wrap: anywhere; }
 .hub-agenda-list li :is(button, a) { display: inline-flex; align-items: center; gap: 7px; padding: 5px 0; }
-.hub-agenda-list li a svg { flex-shrink: 0; color: var(--blue); }
+.hub-agenda-list li a svg { flex-shrink: 0; color: var(--accent); }
 .hub-agenda-empty { display: flex; align-items: center; gap: 7px; color: var(--muted); margin: 6px 0 8px; font-size: 13px; }
 .hub-resume-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; align-items: start; }
 .hub-resume-grid:has(> :nth-child(2):last-child) { grid-template-columns: repeat(2,minmax(0,1fr)); }
@@ -81,7 +81,7 @@
 .hub-highlight-row { display: grid; width: 100%; grid-template-columns: minmax(0,1fr) auto; text-align: start; align-items: center; column-gap: 9px; padding: 7px 9px; border-radius: 8px; }
 .hub-highlight-row small { grid-column: 1/-1; }
 .hub-highlight-row strong { overflow-wrap: anywhere; }
-.hub-highlight-row svg { color: var(--blue); }
+.hub-highlight-row svg { color: var(--accent); }
 .hub-game-highlights { display: grid; gap: 14px; }
 .hub-game-highlights.has-playing { grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; }
 .hub-game-highlights .hub-highlight { margin-bottom: 0; }
@@ -97,9 +97,9 @@
 }
 .hub-note-form { height: 100%; display: flex; flex-direction: column; }
 .hub-note-toolbar { display: flex; justify-content: space-between; align-items: center; flex: none; padding: 12px 18px; }
-.hub-note-toolbar button { min-height: 44px; font-size: 15px; font-weight: 650; color: var(--blue); }
+.hub-note-toolbar button { min-height: 44px; font-size: 15px; font-weight: 650; color: var(--accent); }
 .hub-note-back { display: inline-flex; align-items: center; gap: 3px; padding: 0 8px 0 3px; }
-.hub-note-done { border-radius: 999px; background: var(--blue-soft); padding: 0 17px; }
+.hub-note-done { border-radius: 999px; background: var(--accent-soft); padding: 0 17px; }
 .hub-note-paper { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; padding: 10px clamp(21px,5vw,39px) 24px; }
 .hub-note-status { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
 .hub-note-title, .hub-note-writing {
@@ -119,7 +119,7 @@
 .hub-note-fields :is(select,input) { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--border); font-size: 16px; }
 .hub-note-message { font-size: 12px; margin: 0 0 10px; }
 .hub-note-writing { flex: 1 0 145px; min-height: 145px; font-size: 17px; line-height: 1.72; resize: none; overscroll-behavior-y: contain; }
-.hub-note-title:focus-visible, .hub-note-writing:focus-visible { outline: 1px solid var(--blue); outline-offset: 5px; }
+.hub-note-title:focus-visible, .hub-note-writing:focus-visible { outline: 1px solid var(--accent); outline-offset: 5px; }
 
 @media (width > 760px) {
   .hub-more-dialog nav a[data-layout="mobile"] { display: none; }
@@ -141,7 +141,7 @@
     border-top: 1px solid var(--border); background: var(--sidebar);
   }
   .hub-bottom-nav > :is(a,button) { display: grid; place-content: center; justify-items: center; gap: 3px; min-height: 48px; min-width: 0; border-radius: 10px; color: var(--muted); font-size: 12px; line-height: 1.3; }
-  .hub-bottom-nav :is([aria-current],[data-active=true],[aria-expanded=true]) { color: var(--blue); background: var(--blue-soft); font-weight: 650; }
+  .hub-bottom-nav :is([aria-current],[data-active=true],[aria-expanded=true]) { color: var(--accent); background: var(--accent-soft); font-weight: 650; }
   .hub-workspace .page-heading { align-items: flex-start; }
   .hub-game-highlights.has-playing, .hub-resume-grid, .hub-resume-grid:has(> :nth-child(2):last-child) { grid-template-columns: minmax(0,1fr); }
   .hub-records-strip button { flex-basis: 44%; }

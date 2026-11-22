@@ -16,57 +16,26 @@
   unicode-range: U+0030-003A;
 }
 
+/* The journal palette itself lives in globals.css (:root tokens) and applies to every page. */
 .journal-home {
-  --bg: #211a16;
-  --sidebar: #272019;
-  --panel: #2d241e;
-  --panel-soft: #362a22;
-  --hover: #45362b;
-  --border: #503f33;
-  --text: #f6ebdf;
-  --muted: #c9b6a5;
-  --faint: #ad9684;
-  --blue: #ecc1a7;
-  --blue-soft: #4b3529;
-  --input: #2d241e;
   --journal-hero: #352820;
-  --journal-button: #dfae91;
-  --journal-button-text: #271a12;
   --journal-gap: clamp(1rem, 2.8vw, 2.375rem);
   --journal-columns: minmax(0, 1.85fr) minmax(0, 1fr);
   --journal-serif: 'Noto Serif KR', AppleMyungjo, Batang, serif;
-  color: var(--text);
-  background: var(--bg);
 }
 
-:root[data-theme=light] .journal-home {
-  --bg: #f6f1e8;
-  --sidebar: #f9f5ed;
-  --panel: #fbf7f0;
-  --panel-soft: #eee6da;
-  --hover: #e9ded0;
-  --border: #dad0c1;
-  --text: #261c17;
-  --muted: #69594c;
-  --faint: #806e60;
-  --blue: #754733;
-  --blue-soft: #eaddd0;
-  --input: #f9f5ed;
-  --journal-hero: #f0e6d8;
-  --journal-button: #754733;
-  --journal-button-text: #fff8f0;
-}
+:root[data-theme=light] .journal-home { --journal-hero: #f0e6d8; }
 
-.journal-home .hub-header { background: var(--sidebar); }
+.hub-header { background: var(--sidebar); }
 
-.journal-home .hub-header-inner {
+.hub-header-inner {
   max-width: 1440px;
   min-height: calc(70px + env(safe-area-inset-top));
   padding-inline: max(clamp(16px, 4vw, 56px), env(safe-area-inset-left)) max(clamp(16px, 4vw, 56px), env(safe-area-inset-right));
 }
 
-.journal-home .hub-wordmark { font-size: .9375rem; }
-.journal-home .hub-brand-mark { width: 33px; height: 33px; }
+.hub-wordmark { font-size: .9375rem; }
+.hub-brand-mark { width: 33px; height: 33px; }
 
 .journal-icon {
   display: inline-block;
@@ -81,13 +50,6 @@
 .journal-plus-icon { --journal-icon: url('/journal/plus.svg'); --journal-icon-size: 17px; }
 .journal-calendar-icon { --journal-icon: url('/journal/calendar.svg'); --journal-icon-size: 15px; }
 
-.journal-home .button.primary {
-  color: var(--journal-button-text);
-  background: var(--journal-button);
-}
-.journal-home .button.primary:hover {
-  background: color-mix(in srgb, var(--journal-button), var(--journal-button-text) 12%);
-}
 .journal-quick-add {
   gap: .4375rem;
   min-height: 44px;
@@ -153,7 +115,7 @@
 .journal-home .hub-summary-action {
   min-height: 44px;
   padding-inline: 0;
-  color: var(--blue);
+  color: var(--accent);
   background: transparent;
 }
 .journal-home .hub-summary-action:hover { text-decoration: underline; }
@@ -164,7 +126,7 @@
   width: clamp(34px, 6vw, 44px);
   min-height: 44px;
 }
-.journal-home .hub-week-actions .text-button { min-width: 38px; color: var(--blue); font-size: .8125rem; }
+.journal-home .hub-week-actions .text-button { min-width: 38px; color: var(--accent); font-size: .8125rem; }
 .journal-home .journal-week-range { margin-inline-end: .375rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .journal-home .hub-week-days button {
   min-height: 52px;
@@ -175,8 +137,8 @@
   font-family: 'Journal Numbers', 'DM Sans', system-ui, sans-serif;
   font-weight: 700;
 }
-.journal-home .hub-week-days button:hover { border-color: var(--blue); }
-.journal-home .hub-week-days button[aria-pressed=true] { border-color: transparent; background: var(--blue-soft); }
+.journal-home .hub-week-days button:hover { border-color: var(--accent); }
+.journal-home .hub-week-days button[aria-pressed=true] { border-color: transparent; background: var(--accent-soft); }
 .journal-home .hub-week-days button[aria-pressed=true] small { color: inherit; }
 .journal-home .hub-week-summary > button { flex: 1; gap: .375rem; padding-inline: 0; }
 .journal-home .hub-week-summary > button > strong {
@@ -284,7 +246,7 @@
 }
 
 @media (max-width: 760px) {
-  .journal-home .hub-header-inner {
+  .hub-header-inner {
     min-height: calc(64px + env(safe-area-inset-top));
     gap: .375rem;
   }
@@ -305,7 +267,7 @@
 }
 
 @media (max-width: 370px) {
-  .journal-home .hub-brand-name {
+  .hub-brand-name {
     position: absolute;
     width: 1px;
     height: 1px;

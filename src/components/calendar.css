@@ -16,11 +16,11 @@
 .calendar-saved-matches ul { list-style: none; margin: 0; padding: 0; }
 .calendar-saved-matches li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-block: 6px; border-top: 1px solid var(--border); }
 .calendar-saved-matches li > div { min-width: 0; display: grid; }
-.calendar-match-date { min-height: 44px; padding: 3px 0; text-align: start; color: var(--blue); font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
+.calendar-match-date { min-height: 44px; padding: 3px 0; text-align: start; color: var(--accent); font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
 .calendar-saved-matches li > button { flex: none; min-height: 44px; font-size: 13px; }
 .calendar-source-trigger { display: flex; align-items: center; width: 100%; gap: 8px; min-height: 50px; text-align: start; }
 .calendar-source-trigger strong { font-size: 15px; }
-.calendar-source-trigger > svg:first-child { color: var(--blue); }
+.calendar-source-trigger > svg:first-child { color: var(--accent); }
 .calendar-source-trigger small { color: var(--muted); margin-inline-start: auto; font-size: 12px; }
 .calendar-source-trigger[aria-expanded=true] > svg:last-child { rotate: 180deg; }
 .calendar-source-controls { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -28,7 +28,7 @@
 .calendar-source-options { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); gap: 5px 13px; padding: 0 0 12px; }
 .calendar-source-toggle { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 3px 6px; border-radius: 7px; }
 .calendar-source-toggle:hover { background: var(--hover); }
-.calendar-source-toggle input { width: 17px; height: 17px; accent-color: var(--blue); flex: none; }
+.calendar-source-toggle input { width: 17px; height: 17px; accent-color: var(--accent); flex: none; }
 .calendar-source-toggle > span:last-child { display: grid; min-width: 0; overflow-wrap: anywhere; }
 .calendar-source-toggle small { color: var(--muted); font-size: 11px; }
 .calendar-source-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
@@ -43,7 +43,7 @@
 .connected-month-grid > span { min-width: 0; color: var(--muted); }
 .connected-month-grid button { display: grid; justify-items: center; align-content: center; gap: 2px; min-width: 0; min-height: 57px; background: var(--panel-soft); border: 1px solid transparent; border-radius: 7px; }
 .connected-month-grid button:hover { border-color: var(--border); }
-.connected-month-grid button[aria-pressed=true] { color: var(--blue); background: var(--blue-soft); border-color: var(--blue); }
+.connected-month-grid button[aria-pressed=true] { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
 .connected-month-grid button.is-today b { text-decoration: underline; text-underline-offset: 3px; }
 .connected-month-grid b { font-size: 15px; }
 .calendar-event-dots { display: flex; gap: 2px; min-height: 4px; }
@@ -57,12 +57,12 @@
 .connected-event > div { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 .connected-event :is(button,a,strong) { text-align: start; justify-self: start; font-size: 14px; font-weight: 600; }
 .connected-event a { display: inline-flex; align-items: center; gap: 5px; }
-.connected-event a svg { flex: none; color: var(--blue); }
+.connected-event a svg { flex: none; color: var(--accent); }
 .connected-event small, .calendar-agenda-empty, .calendar-range-warning { color: var(--muted); font-size: 12px; margin: 5px 0; }
 .connected-event .calendar-match-notice { margin-block: 0; }
 .calendar-sync-info { border-top: 1px solid var(--border); padding: 12px 0 3px; color: var(--muted); font-size: 13px; }
 .calendar-sync-info > div { display: flex; align-items: center; gap: 6px; }
-.calendar-sync-info > div svg { color: var(--blue); }
+.calendar-sync-info > div svg { color: var(--accent); }
 .calendar-sync-info p { margin: 4px 0; }
 .calendar-sync-info button { min-height: 44px; font-size: 13px; }
 .connected-calendar-loading { color: var(--muted); }
@@ -71,7 +71,7 @@
   .calendar-view-grid .connected-month:not(.open-mobile) { display: none; }
   .connected-agenda { background: transparent; border: 0; padding: 0; }
   .calendar-agenda-nav { display: flex; margin-bottom: 6px; }
-  .calendar-month-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--blue); margin-inline-start: auto; }
+  .calendar-month-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--accent); margin-inline-start: auto; }
   .connected-month-grid button { min-height: 47px; }
   .connected-event :is(button,a) { min-height: 38px; }
 }

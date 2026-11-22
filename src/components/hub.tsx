@@ -185,8 +185,8 @@ export default function Hub({section}:{section:string}) {
       {entries('bookmark').length>0&&<div className="personal-links">{entries('bookmark').slice(0,6).map(e=><a href={safeUrl(e.url)} target="_blank" rel="noreferrer" key={e.id}><Link2 size={12}/>{e.title}<ArrowUpRight size={12}/></a>)}</div>}
     </section>,
     news:(visible('news')||visible('football'))&&<div className="journal-news-column">
-      {visible('news')&&<HomeNews documentRevision={sync.revision}/>}
       {visible('football')&&<HomeMatch now={now} football={football} saved={savedFixtureIds} onSave={addFixture}/>}
+      {visible('news')&&<HomeNews documentRevision={sync.revision}/>}
     </div>,
   }:{};
 
@@ -205,11 +205,14 @@ export default function Hub({section}:{section:string}) {
           <header className="home-hero">
             <HomeHero now={now?.getTime()??0} today={today} events={homeEvents} entries={data.entries}/>
             {visible('weather')&&<WeatherCard city={data.preferences.city} onCityChange={city=>preference({city})} compact state={homeForecast}/>}
-            <button type="button" className="home-round home-widget-settings" aria-label="홈 위젯 설정" aria-haspopup="dialog" onClick={()=>setEditWidgets(true)}><SlidersHorizontal size={18}/></button>
           </header>
           <div className="home-main" data-single={!(visible('calendar')&&visible('todos'))||undefined}>
             {visible('calendar')&&<WeekBoard now={now?.getTime()??0} userId={sync.userId} today={today} events={homeEvents} entries={calendarEntries} hidden={hiddenCalendars} calendar={calendar} forecast={homeForecast.weather} onEdit={editEvent} onAdd={addCalendarEvent}/>}
             {visible('todos')&&<HomeTasks today={today} entries={data.entries} onEdit={openEntry} onToggle={toggle} onAdd={addTodo}/>}
+          </div>
+          <div className="home-section-bar">
+            <h2>더 둘러보기</h2>
+            <button type="button" className="home-link" aria-haspopup="dialog" onClick={()=>setEditWidgets(true)}><SlidersHorizontal size={15} aria-hidden="true"/>홈 위젯 편집</button>
           </div>
           <div className="hub-home-panels home-bento">{homeOrder.map(id=><Fragment key={id}>{homePanels[id]}</Fragment>)}</div>
         </>:<>

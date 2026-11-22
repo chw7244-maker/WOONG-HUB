@@ -94,7 +94,17 @@ export default function WeekBoard({ now, today, events, entries, hidden, calenda
   const next = nextDashboardEvent(events, now, today);
   const nextKey = next ? eventKey(next.event) : '';
   const weather = new Map(forecast?.days.map(day => [day.time, day]) ?? []);
-  const agenda = dashboardDay(events, selected);
+  // With today selected the list shows the rest of this week (as in the mockup); any other day shows that day.
+  const weekView = selected === today;
+  const seen = new Set<string>([nextKey]);
+  const agenda = weekView
+    ? days.filter(day => day >= today).flatMap(day => dashboardDay(events, day).filter(event => {
+      const key = eventKey(event);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map(event => ({ event, day })))
+    : dashboardDay(events, selected).map(event => ({ event, day: selected }));
   const snapshot = calendar.data?.snapshot;
   const outside = snapshot && snapshot.sources.some(source => !hidden.includes(source.id)) &&
     (selected < snapshot.rangeStart || selected >= snapshot.rangeEnd);
@@ -147,15 +157,18 @@ export default function WeekBoard({ now, today, events, entries, hidden, calenda
         </span>
       </div>}
       <div className="home-agenda-heading">
-        <h3>{selected === today ? '오늘 일정' : label(selected)} <span>{agenda.length}건</span></h3>
+        <h3>{weekView ? (next ? '이번 주 다른 일정' : '이번 주 일정') : label(selected)} <span>{agenda.length}건</span></h3>
         <button type="button" className="home-link" onClick={() => onAdd(selected)}><Plus size={14}/>일정 추가</button>
       </div>
       {agenda.length ? <ul className="home-agenda-list">
-        {agenda.map(event => <li key={eventKey(event)} data-kind={event.sourceId === footballSourceId ? 'match' : undefined}>
-          <small>{calendarPeriod(event)}</small>
-          <AgendaLink event={event} entry={localEntry(event, entries)} onEdit={onEdit}/>
+        {agenda.map(({ event, day }) => <li key={eventKey(event)} data-kind={event.sourceId === footballSourceId ? 'match' : undefined}>
+          <span className="home-agenda-day"><small>{day === today ? '오늘' : short(day)}</small><strong>{Number(day.slice(-2))}</strong></span>
+          <span className="home-agenda-copy">
+            <AgendaLink event={event} entry={localEntry(event, entries)} onEdit={onEdit}/>
+            <small>{calendarPeriod(event)}</small>
+          </span>
         </li>)}
-      </ul> : <p className="home-empty">{calendar.loading ? '일정을 불러오는 중이에요.' : '이날은 일정이 없어요.'}</p>}
+      </ul> : <p className="home-empty">{calendar.loading ? '일정을 불러오는 중이에요.' : weekView ? '이번 주에 다른 일정이 없어요.' : '이날은 일정이 없어요.'}</p>}
     </div>
     {outside && <p className="home-empty">외부 캘린더의 수동 반영 기간 밖이에요.</p>}
     {calendar.error && <p className="form-error" role="alert">{calendar.error}</p>}

@@ -8,6 +8,17 @@ import { clubFixturesUrl, clubName, fixtureCalendarHref, matchup, matchStatusLab
 const tableUrl = 'https://www.premierleague.com/en/tables/premier-league';
 const leagueSource = 'https://www.openligadb.de/';
 const kst = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const kickOffTime = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const kickOffDay = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', weekday: 'short' });
+
+/** A short badge label: MCI for City, initials or the first three letters for other clubs. */
+function crest(name: string) {
+  const club = clubName(name);
+  if (club === '맨시티') return 'MCI';
+  const words = club.replace(/\b(?:FC|AFC|CF|SC|AC)\b/gi, '').trim().split(/\s+/).filter(Boolean);
+  if (!/^[a-z]/i.test(words[0] ?? '')) return club.slice(0, 2);
+  return (words.length > 1 ? words.map(word => word[0]).join('') : words[0].slice(0, 3)).slice(0, 3).toUpperCase();
+}
 
 type Standing = { rank: number; teamId: number; name: string; matches: number; won: number; draw: number; lost: number; goalDiff: number; points: number; city: boolean };
 type Result = { id: string; home: string; away: string; kickOff: string; homeGoals: number; awayGoals: number };
@@ -67,15 +78,25 @@ function SourceNote<T>({ source, url, name }: { source?: Source<T> | null; url: 
   </p>;
 }
 
+function MatchTeam({ name, city }: { name: string; city: boolean }) {
+  return <span className="home-match-team" data-city={city || undefined}>
+    <span className="home-match-crest" aria-hidden="true">{crest(name)}</span><strong>{clubName(name)}</strong>
+  </span>;
+}
+
 export function HomeMatch({ now, football, saved, onSave }: FixtureActions & { now: Date | null; football: ReturnType<typeof useFootball> }) {
   const { data, busy, error } = football;
   const match = data?.fixtures?.items.find(item => item.postponed !== 'cancelled' && Date.parse(item.kickOff) >= (now?.getTime() ?? Date.now()));
+  const city = (team: string) => clubName(team) === '맨시티';
   return <section className="hub-summary-card hub-summary-stack home-match" aria-labelledby="home-match-title">
-    <div className="hub-summary-heading"><h2 id="home-match-title"><Goal size={18} aria-hidden="true"/>맨시티 다음 경기</h2></div>
+    <div className="hub-summary-heading"><h2 id="home-match-title"><Goal size={18} aria-hidden="true"/>맨시티 다음 경기</h2>{match && <small>{match.competition}</small>}</div>
     {match ? <>
-      <Link href="/football/#fixtures" className="home-match-name">{matchup(match)}</Link>
-      <p><time dateTime={match.kickOff}>{kst.format(new Date(match.kickOff))} KST</time><span>{match.competition}</span></p>
-      {(data?.fixtures?.stale || error || kickOffLabel(match)) && <small>{[data?.fixtures?.stale || error ? '마지막 조회 정보' : '', kickOffLabel(match)].filter(Boolean).join(' · ')}</small>}
+      <Link href="/football/#fixtures" className="home-match-board" aria-label={`${matchup(match)}, ${kst.format(new Date(match.kickOff))} KST, ${match.competition}`}>
+        <MatchTeam name={match.home} city={city(match.home)}/>
+        <span className="home-match-kickoff"><time dateTime={match.kickOff}>{kickOffTime.format(new Date(match.kickOff))}</time><small>{kickOffDay.format(new Date(match.kickOff))}</small></span>
+        <MatchTeam name={match.away} city={city(match.away)}/>
+      </Link>
+      {(data?.fixtures?.stale || error || kickOffLabel(match)) && <small className="home-match-note">{[data?.fixtures?.stale || error ? '마지막 조회 정보' : '', kickOffLabel(match)].filter(Boolean).join(' · ')}</small>}
     </> : <p className="hub-summary-empty" role="status">{busy && !data ? '경기 일정을 불러오는 중' : data?.fixtures ? '예정된 경기가 없어요.' : '일정을 불러오지 못했어요.'}</p>}
     <div className="home-match-actions">
       {match && <FixtureAction match={match} saved={saved} onSave={onSave}/>}

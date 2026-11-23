@@ -305,13 +305,13 @@ pnpm preview    # http://127.0.0.1:3000
 - 디자인 시안은 Claude의 [홈 재구성 시안 캔버스](https://claude.ai/artifact/4EinW9jEKPy6py9HkT7AnB)에 있습니다(본인 계정 전용). ‘시안 2’ 페이지가 현재 홈의 기준이고, ‘시안 1’은 비교용입니다.
 - 시안 2는 [gyupage](https://gyupage.vercel.app/)의 큰 날짜 숫자, 날씨가 들어간 7일 달력과 Pinterest ‘웹디’ 보드의 떠 있는 면, 알약 메뉴, 벤토 배치를 참고했습니다.
 - 작업이 끝난 브랜치 `design/journal-tone`, `design/home-v2`, `design/qhd-weather-fix`, `design/pages-unify`는 모두 `main`에 합쳐져 있어 지워도 됩니다.
-- 브랜치 `design/games-compact`에서 게임 페이지를 한 줄 목록형으로 바꾸고 위쪽 요약을 접었으며, 오디오 장비 목록을 카드로 묶었습니다. 로컬 미리보기에서만 확인했고 아직 `main`에 합치지 않았습니다.
+- 브랜치 `design/games-compact`에서 게임 페이지를 한 줄 목록형으로 바꾸고 위쪽 요약을 접었으며, 오디오 장비 목록을 카드로 묶었습니다. 로컬 미리보기에서 확인한 뒤 `main`에 합쳤고, 운영 사이트 배포는 아직 하지 않았습니다.
 
 ### 5. 다음 작업
 
 우선순위 순서입니다.
 
-1. **게임 목록 마무리** — `design/games-compact`를 `main`에 합치고 배포한 뒤, 운영 데이터(게임 56개)에서 모바일 길이와 목록 동작을 확인합니다. 뉴스 카드(한 장에 약 228px)도 같은 방식으로 촘촘하게 할 수 있습니다. 일정 추가·작품 추가 같은 대화 상자는 아직 예전 테두리 입력칸을 씁니다.
+1. **게임 목록 마무리** — 사이트 관리 채팅에서 최신 `main`을 배포한 뒤, 운영 데이터(게임 56개)에서 모바일 길이와 목록 동작을 확인합니다. 뉴스 카드(한 장에 약 228px)도 같은 방식으로 촘촘하게 할 수 있습니다. 일정 추가·작품 추가 같은 대화 상자는 아직 예전 테두리 입력칸을 씁니다.
 2. **취미 메뉴 단계 줄이기** — 지금은 ‘취미’ 목록 페이지를 거쳐 한 번 더 눌러야 게임·음악에 들어갑니다. 취미 안에서 탭으로 바로 전환하도록 `src/components/hobby-directory.tsx`, `hub-navigation.tsx`를 바꿉니다.
 3. **테마 깜빡임** — 페이지를 열면 기본 다크 테마가 잠깐 보였다가 저장된 테마로 바뀝니다. `hub.tsx`가 동기화가 끝난 뒤에 `data-theme`를 설정하기 때문입니다. 마지막 테마를 브라우저에 기억해 두고 첫 화면 전에 적용하면 해결됩니다.
 4. **쓰지 않는 CSS 정리** — 화면에서 더 이상 쓰지 않는 옛 스타일이 남아 있습니다. `globals.css`의 `.welcome-card`, `.planet`, `.orbit`, `.satellite`, `.nav-item`, `.brand-symbol`, `.interest-card`, `.calendar-grid`, `.news-feature-art`, `news.css`의 `.journal-lead`·`.lead-*`, `home-priorities.css`의 `.hub-week-compact`, `hobbies.css`의 `.hub-weather-summary`입니다. 지우기 전에 `src`의 `.tsx`에서 클래스 이름을 검색해 쓰이지 않는지 확인합니다.

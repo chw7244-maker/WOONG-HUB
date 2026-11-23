@@ -29,6 +29,8 @@ export default function GamesHub({entries,onAdd,onEdit,onDelete}:{entries:Entry[
   const [view,setView]=useDeviceChoice('woong-hub:games-view','list',['list','cards'] as const);
   const [summary,setSummary]=useDeviceChoice('woong-hub:games-summary','closed',['open','closed'] as const);
   const playingCount=entries.filter(e=>e.status==='플레이 중').length;
+  /* Direct records come first; without one, the linked Steam account's total stands in, labelled as Steam. */
+  const timeOf=(entry:Entry)=>{const own=entry.game?.playMinutes??null;if(own!==null)return playTime(own);const steam=steamStats.find(entry.game?.steamAccount)?.game;return steam?`Steam ${playTime(steam.totalMinutes)}`:playTime(null);};
   const coverOf=(entry:Entry)=>entry.game?.steam?.imageUrl||steamStats.find(entry.game?.steamAccount)?.game?.imageUrl;
   const records=entries.filter(e=>(status==='전체'||e.status===status)&&(platform==='전체'||e.category===platform)&&[e.title,e.detail,...(e.game?.tags??[]),e.game?.steam?.name,...(e.game?.steam?.developers??[]),...(e.game?.steam?.genres??[])].join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).sort((a,b)=>sort==='name'?a.title.localeCompare(b.title,'ko'):sort==='time'?(b.game?.playMinutes??-1)-(a.game?.playMinutes??-1):sort==='rating'?(b.game?.rating??-1)-(a.game?.rating??-1):b.createdAt.localeCompare(a.createdAt));
   return <div className="games-hub">
@@ -45,7 +47,7 @@ export default function GamesHub({entries,onAdd,onEdit,onDelete}:{entries:Entry[
     {records.length&&view==='list'?<ul className="game-list">{records.map(entry=><li className="game-row" key={entry.id}>
       <button type="button" className="game-row-main" onClick={()=>setSelectedId(entry.id)}>
         <GameCover key={coverOf(entry)||'empty'} imageUrl={coverOf(entry)} title={entry.title} thumb/>
-        <span className="game-row-copy"><strong>{entry.title}</strong><small><span className="game-row-state">{entry.status||'상태 미기록'} · </span>{[entry.category||'플랫폼 미기록',playTime(entry.game?.playMinutes??null),entry.game?.rating==null?null:`★ ${entry.game.rating}`].filter(Boolean).join(' · ')}</small></span>
+        <span className="game-row-copy"><strong>{entry.title}</strong><small><span className="game-row-state">{entry.status||'상태 미기록'} · </span>{[entry.category||'플랫폼 미기록',timeOf(entry),entry.game?.rating==null?null:`★ ${entry.game.rating}`].filter(Boolean).join(' · ')}</small></span>
         <span className={`badge game-row-status ${entry.status==='플레이 중'?'blue':''}`}>{entry.status||'상태 미기록'}</span>
       </button>
       <div className="game-row-actions"><button className="icon-button" aria-label={`${entry.title} 수정`} onClick={()=>onEdit(entry)}><Pencil size={15}/></button><button className="icon-button" aria-label={`${entry.title} 삭제`} onClick={()=>onDelete(entry)}><Trash2 size={15}/></button></div>

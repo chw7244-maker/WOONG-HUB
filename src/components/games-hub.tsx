@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
-import {ArrowUpRight,Check,Database,Gamepad2,Plus,Pencil,RefreshCw,Search,Star,Timer,Trash2,Trophy} from 'lucide-react';
+import {ArrowUpRight,Check,ChevronDown,Database,Gamepad2,LayoutGrid,List,Plus,Pencil,RefreshCw,Search,Star,Timer,Trash2,Trophy} from 'lucide-react';
 import {type Entry,safeUrl} from '@/lib/store';
 import {emptyGame,gamePlatforms,gameStatuses,gameStats,playTime,steamAppId,validateGame,validateSteam,type SteamMetadata} from '@/lib/games';
 import Dialog from './dialog';
@@ -9,25 +9,48 @@ import { SteamAccountField, SteamLinkedTime, useSteamEntryStats } from './steam-
 import { SectionFilters, SectionStats } from './section-controls';
 import { GameHighlights } from './hobby-highlights';
 
-function GameCover({imageUrl,title}:{imageUrl?:string;title:string}){
+function GameCover({imageUrl,title,thumb=false}:{imageUrl?:string;title:string;thumb?:boolean}){
   const [failed,setFailed]=useState(false);
-  return <div className="game-cover">{imageUrl&&!failed?<img src={imageUrl} alt={title} loading="lazy" referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>:<div className="game-cover-placeholder"><Gamepad2 size={43} strokeWidth={1.1}/></div>}</div>;
+  return <div className={thumb?'game-cover game-thumb':'game-cover'}>{imageUrl&&!failed?<img src={imageUrl} alt={thumb?'':title} loading="lazy" referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>:<div className="game-cover-placeholder"><Gamepad2 size={thumb?20:43} strokeWidth={thumb?1.6:1.1}/></div>}</div>;
+}
+
+/* A per-device display choice (list or cards, summary open or closed), kept in this browser only. */
+function useDeviceChoice<T extends string>(key:string,fallback:T,allowed:readonly T[]){
+  const [value,setValue]=useState<T>(fallback);
+  useEffect(()=>{try{const saved=localStorage.getItem(key);if(saved&&(allowed as readonly string[]).includes(saved))setValue(saved as T);}catch{/* storage unavailable: keep the default */}},[key]);// eslint-disable-line react-hooks/exhaustive-deps
+  const update=(next:T)=>{setValue(next);try{localStorage.setItem(key,next);}catch{/* ignore */}};
+  return [value,update] as const;
 }
 
 export default function GamesHub({entries,onAdd,onEdit,onDelete}:{entries:Entry[];onAdd:()=>void;onEdit:(entry:Entry)=>void;onDelete:(entry:Entry)=>void}){
   const [query,setQuery]=useState(''),[status,setStatus]=useState('전체'),[platform,setPlatform]=useState('전체'),[sort,setSort]=useState('recent'),[selectedId,setSelectedId]=useState<string|null>(null);
   const stats=gameStats(entries),selected=entries.find(e=>e.id===selectedId);
   const steamStats=useSteamEntryStats(entries);
+  const [view,setView]=useDeviceChoice('woong-hub:games-view','list',['list','cards'] as const);
+  const [summary,setSummary]=useDeviceChoice('woong-hub:games-summary','closed',['open','closed'] as const);
+  const playingCount=entries.filter(e=>e.status==='플레이 중').length;
+  const coverOf=(entry:Entry)=>entry.game?.steam?.imageUrl||steamStats.find(entry.game?.steamAccount)?.game?.imageUrl;
   const records=entries.filter(e=>(status==='전체'||e.status===status)&&(platform==='전체'||e.category===platform)&&[e.title,e.detail,...(e.game?.tags??[]),e.game?.steam?.name,...(e.game?.steam?.developers??[]),...(e.game?.steam?.genres??[])].join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).sort((a,b)=>sort==='name'?a.title.localeCompare(b.title,'ko'):sort==='time'?(b.game?.playMinutes??-1)-(a.game?.playMinutes??-1):sort==='rating'?(b.game?.rating??-1)-(a.game?.rating??-1):b.createdAt.localeCompare(a.createdAt));
   return <div className="games-hub">
-    <GameHighlights entries={entries} onOpen={entry=>setSelectedId(entry.id)}/>
+    <details className="games-summary" open={summary==='open'} onToggle={e=>{const open=e.currentTarget.open;if(open!==(summary==='open'))setSummary(open?'open':'closed');}}>
+      <summary><span className="games-summary-icon"><Gamepad2 size={18}/></span><span className="games-summary-copy"><strong>이어서 플레이 · Steam 최근 플레이</strong><small>{playingCount?`플레이 중 ${playingCount}개`:'플레이 중인 게임 없음'}</small></span><ChevronDown size={18} className="section-chevron"/></summary>
+      <GameHighlights entries={entries} onOpen={entry=>setSelectedId(entry.id)}/>
+    </details>
     {steamStats.error&&<p className="form-error" role="alert">{steamStats.error}</p>}
     <div className="game-toolbar"><div className="tabs" role="group" aria-label="게임 상태 필터">{['전체',...new Set([...gameStatuses,...entries.map(e=>e.status).filter(Boolean)])].map(s=><button key={s} className={status===s?'selected':''} aria-pressed={status===s} onClick={()=>setStatus(s)}>{s}{s==='전체'&&<span>{entries.length}</span>}</button>)}</div><Link href="/games/steam/" className="catalog-service-link">Steam 라이브러리<ArrowUpRight size={14}/></Link></div>
     <div className="game-filters"><label className="game-search"><Search size={16}/><input aria-label="게임 검색" placeholder="게임, 제작사, 장르, 태그 검색" value={query} onChange={e=>setQuery(e.target.value)}/></label>
       <SectionFilters active={Number(platform!=='전체')+Number(sort!=='recent')}><label><span>플랫폼</span><select aria-label="게임 플랫폼" value={platform} onChange={e=>setPlatform(e.target.value)}>{['전체',...new Set([...gamePlatforms,...entries.map(e=>e.category).filter(Boolean)])].map(p=><option key={p}>{p}</option>)}</select></label><label><span>정렬</span><select aria-label="게임 정렬" value={sort} onChange={e=>setSort(e.target.value)}><option value="recent">최근 등록순</option><option value="name">이름순</option><option value="time">플레이 시간순</option><option value="rating">별점순</option></select></label></SectionFilters></div>
-    <div className="game-result-count">{records.length}개의 게임</div>
-    {records.length?<div className="game-grid">{records.map(entry=><article className="panel game-card" key={entry.id}>
-      <GameCover key={entry.game?.steam?.imageUrl||steamStats.find(entry.game?.steamAccount)?.game?.imageUrl||'empty'} imageUrl={entry.game?.steam?.imageUrl||steamStats.find(entry.game?.steamAccount)?.game?.imageUrl} title={entry.title}/>
+    <div className="game-result-bar"><div className="game-result-count">{records.length}개의 게임</div>
+      <div className="game-view-toggle" role="group" aria-label="게임 보기 방식"><button type="button" aria-pressed={view==='list'} onClick={()=>setView('list')}><List size={15}/>목록</button><button type="button" aria-pressed={view==='cards'} onClick={()=>setView('cards')}><LayoutGrid size={15}/>카드</button></div></div>
+    {records.length&&view==='list'?<ul className="game-list">{records.map(entry=><li className="game-row" key={entry.id}>
+      <button type="button" className="game-row-main" onClick={()=>setSelectedId(entry.id)}>
+        <GameCover key={coverOf(entry)||'empty'} imageUrl={coverOf(entry)} title={entry.title} thumb/>
+        <span className="game-row-copy"><strong>{entry.title}</strong><small><span className="game-row-state">{entry.status||'상태 미기록'} · </span>{[entry.category||'플랫폼 미기록',playTime(entry.game?.playMinutes??null),entry.game?.rating==null?null:`★ ${entry.game.rating}`].filter(Boolean).join(' · ')}</small></span>
+        <span className={`badge game-row-status ${entry.status==='플레이 중'?'blue':''}`}>{entry.status||'상태 미기록'}</span>
+      </button>
+      <div className="game-row-actions"><button className="icon-button" aria-label={`${entry.title} 수정`} onClick={()=>onEdit(entry)}><Pencil size={15}/></button><button className="icon-button" aria-label={`${entry.title} 삭제`} onClick={()=>onDelete(entry)}><Trash2 size={15}/></button></div>
+    </li>)}</ul>:records.length?<div className="game-grid">{records.map(entry=><article className="panel game-card" key={entry.id}>
+      <GameCover key={coverOf(entry)||'empty'} imageUrl={coverOf(entry)} title={entry.title}/>
       <div className="game-card-body"><div className="game-card-labels"><span>{entry.category||'플랫폼 미기록'}</span><span className={`badge ${entry.status==='플레이 중'?'blue':''}`}>{entry.status||'상태 미기록'}</span></div><button className="game-card-title" onClick={()=>setSelectedId(entry.id)}>{entry.title}</button>{entry.game?.steam?.developers.length?<p className="game-developer">{entry.game.steam.developers.join(' · ')}</p>:null}
       <div className="game-card-metrics"><span><Timer size={13}/>직접 기록 · {playTime(entry.game?.playMinutes??null)}</span><span><Star size={13}/>{entry.game?.rating==null?'별점 미기록':`${entry.game.rating} / 5`}</span></div>
       {entry.game?.steamAccount&&<SteamLinkedTime compact reference={entry.game.steamAccount} stat={steamStats.find(entry.game.steamAccount)}/>}

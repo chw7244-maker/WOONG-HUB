@@ -37,6 +37,10 @@
 .app-shell:not(.journal-home) .main-content .watch-feature { background: linear-gradient(120deg, color-mix(in srgb, var(--panel) 70%, var(--accent-soft)), var(--panel) 72%); }
 .app-shell:not(.journal-home) .main-content :is(.album-card-footer, .game-card-footer) { border-top-color: var(--hair); }
 
+/* The audio equipment list sits in one card, like the games list, with soft lines between rows. */
+.app-shell:not(.journal-home) .main-content .audio-record-list { padding: 6px 18px; border-radius: 28px; background: var(--panel); box-shadow: var(--raise); }
+.app-shell:not(.journal-home) .main-content .audio-record-list > article + article { border-top-color: var(--hair); }
+
 /* Drawers that used to be a line between sections get the same padding as a card. */
 .app-shell:not(.journal-home) .main-content :is(.calendar-source-drawer, .calendar-saved-matches) { padding-inline: 20px; }
 .app-shell:not(.journal-home) .main-content :is(.collection-empty, .records-empty) { padding: 32px 24px; }
@@ -186,3 +190,6 @@
   .app-shell:not(.journal-home) .main-content :is(.tabs, .news-view-tabs)::-webkit-scrollbar { display: none; }
   .app-shell:not(.journal-home) .main-content :is(.tabs, .news-view-tabs) > button { flex: none; padding-inline: 14px; min-height: 44px; white-space: nowrap; }
 }
+
+@media (max-width: 760px) { .app-shell:not(.journal-home) .main-content .audio-record-list { padding: 4px 14px; border-radius: 24px; } }
+

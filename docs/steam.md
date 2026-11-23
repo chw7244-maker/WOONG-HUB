@@ -14,6 +14,9 @@
 - `/ISteamUser/GetPlayerSummaries/v2/`
 - `/IPlayerService/GetOwnedGames/v1/` (`include_appinfo`, `include_played_free_games`)
 - `/IPlayerService/GetRecentlyPlayedGames/v1/`
+- `/IWishlistService/GetWishlist/v1/` (`steamid`만 보내고 키는 보내지 않음. 찜 목록이 공개인 계정만 응답하며, 비공개와 빈 찜 목록은 똑같이 `{"response":{}}`로 옵니다)
+
+게임 바로 추가의 이름 검색은 공개 상점 검색 `https://store.steampowered.com/api/storesearch/`(한국어, 가격은 버림)를 쓰고 검색어마다 하루 캐시합니다. 장르·표지는 기존 상점 정보 조회(`/api/games/steam`, `appdetails`)로 받습니다.
 
 가져오는 목록은 Steam이 해당 API에 제공하는 범위입니다. 미실행 무료 게임 전체나 가족 공유·다른 스토어의 게임을 보장하지 않습니다. 게임 세부 정보나 플레이 시간을 비공개로 설정하면 정보가 제한될 수 있습니다. 누락된 시간을 0분으로 간주하지 않습니다. Steam은 분 단위로 정보를 제공하며 실시간 실행 감지나 사이트가 닫힌 동안의 자동 갱신은 제공하지 않습니다.
 

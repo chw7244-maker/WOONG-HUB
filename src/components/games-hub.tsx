@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { SteamAccountField, SteamLinkedTime, useSteamEntryStats } from './steam-account';
 import { SectionFilters, SectionStats } from './section-controls';
 import { GameHighlights } from './hobby-highlights';
+import SteamSync from './steam-sync';
 
 function GameCover({imageUrl,title,thumb=false}:{imageUrl?:string;title:string;thumb?:boolean}){
   const [failed,setFailed]=useState(false);
@@ -93,7 +94,8 @@ function RowMenu({entry,onEdit,onDelete}:{entry:Entry;onEdit:()=>void;onDelete:(
 const statusTone=(status:string)=>({'플레이 중':'playing','플레이 예정':'planned','위시리스트':'wish','보류':'hold'} as Record<string,string>)[status]??'done';
 const groupModes=gameGroupModes.map(mode=>mode.id);
 
-export default function GamesHub({entries,onAdd,onEdit,onDelete,onQuickSave}:{entries:Entry[];onAdd:()=>void;onEdit:(entry:Entry)=>void;onDelete:(entry:Entry)=>void;onQuickSave:(entry:Entry,message:string)=>void}){
+export default function GamesHub({entries,onAdd,onEdit,onDelete,onQuickSave,onBulkSave}:{entries:Entry[];onAdd:()=>void;onEdit:(entry:Entry)=>void;onDelete:(entry:Entry)=>void;onQuickSave:(entry:Entry,message:string)=>void;onBulkSave:(entries:Entry[],message:string|null)=>void}){
+  const [goneIds,setGoneIds]=useState<string[]>([]);
   const [query,setQuery]=useState(''),[status,setStatus]=useState('전체'),[platform,setPlatform]=useState('전체'),[sort,setSort]=useState('recent'),[selectedId,setSelectedId]=useState<string|null>(null),[ratingId,setRatingId]=useState<string|null>(null);
   const stats=gameStats(entries),selected=entries.find(e=>e.id===selectedId),rating=entries.find(e=>e.id===ratingId);
   const steamStats=useSteamEntryStats(entries);
@@ -125,6 +127,7 @@ export default function GamesHub({entries,onAdd,onEdit,onDelete,onQuickSave}:{en
       <summary><span className="games-summary-icon"><Gamepad2 size={18}/></span><span className="games-summary-copy"><strong>이어서 플레이 · Steam 최근 플레이</strong><small>{playingCount?`플레이 중 ${playingCount}개`:'플레이 중인 게임 없음'}</small></span><ChevronDown size={18} className="section-chevron"/></summary>
       <GameHighlights entries={entries} onOpen={entry=>setSelectedId(entry.id)}/>
     </details>
+    <SteamSync entries={entries} onBulkSave={onBulkSave} onGone={setGoneIds}/>
     {steamStats.error&&<p className="form-error" role="alert">{steamStats.error}</p>}
     <div className="game-toolbar"><div className="tabs" role="group" aria-label="게임 상태 필터">{['전체',...new Set([...gameStatuses,...entries.map(e=>e.status).filter(Boolean)])].map(s=><button key={s} className={status===s?'selected':''} aria-pressed={status===s} onClick={()=>setStatus(s)}>{s}{s==='전체'&&<span>{entries.length}</span>}</button>)}</div><Link href="/games/steam/" className="catalog-service-link">Steam 라이브러리<ArrowUpRight size={14}/></Link></div>
     <div className="game-filters"><label className="game-search"><Search size={16}/><input aria-label="게임 검색" placeholder="게임, 제작사, 장르, 태그 검색" value={query} onChange={e=>setQuery(e.target.value)}/></label>
@@ -139,7 +142,7 @@ export default function GamesHub({entries,onAdd,onEdit,onDelete,onQuickSave}:{en
       <ul>{group.entries.map(entry=><li className="game-row" key={entry.id}>
         <button type="button" className="game-row-main" onClick={()=>setSelectedId(entry.id)}>
           <GameCover key={coverOf(entry)||'empty'} imageUrl={coverOf(entry)} title={entry.title} thumb/>
-          <span className="game-row-copy"><strong>{entry.title}</strong><small>{[groupBy==='genre'?null:gameGenre(entry)==='장르 미기록'?null:gameGenre(entry),entry.category||'플랫폼 미기록'].filter(Boolean).join(' · ')}</small><small className="game-row-phone-meta">{entry.status||'상태 미기록'} · {timeOf(entry)}</small></span>
+          <span className="game-row-copy"><strong>{entry.title}</strong><small>{[goneIds.includes(entry.id)?'Steam 찜에 없음':null,groupBy==='genre'?null:gameGenre(entry)==='장르 미기록'?null:gameGenre(entry),entry.category||'플랫폼 미기록'].filter(Boolean).join(' · ')}</small><small className="game-row-phone-meta">{entry.status||'상태 미기록'} · {timeOf(entry)}</small></span>
         </button>
         <span className="game-row-time">{timeOf(entry)}</span>
         <InlineStars entry={entry} rating={ratingOf(entry)} onRate={value=>rate(entry,value)}/>

@@ -1,7 +1,7 @@
 import { initial, validateData } from '../src/lib/store.ts';
 import { handleNews } from './news.mjs';
 import { handleCalendar } from './calendar.mjs';
-import { handleSteam } from './steam.mjs';
+import { handleSteam, handleSteamSearch } from './steam.mjs';
 import { handleSteamAccounts } from './steam-account.mjs';
 import { handleAlbums } from './music.mjs';
 import { handleSpotify } from './spotify.mjs';
@@ -62,6 +62,7 @@ export async function handleApi(request, env, ctx) {
   if(path==='/api/watch/search')return handleWatchSearch(request,env);
   if(path==='/api/weather')return handleWeather(request,ctx);
   if(path==='/api/games/steam')return handleSteam(request,env,ctx);
+  if(path==='/api/games/steam/search')return handleSteamSearch(request,env,ctx);
   if(path.startsWith('/api/steam/'))return handleSteamAccounts(request,env,ctx);
   if(path==='/api/music/albums')return handleAlbums(request,env,ctx);
   if(path==='/api/music/spotify')return handleSpotify(request,env,ctx);

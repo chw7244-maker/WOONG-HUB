@@ -5,6 +5,7 @@ import '../components/news.css';
 import '../components/audio.css';
 import '../components/calendar.css';
 import '../components/games.css';
+import '../components/quick-add.css';
 import '../components/music.css';
 import '../components/spotify-account.css';
 import '../components/steam-account.css';

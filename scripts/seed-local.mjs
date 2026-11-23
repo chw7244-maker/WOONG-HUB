@@ -29,6 +29,16 @@ const seeds = [
   game('g-4', '샘플 리듬 게임', '완료', 106, 3.5, '손이 박자를 못 따라감'), game('g-5', '샘플 슈터 게임', '플레이 예정', 69, null), game('g-6', '샘플 로그라이크', '플레이 중', 300, 4),
   game('g-7', '샘플 파티 게임', '위시리스트', null, null), game('g-8', '샘플 액션 게임', '보류', 120, 2, '', 'PlayStation'),
 ];
+// Notes, to-dos (due relative to today in Korean time) and a bookmark for the 기록 page.
+const day = offset => { const d = new Date(Date.now() + 9 * 3600000 + offset * 86400000); return d.toISOString().slice(0, 10); };
+const record = (id, kind, title, extra = {}) => ({ ...base(id, kind, title, '', ''), ...extra });
+seeds.push(
+  record('n-1', 'note', '샘플 청음 메모', { detail: '저음이 단단하고 보컬은 살짝 뒤.\n이어팁을 바꾸니 치찰음이 줄었음.', category: '청음' }),
+  record('n-2', 'note', '겨울 할인 때 살 것', { detail: '샘플 게임 A\n샘플 게임 B', category: '게임' }),
+  record('t-1', 'todo', '샘플 펌웨어 업데이트', { date: day(0) }), record('t-2', 'todo', '샘플 이어패드 교체', { date: day(3) }),
+  record('t-3', 'todo', '샘플 백업 내보내기', { date: day(-1) }), record('t-4', 'todo', '마감 없는 샘플 할 일'),
+  record('b-1', 'bookmark', '샘플 북마크', { url: 'https://example.com/' }),
+);
 const known = new Set(doc.entries.map(entry => entry.id));
 const added = seeds.filter(entry => !known.has(entry.id));
 doc.entries = [...added, ...doc.entries];

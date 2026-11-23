@@ -31,7 +31,7 @@ export function mergeData(base: HubData, local: HubData, remote: HubData): { dat
     }
   }
   const preferences = { ...remote.preferences };
-  for (const key of ['theme','city','widgets','calendarHiddenSources','mediaWidgets','pinnedAudioSetup','homeOrder','hiddenNewWidgets'] as const) {
+  for (const key of ['theme','city','widgets','calendarHiddenSources','mediaWidgets','pinnedAudioSetup','pinnedNote','homeOrder','hiddenNewWidgets'] as const) {
     if (!same(local.preferences[key], base.preferences[key])) Object.assign(preferences, { [key]: local.preferences[key] });
   }
   if (local.preferences.savedFixtures || remote.preferences.savedFixtures || base.preferences.savedFixtures) {

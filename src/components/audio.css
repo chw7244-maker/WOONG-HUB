@@ -54,6 +54,10 @@
 .audio-csv-row.skipped { opacity: .72; }
 .audio-csv-badge { padding: 5px 11px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; white-space: nowrap; }
 .audio-csv-badge.skip { background: var(--panel); color: var(--muted); }
+.audio-csv-badge.update { background: var(--accent-strong); color: var(--on-accent); }
+label.audio-csv-badge { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; cursor: pointer; }
+label.audio-csv-badge input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+label.audio-csv-badge:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .audio-csv-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .audio-csv-footer p { margin: 0; color: var(--muted); font-size: 13px; }
 .audio-csv-footer > div { display: flex; gap: 8px; }

@@ -193,3 +193,30 @@
 
 @media (max-width: 760px) { .app-shell:not(.journal-home) .main-content .audio-record-list { padding: 4px 14px; border-radius: 24px; } }
 
+
+/* Hobby switcher above every hobby page: a pill bar of links, like the header menu. */
+.hobby-tabs {
+  display: flex;
+  gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 4px 0 4px;
+  padding: 5px;
+  overflow-x: auto;
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: var(--raise);
+  scrollbar-width: none;
+}
+.hobby-tabs::-webkit-scrollbar { display: none; }
+.hobby-tabs a { display: inline-flex; flex: none; align-items: center; gap: 7px; min-height: 40px; padding: 0 16px; border-radius: 999px; color: var(--muted); font-size: 14px; font-weight: 600; white-space: nowrap; }
+.hobby-tabs a:hover { background: var(--panel-soft); color: var(--text); }
+.hobby-tabs a[aria-current] { background: var(--accent-strong); color: var(--on-accent); font-weight: 700; }
+.hobby-tabs a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.hobby-tabs + .page-heading { margin-top: 18px; }
+
+@media (max-width: 760px) {
+  .hobby-tabs { width: auto; }
+  .hobby-tabs a { flex: 1 0 auto; justify-content: center; min-height: 44px; padding: 0 12px; }
+  .hobby-tabs a svg { display: none; }
+}

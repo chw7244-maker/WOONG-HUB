@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Ellipsis, House, Layers3, Newspaper, Settings2, StickyNote, type LucideIcon } from 'lucide-react';
 import Dialog from './dialog';
-import { hobbyPages } from './hobby-directory';
+import { hobbyOf, hobbyPages, lastHobbyKey } from './hobby-directory';
 
 const sharedPages = [
   { id: 'home', label: '홈', icon: House },
@@ -23,7 +23,7 @@ const morePages: { id: string; label: string; icon: LucideIcon; layout?: 'deskto
   { ...libraryPage, layout: 'mobile' },
   ...utilityPages,
 ];
-const href = (id: string) => id === 'home' ? '/' : `/${id}/`;
+const pageHref = (id: string) => id === 'home' ? '/' : `/${id}/`;
 
 export default function HubNavigation({
   section, hasNotifications, notificationOpen, onSearch, onNotifications, onQuickAdd,
@@ -33,7 +33,18 @@ export default function HubNavigation({
   onQuickAdd?: () => void;
 }) {
   const [more, setMore] = useState(false);
-  const active = hobbyPages.some(page => page.id === section) || ['spotify', 'steam'].includes(section) ? 'hobbies' : section;
+  const active = hobbyOf(section) ? 'hobbies' : section;
+  // 취미 opens the hobby page used last in this browser; the hobby list stays the first-visit fallback.
+  const [lastHobby, setLastHobby] = useState<string | null>(null);
+  useEffect(() => {
+    const current = hobbyOf(section);
+    try {
+      if (current) localStorage.setItem(lastHobbyKey, current);
+      const saved = current ?? localStorage.getItem(lastHobbyKey);
+      setLastHobby(saved && hobbyPages.some(page => page.id === saved) ? saved : null);
+    } catch { setLastHobby(current); }
+  }, [section]);
+  const href = (id: string) => id === 'hobbies' && lastHobby ? `/${lastHobby}/` : pageHref(id);
   const utilityActive = utilityPages.some(page => page.id === section);
   const moreButton = (mobile: boolean) => {
     const secondaryActive = mobile && section === libraryPage.id;

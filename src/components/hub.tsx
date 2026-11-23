@@ -27,7 +27,7 @@ import { useHubSync } from './sync-provider';
 import { CloudStorageSettings, SyncIndicator, SyncNotice } from './sync-status';
 import { type Entry, type HubData, type Kind, validateData, todayKST, koreanDate, safeUrl, mediaWidgets, mediaWidgetVisible, homeSections, newWidgets } from '@/lib/store';
 import { advanceWatch, isWatchEntry, restoreWatchProgress, watchTypes, type WatchDetails, type WatchEntry, type WatchType } from '@/lib/watch';
-import HobbyDirectory from './hobby-directory';
+import HobbyDirectory, { HobbyTabs, hobbyOf } from './hobby-directory';
 import FootballHub, { HomeMatch, useFootball } from './football-hub';
 import { saveFixture, savedFixtureEvents, type Fixture } from '@/lib/football';
 import WatchHub, { HomeWatch, WatchEntryModal } from './watch-hub';
@@ -216,6 +216,7 @@ export default function Hub({section}:{section:string}) {
           </div>
           <div className="hub-home-panels home-bento">{homeOrder.map(id=><Fragment key={id}>{homePanels[id]}</Fragment>)}</div>
         </>:<>
+          {hobbyOf(section)&&<HobbyTabs section={section}/>}
           {section!=='news'&&<div className="page-heading section-heading"><div><h1>{currentInfo?.title}</h1><p>{currentInfo?.description}</p></div>{currentInfo?.kind&&!['audio','music','calendar'].includes(section)&&<button className="button primary" onClick={()=>setModal({kind:activeKind})}><Plus size={15}/>{kindLabels[activeKind]} 추가</button>}</div>}
           {section==='hobbies'?<HobbyDirectory/>:section==='football'?<FootballHub saved={savedFixtureIds} onSave={addFixture}/>:section==='watch'?<WatchHub entries={entries('watch')} today={today} onProgress={recordWatchProgress} onAdd={watchType=>setModal({kind:'watch',watchType})} onEdit={openEntry} onDelete={setDeleteEntry} onSave={save}/>:section==='settings'?<div className="settings-grid settings-sections">
             <nav className="settings-jump" aria-label="설정 항목">

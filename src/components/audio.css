@@ -36,3 +36,35 @@
   .audio-tile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .audio-tile { height: 60px; padding: 0 12px; }
 }
+
+/* CSV: buttons beside "장비 추가", and the import preview that opens under them. */
+.audio-top-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.audio-csv-button { display: inline-flex; align-items: center; gap: 6px; }
+.audio-csv-error { display: flex; align-items: center; gap: 12px; margin: -8px 0 18px; }
+.audio-csv { display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px; padding: 20px; border-radius: 28px; background: var(--panel); box-shadow: var(--raise); }
+.audio-csv-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
+.audio-csv-heading > div { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.audio-csv-heading h2 { margin: 0; font-size: 18px; font-weight: 700; }
+.audio-csv-heading span, .audio-csv-heading small { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.audio-csv-rows { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
+.audio-csv-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.4fr) auto; align-items: center; gap: 14px; min-height: 52px; padding: 6px 14px; border-radius: 16px; background: var(--panel-soft); font-size: 14px; }
+.audio-csv-row strong { overflow: hidden; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.audio-csv-row select { width: 100%; min-height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: var(--panel); color: var(--text); font: inherit; font-size: 13px; }
+.audio-csv-row small { color: var(--muted); font-size: 13px; }
+.audio-csv-row.skipped { opacity: .72; }
+.audio-csv-badge { padding: 5px 11px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.audio-csv-badge.skip { background: var(--panel); color: var(--muted); }
+.audio-csv-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.audio-csv-footer p { margin: 0; color: var(--muted); font-size: 13px; }
+.audio-csv-footer > div { display: flex; gap: 8px; }
+.audio-csv-footer .button { min-height: 44px; border-radius: 999px; }
+
+@media (max-width: 760px) {
+  .audio-section-top { flex-wrap: wrap; }
+  .audio-top-actions { width: 100%; justify-content: flex-start; }
+  .audio-csv { padding: 14px; border-radius: 24px; }
+  .audio-csv-row { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; padding: 10px 12px; }
+  .audio-csv-row > span:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .audio-csv-row > small { grid-column: 1 / -1; grid-row: 3; }
+  .audio-csv-footer > div { width: 100%; justify-content: flex-end; }
+}

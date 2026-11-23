@@ -1,5 +1,13 @@
 # 검증 기록
 
+## 탭 개선 1단계 배포 확인 · 2026-11-23
+
+- 배포 후 운영 사이트에서 로그인해 확인했습니다.
+- 오디오: ‘이어팁 · 케이블로 나누기’ 창에서 ‘케이블 · 이어팁’ 18개 중 17개가 추측됐습니다. 이어팁은 Divinus Velvet·Velvet Wide Bore, AZLA SednaEarfit Origin·MAX, SpinFit W1·CP145, JVC Spiral Dot Original, final Type E, 케이블은 NICEHCK MOONGOD·WHITESKY·SNOW WINGS·STARDREAM·SnowAg, Eletech Baroque·Baroque Stage, iFi Audio 4.4mm 케이블, Effect Audio Cadmus 8W이며 모두 맞았습니다. AZLA Mithril은 ‘그대로 두기’입니다. 확인만 하고 ‘취소’로 닫아서 운영 장비의 분류는 바꾸지 않았습니다.
+- 축구: 화면의 로고 50개 중 EPL 팀 44개가 모두 이미지로 받아졌습니다. Napoli, FC Barcelona, Bradford City, RC Lens, Sporting CP는 순위표에 없는 팀이라 404를 받고 약칭 배지로 남습니다(설계대로).
+- 게임: 56개 모두 Steam 시간을 씁니다. 55개는 ‘Steam ○시간’이고, Portal은 Steam 0분에 직접 기록이 없어 ‘Steam 0분’입니다. 운영 기록에는 Steam 0분이면서 직접 시간이 있는 게임이 없어 ‘직접 ○시간’ 표시는 운영에서 볼 수 없었습니다(자동 테스트와 로컬 확인으로 대신함).
+- 남은 문제: `/games/steam/`의 미리 불러오기 파일 `__next.games.steam.__PAGE__.txt`가 404입니다. 빌드(`scripts/build.mjs`)가 두 단계 주소(`/games/steam/`, `/music/spotify/`)의 `__next.games/steam/__PAGE__.txt`를 평평한 이름으로 바꾸지 못하기 때문입니다. 1단계 변경 때문에 생긴 문제는 아닙니다.
+
 ## 탭 개선 1단계 · 2026-11-23
 
 - 축구 로고: OpenLigaDB 순위표의 로고 주소를 확인해 보니 위키미디어 파일, `data:` 이미지, `http` 주소가 섞여 있었고, 맨시티·첼시·토트넘·뉴캐슬이 쓰는 img.uefa.com은 응답하지 않았습니다. 그래서 서버가 이름으로 로고를 찾아(열리지 않는 5팀은 위키미디어 파일로 대체) 허용한 출처에서만 받아 오도록 했습니다. 위키미디어의 1920px 썸네일은 250px로 바꿔 받습니다(브렌트퍼드 약 390KB → 43KB). 로컬 미리보기에서 축구 화면의 로고 30개가 이미지로 표시되고 Napoli·Barcelona·Bradford 등 EPL 밖 팀은 약칭 배지로 남는 것을 확인했습니다. 한꺼번에 받다가 실패한 로고는 503(캐시 안 함)으로 돌려 다음 방문 때 다시 받습니다.

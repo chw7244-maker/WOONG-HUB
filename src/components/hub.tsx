@@ -13,6 +13,7 @@ import SteamAccount from './steam-account';
 import SteamHome from './steam-home';
 import UnifiedSearch from './unified-search';
 import {spotifyMusicDraft} from '@/lib/music';
+import {rememberTheme} from '@/lib/theme-boot';
 import CalendarHub, { useCalendarSnapshot } from './calendar-hub';
 import HubNavigation from './hub-navigation';
 import WeekBoard, { HomeHero, HomeTasks } from './home-dashboard';
@@ -79,7 +80,7 @@ export default function Hub({section}:{section:string}) {
     document.addEventListener('visibilitychange',resume);
     return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',resume);};
   },[]);
-  useEffect(()=>{if(!ready)return;document.documentElement.dataset.theme=data.preferences.theme;const color=getComputedStyle(document.documentElement).getPropertyValue('--theme-color').trim();if(color)document.querySelector('meta[name="theme-color"]')?.setAttribute('content',color);},[ready,data.preferences.theme]);
+  useEffect(()=>{if(!ready)return;document.documentElement.dataset.theme=data.preferences.theme;rememberTheme(data.preferences.theme);const color=getComputedStyle(document.documentElement).getPropertyValue('--theme-color').trim();if(color)document.querySelector('meta[name="theme-color"]')?.setAttribute('content',color);},[ready,data.preferences.theme]);
   useEffect(()=>{setToast(null);},[sync.userId]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),toast.undo?12000:4500);return()=>clearTimeout(t);},[toast]);
   useEffect(()=>{setFilter('전체');},[section]);

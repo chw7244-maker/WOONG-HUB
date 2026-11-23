@@ -123,12 +123,6 @@
 .audio-status-mobile { display: none; }
 .audio-record-actions { display: flex; gap: 2px; }
 .audio-record-actions .icon-button { width: 34px; height: 44px; }
-.hub-workspace .game-card { border: 0; background: var(--panel); border-radius: 12px; }
-.hub-workspace .game-card-title { font-size: 16px; margin-top: 6px; }
-.hub-workspace .game-card-body { padding: 13px; }
-.hub-workspace .game-card-metrics { margin: 7px 0; font-size: 12px; }
-.hub-workspace .game-card-footer { padding-top: 8px; }
-.hub-workspace .game-card-note { color: var(--muted); }
 .game-toolbar .catalog-service-link { margin-left: auto; }
 :is(.steam-account-panel,.spotify-account) { border-radius: 14px; }
 .steam-account-select :is(select,button), .steam-sync-bar button, .spotify-account-connected button { min-height: 44px; }

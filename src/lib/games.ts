@@ -49,3 +49,46 @@ export const ownPlayTimeShown=(steam:number|null|undefined)=>!(typeof steam==='n
 
 export function playTime(minutes:number|null){if(minutes===null)return '시간 미기록';if(minutes===0)return '0분';const hours=Math.floor(minutes/60),rest=minutes%60;return `${hours?`${hours.toLocaleString('ko-KR')}시간`:''}${hours&&rest?' ':''}${rest?`${rest}분`:''}`;}
 export function gameStats(entries:Entry[]){const games=entries.filter(e=>e.kind==='games'),recorded=games.filter(e=>e.game?.playMinutes!==null&&e.game?.playMinutes!==undefined);return {count:games.length,playing:games.filter(e=>e.status==='플레이 중').length,completed:games.filter(e=>e.status==='완료').length,wishlist:games.filter(e=>e.status==='위시리스트').length,recorded:recorded.length,minutes:recorded.reduce((sum,e)=>sum+(e.game?.playMinutes??0),0)};}
+
+/** PC stars: picking a star sets that score; picking the star the score already sits on takes half a point off (4 → 3.5). */
+export function inlineRating(current:number|null,star:number){return current===star?star-0.5:star;}
+/** Phone star strip: a position across the strip (0 at the left edge, 1 at the right) in half-star steps, never below 0.5. */
+export function ratingFromPosition(fraction:number){const f=Number.isFinite(fraction)?Math.min(Math.max(fraction,0),1):0;return Math.min(5,Math.max(0.5,Math.ceil(f*10)/2));}
+export const ratingLabel=(rating:number|null)=>rating===null?'—':rating.toFixed(1);
+
+/** The one-line memo a game row shows is the first line of its play memo (`entry.detail`). */
+export function memoLine(detail:string){return (detail.split(/\r?\n/,1)[0]??'').trim();}
+/** Writes `line` as the memo's first line and keeps the rest; an empty line removes the first line. */
+export function withMemoLine(detail:string,line:string){
+  const next=line.replace(/\s+/g,' ').trim(),lines=detail.split(/\r?\n/),rest=detail.trim()?lines.slice(1).join('\n'):'';
+  return next?(rest?`${next}\n${rest}`:next):rest.replace(/^\s*\n/,'').trimStart();
+}
+
+export type GameGroupBy='none'|'rating'|'genre'|'status'|'platform';
+export const gameGroupModes:{id:GameGroupBy;label:string}[]=[{id:'rating',label:'별점'},{id:'genre',label:'장르'},{id:'status',label:'상태'},{id:'platform',label:'플랫폼'},{id:'none',label:'없음'}];
+const ratingBuckets:[string,(r:number|null)=>boolean][]=[['★ 4.5 – 5',r=>r!==null&&r>=4.5],['★ 4',r=>r!==null&&r>=4&&r<4.5],['★ 3 – 3.5',r=>r!==null&&r>=3&&r<4],['★ 2.5 이하',r=>r!==null&&r<3],['아직 별점 없음',r=>r===null]];
+const statusOrder=['플레이 중','플레이 예정','위시리스트','완료','보류'];
+export const gameGenre=(entry:Entry)=>entry.game?.steam?.genres[0]?.trim()||'장르 미기록';
+const ratingOf=(entry:Entry)=>entry.game?.rating??null;
+/** Highest rating first, unrated last, then by title. */
+export const byRatingThenTitle=(a:Entry,b:Entry)=>(ratingOf(b)??-1)-(ratingOf(a)??-1)||a.title.localeCompare(b.title,'ko');
+/**
+ * Splits games into the groups "묶어 보기" shows, in a fixed order: rating bands high to low then unrated, statuses
+ * from playing to on hold, platforms in the form's order, genres by size with unrecorded genres last. Inside a group
+ * games run from the highest rating, then by title. Empty groups are left out; 'none' keeps the given order as one group.
+ */
+export function groupGames(entries:Entry[],by:GameGroupBy):{label:string;entries:Entry[]}[]{
+  if(by==='none')return entries.length?[{label:'',entries}]:[];
+  const sorted=[...entries].sort(byRatingThenTitle);
+  if(by==='rating')return ratingBuckets.map(([label,test])=>({label,entries:sorted.filter(e=>test(ratingOf(e)))})).filter(g=>g.entries.length);
+  const keyOf=(e:Entry)=>by==='genre'?gameGenre(e):by==='status'?(e.status||'상태 미기록'):(e.category||'플랫폼 미기록');
+  const groups=new Map<string,Entry[]>();for(const e of sorted){const key=keyOf(e);groups.set(key,[...(groups.get(key)??[]),e]);}
+  const order=by==='status'?statusOrder:by==='platform'?gamePlatforms:null;
+  const rank=(label:string)=>{const i=order?order.indexOf(label):-1;return i<0?order?order.length:0:i;};
+  const missing=by==='genre'?'장르 미기록':by==='status'?'상태 미기록':'플랫폼 미기록';
+  return [...groups].map(([label,list])=>({label,entries:list})).sort((a,b)=>Number(a.label===missing)-Number(b.label===missing)||(order?rank(a.label)-rank(b.label):b.entries.length-a.entries.length)||a.label.localeCompare(b.label,'ko'));
+}
+/** Average of the rated games in a group, or null when none is rated. */
+export function averageRating(entries:Entry[]){const rated=entries.map(ratingOf).filter((r):r is number=>r!==null);return rated.length?rated.reduce((s,r)=>s+r,0)/rated.length:null;}
+/** "다음에 할 게임": planned games, the most recently added first. */
+export const plannedGames=(entries:Entry[])=>entries.filter(e=>e.status==='플레이 예정').sort((a,b)=>b.createdAt.localeCompare(a.createdAt));

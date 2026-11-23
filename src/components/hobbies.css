@@ -146,6 +146,8 @@
 .watch-plan-title { font-size: 16px; font-weight: 650; overflow-wrap: anywhere; }
 .dialog.watch-plan-dialog { width: min(100%,390px); }
 .toast.watch-progress-toast { left: 50%; padding-block: 4px; }
+/* With an undo button the notice spans the phone width, so its sentence keeps to one or two lines. */
+@media (max-width: 760px) { .toast.watch-progress-toast { width: calc(100vw - 32px); } .toast.watch-progress-toast > span { flex: 1; } }
 .watch-progress-toast .text-button { min-height: 44px; padding-inline: 6px; font-size: 14px; }
 .watch-progress-toast > .icon-button { flex: none; width: 44px; height: 44px; margin-inline-start: 0; }
 .watch-source, .watch-feedback { margin: 0; color: var(--muted); font-size: 13px; }

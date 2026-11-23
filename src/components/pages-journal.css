@@ -27,7 +27,7 @@
 }
 
 /* Collection tiles and rows sit in grids, so they use a slightly tighter corner. */
-.app-shell:not(.journal-home) .main-content :is(.album-card, .game-card, .watch-entry, .hobby-destination, .news-reading-row) {
+.app-shell:not(.journal-home) .main-content :is(.album-card, .watch-entry, .hobby-destination, .news-reading-row) {
   border: 0;
   border-radius: 22px;
   background: var(--panel);
@@ -35,7 +35,7 @@
 }
 .app-shell:not(.journal-home) .main-content .hobby-destination:hover { box-shadow: var(--raise), inset 0 0 0 1.5px var(--accent); }
 .app-shell:not(.journal-home) .main-content .watch-feature { background: linear-gradient(120deg, color-mix(in srgb, var(--panel) 70%, var(--accent-soft)), var(--panel) 72%); }
-.app-shell:not(.journal-home) .main-content :is(.album-card-footer, .game-card-footer) { border-top-color: var(--hair); }
+.app-shell:not(.journal-home) .main-content .album-card-footer { border-top-color: var(--hair); }
 
 /* The audio equipment list sits in one card, like the games list, with soft lines between rows. */
 .app-shell:not(.journal-home) .main-content .audio-record-list { padding: 6px 18px; border-radius: 28px; background: var(--panel); box-shadow: var(--raise); }
@@ -89,8 +89,8 @@
 .app-shell:not(.journal-home) .main-content .button.secondary { border-color: transparent; background: var(--panel); box-shadow: var(--raise); color: var(--text); }
 .app-shell:not(.journal-home) .main-content .button.secondary:hover { border-color: transparent; background: var(--hover); }
 /* On a card the raised pill would float twice, so it becomes a soft pill like the home's buttons. */
-.app-shell:not(.journal-home) .main-content :is(.panel, .hub-summary-card, .album-card, .game-card, .watch-entry, .watch-feature, .news-source-section, .news-reading-row, .spotify-browser, .steam-profile) .button.secondary { background: var(--panel-soft); box-shadow: none; }
-.app-shell:not(.journal-home) .main-content :is(.panel, .hub-summary-card, .album-card, .game-card, .watch-entry, .watch-feature, .news-source-section, .news-reading-row, .spotify-browser, .steam-profile) .button.secondary:hover { background: var(--hover); }
+.app-shell:not(.journal-home) .main-content :is(.panel, .hub-summary-card, .album-card, .watch-entry, .watch-feature, .news-source-section, .news-reading-row, .spotify-browser, .steam-profile) .button.secondary { background: var(--panel-soft); box-shadow: none; }
+.app-shell:not(.journal-home) .main-content :is(.panel, .hub-summary-card, .album-card, .watch-entry, .watch-feature, .news-source-section, .news-reading-row, .spotify-browser, .steam-profile) .button.secondary:hover { background: var(--hover); }
 
 .app-shell:not(.journal-home) .main-content :is(.news-row-actions button, .watch-entry-actions .watch-news-follow) { border: 0; border-radius: 999px; background: var(--panel-soft); }
 .app-shell:not(.journal-home) .main-content :is(.news-row-actions button, .watch-entry-actions .watch-news-follow):hover { background: var(--hover); }
@@ -180,7 +180,7 @@
     .calendar-saved-matches, .calendar-source-drawer,
     .spotify-browser, .steam-profile, .listening-journal, .catalog-player, .hub-highlight
   ) { border-radius: 24px; }
-  .app-shell:not(.journal-home) .main-content :is(.album-card, .game-card, .watch-entry, .hobby-destination, .news-reading-row) { border-radius: 20px; }
+  .app-shell:not(.journal-home) .main-content :is(.album-card, .watch-entry, .hobby-destination, .news-reading-row) { border-radius: 20px; }
   .app-shell:not(.journal-home) .main-content :is(.calendar-source-drawer, .calendar-saved-matches) { padding-inline: 16px; }
   .app-shell:not(.journal-home) .main-content .page-heading h1 { font-size: 30px; }
   /* The phone calendar shows the day list straight on the page, without a card. */

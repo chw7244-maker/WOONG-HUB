@@ -58,7 +58,7 @@ const shortcuts = [
   {title:'IEM Atlas',subtitle:'이어폰 탐색',url:'https://iem-atlas.woong22222.chatgpt.site',icon:Headphones,color:'purple'},
   {title:'스토어 인사이트',subtitle:'매출 · 광고 분석',url:'https://naver-sales-insight.woong22222.chatgpt.site',icon:BriefcaseBusiness,color:'green'}
 ];
-type HubToast = { message: string; undo?: { id: string; before: WatchDetails; advanced: WatchDetails } };
+type HubToast = { message: string; undo?: { id: string; before: WatchDetails; advanced: WatchDetails }; revert?: { before: Entry; after: Entry } };
 
 function Empty({icon:Icon,title,description,action,label='추가하기'}:{icon:LucideIcon;title:string;description?:string;action?:()=>void;label?:string}) {return <div className="empty"><div className="empty-icon"><Icon size={24} strokeWidth={1.5}/></div><h3>{title}</h3>{description&&<p>{description}</p>}{action&&<button className="text-button blue" onClick={action}><Plus size={14}/>{label}</button>}</div>;}
 function PanelHeading({title,sub,children}:{title:string;sub?:string;children?:React.ReactNode}){return <div className="panel-heading"><h2>{title}{sub&&<span className="heading-count">{sub}</span>}</h2>{children}</div>;}
@@ -82,7 +82,7 @@ export default function Hub({section}:{section:string}) {
   },[]);
   useEffect(()=>{if(!ready)return;document.documentElement.dataset.theme=data.preferences.theme;rememberTheme(data.preferences.theme);const color=getComputedStyle(document.documentElement).getPropertyValue('--theme-color').trim();if(color)document.querySelector('meta[name="theme-color"]')?.setAttribute('content',color);},[ready,data.preferences.theme]);
   useEffect(()=>{setToast(null);},[sync.userId]);
-  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),toast.undo?12000:4500);return()=>clearTimeout(t);},[toast]);
+  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),toast.undo||toast.revert?12000:4500);return()=>clearTimeout(t);},[toast]);
   useEffect(()=>{setFilter('전체');},[section]);
   useEffect(()=>{
     if(section!=='library')return;
@@ -117,6 +117,18 @@ export default function Hub({section}:{section:string}) {
     const restored=current&&isWatchEntry(current)?restoreWatchProgress(current,before,advanced):null;
     if(restored)save(restored,{message:'이전 회차로 되돌렸어요.'});
     else notify('작품 기록이 바뀌어 회차를 되돌릴 수 없어요.');
+  }
+  /** A change made in place (a game's stars, memo line or status), saved at once with an undo in the notice. */
+  function quickSave(next:Entry,message:string){
+    const before=data.entries.find(e=>e.id===next.id);
+    if(before)save(next,{message,revert:{before,after:next}});
+  }
+  function revertQuickSave(){
+    if(!toast?.revert)return;
+    const {before,after}=toast.revert;
+    const current=data.entries.find(e=>e.id===after.id);
+    if(current&&JSON.stringify(current)===JSON.stringify(after))save(before,{message:'바꾸기 전으로 되돌렸어요.'});
+    else notify('기록이 다시 바뀌어 되돌릴 수 없어요.');
   }
   function toggle(e:Entry){persist({...data,entries:data.entries.map(x=>x.id===e.id?{...x,done:!x.done}:x)});}
   function remove(){if(deleteEntry&&persist({...data,entries:data.entries.filter(e=>e.id!==deleteEntry.id)})){setDeleteEntry(null);notify('기록을 삭제했어요.');}}
@@ -230,7 +242,7 @@ export default function Hub({section}:{section:string}) {
             <CloudStorageSettings count={data.entries.length} onExport={exportData} onImport={()=>fileRef.current?.click()}/>
             <input ref={fileRef} hidden type="file" accept=".json,application/json" onChange={e=>importFile(e.target.files?.[0])}/>
             <details className="panel settings-panel integration-settings settings-services"><summary>공개 정보와 기타 서비스<ChevronDown size={16}/></summary>{[{name:'날씨 · Open-Meteo',desc:'선택한 지역의 날씨를 화면을 열 때 조회',state:'API 조회'},{name:'WOONG 뉴스 허브',desc:'공개 매체 RSS 직접 수집 · 읽음 · 스크랩 동기화',state:'연결됨'},{name:'음악 DB · MusicBrainz',desc:'앨범 정보 검색 · 별점과 감상은 직접 기록',state:'API 조회'},{name:'Steam 상점',desc:'상점 링크로 게임 정보 조회 · 플레이 기록은 직접 입력',state:'API 조회'},{name:'개인 서버 저장소',desc:'ChatGPT 로그인 · 사용자별 DB · 기기 간 동기화',state:sync.phase==='synced'?'연결됨':'동기화 확인'},{name:'AI 브리핑 · 가격 알림',desc:'별도 API와 수집 작업 연결 후 제공',state:'연결 전'}].map(x=><div className="integration-row" key={x.name}><div><strong>{x.name}</strong><small>{x.desc}</small></div><span className={`badge ${['API 조회','연결됨'].includes(x.state)?'blue':''}`}>{x.state}</span></div>)}</details>
-          </div>:section==='news'?<NewsHub games={entries('games')} documentRevision={sync.revision}/>:section==='audio'?<AudioHub entries={entries('audio')} music={entries('music')} pinned={data.preferences.pinnedAudioSetup} onPin={id=>preference({pinnedAudioSetup:id||undefined})} onAdd={()=>setModal({kind:'audio'})} onEdit={entry=>setModal({kind:'audio',entry})} onDelete={setDeleteEntry} onRecategorize={changes=>{const next=new Map(changes.map(change=>[change.id,change.category]));if(persist({...data,entries:data.entries.map(e=>next.has(e.id)?{...e,category:next.get(e.id)!}:e)}))setToast({message:`장비 ${changes.length}개의 분류를 바꿨어요`});}}/>:section==='steam'?<><Link href="/games/" className="text-button muted steam-back"><ChevronLeft size={14}/>게임 기록으로 돌아가기</Link><SteamAccount detailed entries={entries('games')} onEdit={entry=>setModal({kind:'games',entry})} onSave={save}/></>:section==='games'?<GamesHub entries={entries('games')} onAdd={()=>setModal({kind:'games'})} onEdit={entry=>setModal({kind:'games',entry})} onDelete={setDeleteEntry}/>:section==='spotify'?<><Link href="/music/" className="text-button muted spotify-back"><ChevronLeft size={14}/>앨범 컬렉션으로 돌아가기</Link><SpotifyAccount detailed collections={entries('music')} onCollect={entity=>setModal({kind:'music',entry:spotifyMusicDraft(entity)})}/></>:section==='music'?<MusicHub onSave={save} entries={entries('music')} onAdd={()=>setModal({kind:'music'})} onEdit={entry=>setModal({kind:'music',entry})} onDelete={setDeleteEntry}/>:section==='calendar'?<CalendarHub calendar={calendar} entries={calendarEntries} matches={matchEvents} onRemoveMatch={removeFixture} today={today} hidden={data.preferences.calendarHiddenSources??[]} onHiddenChange={ids=>preference({calendarHiddenSources:ids})} onAdd={addCalendarEvent} onEdit={entry=>setModal({kind:'event',entry})}/>:<>
+          </div>:section==='news'?<NewsHub games={entries('games')} documentRevision={sync.revision}/>:section==='audio'?<AudioHub entries={entries('audio')} music={entries('music')} pinned={data.preferences.pinnedAudioSetup} onPin={id=>preference({pinnedAudioSetup:id||undefined})} onAdd={()=>setModal({kind:'audio'})} onEdit={entry=>setModal({kind:'audio',entry})} onDelete={setDeleteEntry} onRecategorize={changes=>{const next=new Map(changes.map(change=>[change.id,change.category]));if(persist({...data,entries:data.entries.map(e=>next.has(e.id)?{...e,category:next.get(e.id)!}:e)}))setToast({message:`장비 ${changes.length}개의 분류를 바꿨어요`});}}/>:section==='steam'?<><Link href="/games/" className="text-button muted steam-back"><ChevronLeft size={14}/>게임 기록으로 돌아가기</Link><SteamAccount detailed entries={entries('games')} onEdit={entry=>setModal({kind:'games',entry})} onSave={save}/></>:section==='games'?<GamesHub entries={entries('games')} onQuickSave={quickSave} onAdd={()=>setModal({kind:'games'})} onEdit={entry=>setModal({kind:'games',entry})} onDelete={setDeleteEntry}/>:section==='spotify'?<><Link href="/music/" className="text-button muted spotify-back"><ChevronLeft size={14}/>앨범 컬렉션으로 돌아가기</Link><SpotifyAccount detailed collections={entries('music')} onCollect={entity=>setModal({kind:'music',entry:spotifyMusicDraft(entity)})}/></>:section==='music'?<MusicHub onSave={save} entries={entries('music')} onAdd={()=>setModal({kind:'music'})} onEdit={entry=>setModal({kind:'music',entry})} onDelete={setDeleteEntry}/>:section==='calendar'?<CalendarHub calendar={calendar} entries={calendarEntries} matches={matchEvents} onRemoveMatch={removeFixture} today={today} hidden={data.preferences.calendarHiddenSources??[]} onHiddenChange={ids=>preference({calendarHiddenSources:ids})} onAdd={addCalendarEvent} onEdit={entry=>setModal({kind:'event',entry})}/>:<>
             {section==='work'&&<a href={shortcuts[3].url} target="_blank" rel="noreferrer" className="work-tool-link"><BriefcaseBusiness size={20}/><span><strong>스토어 인사이트</strong><small>네이버 매출과 광고 실적</small></span><ArrowUpRight size={16}/></a>}
             <div className="section-toolbar records-toolbar">
               <div className="tabs" role="group" aria-label={section==='library'?'기록 종류':'업무 분류'}>
@@ -246,8 +258,8 @@ export default function Hub({section}:{section:string}) {
         <footer className="footer"><span><span className="footer-wordmark">W.</span>조금 더 나다운 일상을 위해.</span><span>WOONG HUB<span className="footer-separator">/</span>Made for your everyday</span></footer>
       </main>
     </div>
-    {toast&&<div className={`toast${toast.undo?' watch-progress-toast':''}`}><Check size={16} aria-hidden="true"/><span role="status">{toast.message}</span>
-      {toast.undo&&<button type="button" className="text-button blue" onClick={undoWatchProgress}>되돌리기</button>}
+    {toast&&<div className={`toast${toast.undo||toast.revert?' watch-progress-toast':''}`}><Check size={16} aria-hidden="true"/><span role="status">{toast.message}</span>
+      {(toast.undo||toast.revert)&&<button type="button" className="text-button blue" onClick={toast.undo?undoWatchProgress:revertQuickSave}>되돌리기</button>}
       <button type="button" className="icon-button" aria-label="알림 닫기" onClick={()=>setToast(null)}><X size={14}/></button>
     </div>}
     {quickAddOpen&&<Dialog title="빠른 추가" onClose={()=>setQuickAddOpen(false)} className="home-add-dialog" focusField={false}>

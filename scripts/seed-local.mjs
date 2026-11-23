@@ -15,7 +15,7 @@ const now = new Date().toISOString();
 const base = (id, kind, title, category, status) => ({ id: `seed-${id}`, kind, title, detail: '', category, status, url: '', date: '', done: false, createdAt: now });
 const gear = (id, title, category, manufacturer = '', status = '보유 중') => ({ ...base(id, 'audio', title, category, status),
   audio: { type: 'gear', manufacturer, model: '', purchasedAt: '', priceKRW: null, sound: '', connection: '' } });
-const game = (id, title, status, playMinutes, rating) => ({ ...base(id, 'games', title, 'PC', status),
+const game = (id, title, status, playMinutes, rating, detail = '', platform = 'PC') => ({ ...base(id, 'games', title, platform, status), detail,
   game: { playMinutes, rating, startedAt: '', completedAt: '', tags: [] } });
 
 const seeds = [
@@ -24,7 +24,10 @@ const seeds = [
   // The old combined category, to try 이어팁 · 케이블로 나누기: two tips, two cables and one the guess cannot place.
   gear('acc-1', 'SpinFit 샘플 이어팁', '케이블 · 이어팁'), gear('acc-2', '폼팁 샘플 M', '케이블 · 이어팁'), gear('acc-3', '샘플 4.4mm 케이블', '케이블 · 이어팁'),
   gear('acc-4', 'MMCX 업그레이드 선재', '케이블 · 이어팁'), gear('acc-5', '이름만 있는 액세서리', '케이블 · 이어팁'), gear('etc-1', '책상 스피커 S', '기타'),
-  game('g-1', '샘플 퍼즐 게임', '완료', 750, 4.5), game('g-2', '샘플 협동 게임', '완료', null, 3), game('g-3', '샘플 전략 게임', '플레이 예정', null, null),
+  game('g-1', '샘플 퍼즐 게임', '완료', 750, 4.5, '짧고 완벽한 퍼즐\n\n엔딩까지 좋았던 긴 감상'), game('g-2', '샘플 협동 게임', '완료', null, 3), game('g-3', '샘플 전략 게임', '플레이 예정', null, null),
+  // More games for the list's stars, groups, one-line memo and cover view.
+  game('g-4', '샘플 리듬 게임', '완료', 106, 3.5, '손이 박자를 못 따라감'), game('g-5', '샘플 슈터 게임', '플레이 예정', 69, null), game('g-6', '샘플 로그라이크', '플레이 중', 300, 4),
+  game('g-7', '샘플 파티 게임', '위시리스트', null, null), game('g-8', '샘플 액션 게임', '보류', 120, 2, '', 'PlayStation'),
 ];
 const known = new Set(doc.entries.map(entry => entry.id));
 const added = seeds.filter(entry => !known.has(entry.id));

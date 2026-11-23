@@ -152,7 +152,6 @@
 .work-tool-link small { color: var(--muted); font-size: 12px; }
 
 .hub-workspace .news-page-heading { margin-bottom: 10px; }
-.news-hub .journal-status { padding-bottom: 8px; margin-bottom: 10px; }
 .news-hub .news-controls { display: grid; gap: 8px; }
 .news-hub .news-filters { margin-bottom: 1px; }
 .news-hub .news-topics-nav { margin: 9px 0 16px; }

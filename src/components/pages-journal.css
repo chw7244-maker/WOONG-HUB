@@ -13,10 +13,10 @@
 /* ---------- Cards: a floating panel surface instead of a thin border ---------- */
 
 .app-shell:not(.journal-home) .main-content :is(
-  .panel, .hub-summary-card, .records-empty, .collection-empty,
+  .panel, .hub-summary-card, .collection-empty,
   .music-overview, .game-overview, .audio-overview,
   .watch-feature, .watch-news-settings,
-  .news-source-section, .news-notice, .news-language, .news-topic-setting, .journal-side-stories,
+  .news-source-section, .news-notice, .news-language, .news-topic-setting,
   .calendar-saved-matches, .calendar-source-drawer,
   .spotify-browser, .steam-profile, .listening-journal, .catalog-player, .hub-highlight
 ) {
@@ -43,7 +43,7 @@
 
 /* Drawers that used to be a line between sections get the same padding as a card. */
 .app-shell:not(.journal-home) .main-content :is(.calendar-source-drawer, .calendar-saved-matches) { padding-inline: 20px; }
-.app-shell:not(.journal-home) .main-content :is(.collection-empty, .records-empty) { padding: 32px 24px; }
+.app-shell:not(.journal-home) .main-content .collection-empty { padding: 32px 24px; }
 .app-shell:not(.journal-home) .main-content .hub-highlight { padding: 18px 20px; }
 
 /* A card inside another card becomes an inset item instead of floating twice. */
@@ -92,8 +92,8 @@
 .app-shell:not(.journal-home) .main-content :is(.panel, .hub-summary-card, .album-card, .game-card, .watch-entry, .watch-feature, .news-source-section, .news-reading-row, .spotify-browser, .steam-profile) .button.secondary { background: var(--panel-soft); box-shadow: none; }
 .app-shell:not(.journal-home) .main-content :is(.panel, .hub-summary-card, .album-card, .game-card, .watch-entry, .watch-feature, .news-source-section, .news-reading-row, .spotify-browser, .steam-profile) .button.secondary:hover { background: var(--hover); }
 
-.app-shell:not(.journal-home) .main-content :is(.news-row-actions button, .watch-entry-actions .watch-news-follow, .records-empty .text-button) { border: 0; border-radius: 999px; background: var(--panel-soft); }
-.app-shell:not(.journal-home) .main-content :is(.news-row-actions button, .watch-entry-actions .watch-news-follow, .records-empty .text-button):hover { background: var(--hover); }
+.app-shell:not(.journal-home) .main-content :is(.news-row-actions button, .watch-entry-actions .watch-news-follow) { border: 0; border-radius: 999px; background: var(--panel-soft); }
+.app-shell:not(.journal-home) .main-content :is(.news-row-actions button, .watch-entry-actions .watch-news-follow):hover { background: var(--hover); }
 .app-shell:not(.journal-home) .main-content :is(.news-row-actions button, .watch-entry-actions .watch-news-follow)[aria-pressed=true] { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
 
 /* Jump links, today and bookmark controls become pills; labels lose their outline. */
@@ -173,10 +173,10 @@
 
 @media (max-width: 760px) {
   .app-shell:not(.journal-home) .main-content :is(
-    .panel, .hub-summary-card, .records-empty, .collection-empty,
+    .panel, .hub-summary-card, .collection-empty,
     .music-overview, .game-overview, .audio-overview,
     .watch-feature, .watch-news-settings,
-    .news-source-section, .news-notice, .news-language, .news-topic-setting, .journal-side-stories,
+    .news-source-section, .news-notice, .news-language, .news-topic-setting,
     .calendar-saved-matches, .calendar-source-drawer,
     .spotify-browser, .steam-profile, .listening-journal, .catalog-player, .hub-highlight
   ) { border-radius: 24px; }

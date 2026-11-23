@@ -19,29 +19,6 @@
 .home-widget-order li { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 4px; min-height: 44px; border-bottom: 1px solid var(--border); }
 .home-widget-order .icon-button { width: 44px; height: 44px; }
 
-.hub-weather-summary { width: 100%; margin: 0 0 12px; }
-.hub-weather-summary > summary {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px 9px;
-  min-height: 44px;
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--panel) 88%, var(--accent-soft));
-  cursor: pointer;
-  font-size: 13px;
-  list-style: none;
-}
-.hub-weather-summary > summary::-webkit-details-marker { display: none; }
-.hub-weather-summary > summary > svg { color: var(--accent); }
-.hub-weather-summary > summary > span { color: var(--muted); }
-.hub-weather-summary .hub-weather-toggle { margin-inline-start: auto; color: var(--accent); }
-.hub-weather-toggle::after { content: '⌄'; margin-inline-start: 6px; display: inline-block; }
-.hub-weather-summary[open] .hub-weather-toggle::after { rotate: 180deg; }
-.hub-weather-summary > .weather-card { margin-top: 8px; }
-
 .hobby-directory { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
 .hobby-destination {
   display: grid;
@@ -62,9 +39,6 @@
 .hobby-destination > svg { color: var(--muted); }
 .hobby-watch { background: color-mix(in srgb, var(--panel) 88%, #3f958e); }
 .hobby-football { background: color-mix(in srgb, var(--panel) 82%, var(--accent-soft)); }
-
-.home-match-name { align-self: flex-start; margin-top: 10px; font-size: 1rem; font-weight: 650; line-height: 1.45; overflow-wrap: anywhere; }
-.home-match-name:hover { text-decoration: underline; }
 .home-match > p:not(.hub-summary-empty) { display: flex; flex-wrap: wrap; column-gap: 9px; margin: 4px 0; color: var(--hub-summary-muted); font-size: .8125rem; }
 .home-match > small { font-size: .8125rem; color: var(--hub-summary-muted); }
 .home-match-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .25rem .625rem; margin-top: auto; }

@@ -1,4 +1,4 @@
-.hub-home-panels > :is(.hub-home-section,.hub-week-compact,.quick-links-section,.briefing-card) { margin-top: 0; }
+.hub-home-panels > :is(.hub-home-section,.quick-links-section) { margin-top: 0; }
 .hub-summary-card {
   --hub-summary-muted: color-mix(in srgb, var(--muted) 82%, var(--text));
   --hub-summary-accent: color-mix(in srgb, var(--accent) 88%, var(--text));
@@ -66,45 +66,6 @@
 .hub-summary-action:hover { background: var(--hover); }
 .hub-summary-stack > .hub-summary-action { align-self: flex-start; margin-top: auto; }
 .home-task-list { gap: 0; list-style: none; margin: 4px 0; padding: 0; }
-.home-task-list .task-row { gap: 2px; min-height: 44px; }
-.home-task-list .task-row + .task-row { border-top: 1px solid var(--border); }
-.home-task-list .task-checkbox { width: 44px; height: 44px; border: 0; border-radius: 8px; }
-.home-task-list .task-checkbox::before { content: ''; width: 18px; height: 18px; border: 1px solid var(--hub-summary-muted); border-radius: 5px; }
-.home-task-list .task-checkbox:hover::before { border-color: var(--accent); background: var(--accent-soft); }
-.home-task-list .task-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-  min-height: 44px;
-  padding: 5px 3px;
-  font-size: 1rem;
-  line-height: 1.45;
-  text-align: start;
-  word-break: keep-all;
-  overflow-wrap: anywhere;
-}
-.home-task-list .task-title:hover { color: var(--accent); }
-.home-task-list .task-title :is(small,svg) { color: var(--hub-summary-muted); }
-.home-task-list .task-title small { font-size: .8125rem; }
-.home-task-group { border-top: 1px solid var(--border); }
-.home-task-group > summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 3px;
-  font-size: 14px;
-  list-style: none;
-  cursor: pointer;
-}
-.home-task-group > summary::-webkit-details-marker { display: none; }
-.home-task-group > summary :is(.home-task-count,svg) { color: var(--hub-summary-muted); }
-.home-task-count { margin-inline-start: auto; font-size: .8125rem; font-variant-numeric: tabular-nums; }
-.home-task-group[open] > summary svg { rotate: 180deg; }
-.home-task-group:last-of-type { margin-bottom: .375rem; }
 .dialog.home-add-dialog { width: min(100%,360px); }
 .home-add-options { display: grid; gap: 8px; }
 .home-add-options > button {
@@ -139,21 +100,7 @@
 .hub-home-panels .quick-link-copy strong { margin: 0; font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
 .hub-home-panels .quick-link-copy small { margin: 0; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .hub-home-panels .personal-links a { min-height: 44px; font-size: 12px; }
-
-.hub-week-compact { margin-top: 18px; }
-.hub-week-compact .hub-summary-heading, .hub-resume-card .hub-summary-heading { margin-bottom: .625rem; }
-.hub-week-compact .hub-week-days button { min-height: 52px; gap: 1px; border-radius: 8px; background: var(--panel-soft); }
-.hub-week-compact .hub-week-days button[aria-pressed=true] { background: var(--accent-soft); }
-.hub-week-compact .hub-week-days button strong { font-size: 16px; }
-.hub-week-compact .hub-week-actions .icon-button { min-height: 44px; width: 44px; }
-.hub-workspace .hub-week-compact .hub-week-actions .text-button { min-height: 44px; }
-.hub-week-summary { display: flex; justify-content: space-between; align-items: center; gap: 6px 12px; margin-top: 4px; }
-.hub-week-summary > button { min-width: 0; text-align: start; min-height: 44px; display: flex; align-items: center; gap: 6px; }
-.hub-week-summary > button svg { flex-shrink: 0; color: var(--accent); }
-.hub-week-summary > button[aria-expanded=true] svg { rotate: 180deg; }
-.hub-week-summary small { color: var(--muted); font-size: 12px; }
-.hub-week-summary > a, .hub-week-compact #home-week-agenda > button { flex-shrink: 0; min-height: 44px; }
-.hub-agenda-note { display: block; padding-bottom: 4px; }
+.hub-resume-card .hub-summary-heading { margin-bottom: .625rem; }
 
 .hub-continuation { align-items: stretch; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); }
 .hub-continuation-item {
@@ -178,7 +125,6 @@
 
 @media (max-width:760px) {
   .hub-summary-card { --hub-summary-padding: .75rem; --hub-summary-radius: .875rem; }
-  .hub-week-compact .hub-week-days button { min-height: 49px; }
   .hub-continuation { gap: 6px; grid-template-columns: minmax(0,1fr); }
   .hub-continuation-copy > :is(a,button):not(.spotify-brand) { min-height: 44px; display: inline-flex; align-items: center; }
   .hub-continuation-account summary { min-height: 40px; display: flex; align-items: center; }

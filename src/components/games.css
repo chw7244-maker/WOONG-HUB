@@ -16,6 +16,14 @@
 .games-summary[open] > summary .section-chevron { rotate: 180deg; }
 .games-summary > .hub-game-highlights { margin: 0; padding: 0 12px 12px; }
 .games-summary .hub-game-highlights > * { box-shadow: none; background: var(--panel-soft); }
+.xbox-history { display: grid; gap: 12px; justify-items: start; padding: 0 18px 16px; }
+.xbox-history p { margin: 0; }
+.xbox-history-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.xbox-history-list { width: 100%; margin: 0; padding: 0; list-style: none; }
+.xbox-history-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+.xbox-history-list li div { display: grid; min-width: 0; overflow-wrap: anywhere; }
+.xbox-history-list li small { color: var(--muted); }
+.xbox-history-list li > span { flex: none; font-variant-numeric: tabular-nums; }
 
 /* Result count with the grouping and list / cover switches */
 .game-result-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }

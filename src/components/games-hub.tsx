@@ -9,6 +9,7 @@ import { SteamAccountField, SteamLinkedTime, useSteamEntryStats } from './steam-
 import { SectionFilters, SectionStats } from './section-controls';
 import { GameHighlights } from './hobby-highlights';
 import SteamSync from './steam-sync';
+import XboxHistory from './xbox-history';
 
 function GameCover({imageUrl,title,thumb=false}:{imageUrl?:string;title:string;thumb?:boolean}){
   const [failed,setFailed]=useState(false);
@@ -128,6 +129,7 @@ export default function GamesHub({entries,onAdd,onEdit,onDelete,onQuickSave,onBu
       <GameHighlights entries={entries} onOpen={entry=>setSelectedId(entry.id)}/>
     </details>
     <SteamSync entries={entries} onBulkSave={onBulkSave} onGone={setGoneIds}/>
+    <XboxHistory/>
     {steamStats.error&&<p className="form-error" role="alert">{steamStats.error}</p>}
     <div className="game-toolbar"><div className="tabs" role="group" aria-label="게임 상태 필터">{['전체',...new Set([...gameStatuses,...entries.map(e=>e.status).filter(Boolean)])].map(s=><button key={s} className={status===s?'selected':''} aria-pressed={status===s} onClick={()=>setStatus(s)}>{s}{s==='전체'&&<span>{entries.length}</span>}</button>)}</div><Link href="/games/steam/" className="catalog-service-link">Steam 라이브러리<ArrowUpRight size={14}/></Link></div>
     <div className="game-filters"><label className="game-search"><Search size={16}/><input aria-label="게임 검색" placeholder="게임, 제작사, 장르, 태그 검색" value={query} onChange={e=>setQuery(e.target.value)}/></label>

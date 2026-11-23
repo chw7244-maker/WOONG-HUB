@@ -228,6 +228,14 @@ pnpm preview    # http://127.0.0.1:3000
 - 배포는 ChatGPT의 Sites에서 진행합니다. GitHub `main`에 반영한 뒤 사이트 관리 채팅에서 최신 버전 배포를 요청합니다.
 - `scripts/verify-deployment.mjs`는 배포된 사이트를 읽기 전용으로 점검합니다(DB 상태, 주요 경로, 로그인 없는 API 접근 차단). 사이트 주소와 서비스 토큰을 숨김 입력으로 받으며, 토큰은 출력하거나 저장하지 않습니다.
 
+### Xbox 플레이 기록 연동
+
+1. [OpenXBL](https://xbl.io/)에서 Xbox 프로필을 사용하는 Microsoft 계정으로 로그인하고 API 키를 발급받습니다.
+2. [ChatGPT Sites](https://chatgpt.com/sites)에서 **WOONG HUB → ⋯ → 설정**을 열고 환경 변수 및 시크릿에 `XBOX_OPENXBL_API_KEY`를 **시크릿**으로 추가한 뒤 다시 배포합니다. 이 설정은 소유자 전용 배포에서 사용합니다.
+3. HUB의 **취미 → 게임 → Xbox 플레이 기록**을 펼쳐 **Xbox 기록 불러오기**를 누릅니다. OpenXBL이 반환한 게임과 마지막 플레이 날짜, 기록된 누적 플레이 시간을 확인할 수 있습니다. Xbox가 시간을 제공하지 않으면 ‘시간 미기록’으로 표시합니다.
+
+조회는 버튼을 눌렀을 때 실행합니다. 키는 서버에서 OpenXBL을 호출할 때 사용하고, 조회 결과는 열린 화면에 표시합니다. 기존 HUB 게임 기록에 추가하거나 저장하지 않습니다.
+
 ### TMDB 연동
 
 1. [TMDB API 설정](https://www.themoviedb.org/settings/api)에서 API 사용을 신청하고 **API Read Access Token**을 복사합니다. ([TMDB 인증 안내](https://developer.themoviedb.org/docs/authentication-application))

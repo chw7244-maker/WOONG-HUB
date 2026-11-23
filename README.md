@@ -16,7 +16,7 @@
 - [개발](#개발)
 - [배포](#배포)
 - [문서](#문서)
-- [작업 이어가기](#작업-이어가기): [새 PC 준비](#1-새-pc-준비) · [작업 흐름](#3-작업-흐름) · [현재 상태](#4-현재-상태-2026-11-23) · [다음 작업](#5-다음-작업)
+- [작업 이어가기](#작업-이어가기): [바로 시작](#0-이미-준비된-pc에서-바로-시작) · [새 PC 준비](#1-새-pc-준비) · [작업 흐름](#3-작업-흐름) · [현재 상태](#4-현재-상태-2026-11-23) · [다음 작업](#5-다음-작업) · [탭 개선 작업 노트](docs/next-steps.md)
 
 ## 화면 구성
 
@@ -223,6 +223,7 @@ pnpm preview    # http://127.0.0.1:3000
 
 | 문서 | 내용 |
 | --- | --- |
+| [docs/next-steps.md](docs/next-steps.md) | 탭 개선 남은 단계, 시안에서 정한 내용, 배포 후 확인할 것 |
 | [docs/home-design.md](docs/home-design.md) | 홈과 카드 디자인 기준, 테마 토큰 |
 | [docs/calendar-update.md](docs/calendar-update.md) | Notion·Google 캘린더 수동 반영 운영 절차 |
 | [docs/spotify.md](docs/spotify.md) | Spotify Premium 계정 연동 설정과 확인 범위 |
@@ -233,43 +234,66 @@ pnpm preview    # http://127.0.0.1:3000
 
 ## 작업 이어가기
 
-다른 PC(회사 등)에서 이어서 작업할 때 필요한 준비와 현재 상태입니다.
+다른 PC(집·회사)에서 이어서 작업할 때 필요한 준비와 현재 상태입니다. 남은 단계의 상세 내용과 시안에서 정한 사항은 [docs/next-steps.md](docs/next-steps.md)에 있습니다.
+
+### 0. 이미 준비된 PC에서 바로 시작
+
+```powershell
+git switch main
+git pull
+pnpm install
+pnpm check
+pnpm test
+pnpm build
+pnpm preview
+```
+
+`http://127.0.0.1:3000`을 열고, [docs/next-steps.md](docs/next-steps.md)의 진행 표에서 다음 단계를 확인합니다. 화면을 시험할 예시 기록이 필요하면 미리보기를 한 번 연 뒤 `node scripts/seed-local.mjs`를 실행합니다(로컬 DB에만 들어갑니다).
 
 ### 1. 새 PC 준비
 
-1. **Git**과 **Node.js 24 이상**을 설치합니다. Windows는 아래 명령으로 설치할 수 있습니다. 설치한 뒤에는 터미널(또는 Claude 앱)을 새로 열어야 `node`가 인식됩니다.
+1. **Git**과 **Node.js 24 이상**을 설치합니다. 설치한 뒤에는 터미널(또는 Claude 앱)을 새로 열어야 `node`가 인식됩니다.
 
    ```powershell
    winget install Git.Git
    winget install OpenJS.NodeJS
    ```
 
-2. **pnpm 11.25.0**을 설치합니다. Node.js 25부터는 corepack이 함께 들어 있지 않으므로 npm으로 설치합니다. 최신 pnpm 12로 올리라는 안내가 나와도 이 버전을 유지합니다.
+2. **pnpm 11.25.0**을 npm으로 설치합니다. Node.js 25부터는 corepack이 들어 있지 않습니다. pnpm 12로 올리라는 안내가 나와도 이 버전을 유지합니다.
 
    ```powershell
    npm install -g pnpm@11.25.0
    pnpm --version
    ```
 
-3. 저장소를 받고 의존성을 설치한 뒤, 검사·테스트·빌드가 통과하는지 확인합니다.
+3. 저장소를 받고 위 0번의 명령을 실행합니다.
 
    ```powershell
    git clone https://github.com/chw7244-maker/WOONG-HUB.git
    cd WOONG-HUB
-   pnpm install
-   pnpm check
-   pnpm test
-   pnpm build
-   pnpm preview
    ```
 
-4. `http://127.0.0.1:3000`을 엽니다. 로컬 DB(`.sites-runtime/local.sqlite`)는 PC마다 새로 만들어지므로 처음에는 기록이 비어 있습니다. 화면 확인용 할 일이나 일정은 로컬에서 직접 추가해도 운영 데이터에 영향이 없습니다.
+4. **커밋 작성자**를 이 저장소에만 설정합니다. 비어 있으면 커밋이 거부됩니다. 기존 커밋과 같은 이름·이메일을 씁니다(`git log -1 --format='%an <%ae>'`로 확인).
 
-`.npmrc`와 `pnpm-workspace.yaml`이 pnpm 저장소를 `.sites-runtime/pnpm-store`(Git 제외)에 두도록 설정되어 있어, 설치 파일은 저장소 폴더 안에만 생깁니다.
+   ```powershell
+   git config user.name "<GitHub 사용자 이름>"
+   git config user.email "<GitHub 이메일>"
+   ```
+
+5. 로컬 DB(`.sites-runtime/local.sqlite`)는 PC마다 새로 만들어지므로 처음에는 비어 있습니다. 로컬에서 추가한 기록은 운영 데이터에 영향이 없습니다.
+
+`.npmrc`와 `pnpm-workspace.yaml`이 pnpm 저장소를 `.sites-runtime/pnpm-store`(Git 제외)에 두므로, 설치 파일은 저장소 폴더 안에만 생깁니다.
+
+**OneDrive 안에 저장소를 둔 경우:** OneDrive가 `.next` 폴더를 잡고 있으면 `pnpm build`가 `EPERM: operation not permitted, unlink '.next\...'`로 실패합니다. `.next` 폴더를 지우고 다시 빌드하면 됩니다. 되도록 OneDrive 밖에 받는 편이 안전합니다.
+
+```powershell
+Remove-Item -Recurse -Force .next
+pnpm build
+```
 
 ### 2. Claude Code 환경 (선택)
 
-이 저장소의 디자인 작업은 Claude Code 데스크톱 앱에서 아래 도구로 진행했습니다. 같은 claude.ai 계정으로 로그인하면 커넥터는 그대로 이어지고, 플러그인은 PC마다 설치합니다.
+이 저장소의 디자인 작업은 Claude Code 데스크톱 앱에서 아래 도구로 진행했습니다. 같은 claude.ai 계정으로 로그인하면 커넥터와 시안 캔버스는 그대로 보이고, 플러그인은 PC마다 설치합니다.
 
 | 종류 | 이름 | 용도 |
 | --- | --- | --- |
@@ -278,9 +302,9 @@ pnpm preview    # http://127.0.0.1:3000
 | 플러그인 | `figma@claude-plugins-official` | Figma 읽기·쓰기 작업 지침 |
 | 커넥터 | Figma, Adobe | 시안 읽기, 글꼴 추천, 이미지 생성 |
 
-플러그인은 Claude 앱의 플러그인 관리 화면에서 설치하거나, Claude Code 명령줄 도구가 있으면 `claude plugin install <이름>`으로 설치합니다. 설치한 플러그인은 새 세션부터 적용됩니다. Figma 플러그인은 설치 후 `/mcp`에서 로그인합니다. Adobe 플러그인의 별도 로그인은 Adobe 쪽에서 앱의 로그인 주소를 거부해 실패할 수 있습니다. 이때는 이미 연결된 Adobe 커넥터를 쓰면 됩니다.
+플러그인은 Claude 앱의 플러그인 관리 화면에서 설치합니다. 설치한 플러그인은 새 세션부터 적용됩니다. Design 플러그인에 딸린 Slack·Notion 등 외부 서비스 연결과 Figma 로그인은 `/mcp`에서 하는데, 데스크톱 앱 채팅창에는 이 메뉴가 없을 수 있습니다. 그때는 Claude Code 명령줄 도구를 설치(`irm https://claude.ai/install.ps1 | iex`)한 뒤 터미널에서 `claude` → `/mcp`로 로그인합니다. 디자인 스킬 자체는 로그인 없이 쓸 수 있습니다.
 
-앱의 브라우저 패널로 로컬 미리보기를 띄우려면 `.claude/launch.json`을 만듭니다(Git에 올리지 않음).
+앱의 브라우저 패널로 로컬 미리보기를 띄우려면 **앱에서 연 폴더**에 `.claude/launch.json`을 만듭니다(Git에 올리지 않음). 저장소 폴더를 열었다면 아래 그대로, 저장소의 상위 폴더를 열었다면 `"cwd": "WOONG-HUB"`(저장소 폴더 이름)를 추가합니다.
 
 ```json
 {
@@ -291,40 +315,41 @@ pnpm preview    # http://127.0.0.1:3000
 }
 ```
 
-`node`를 찾지 못하면 `runtimeExecutable`에 `C:/Program Files/nodejs/node.exe`처럼 슬래시(`/`)로 쓴 전체 경로를 넣습니다. 미리보기는 `pnpm build` 결과를 보여주므로, 코드를 바꾼 뒤에는 다시 빌드합니다.
+- `node`를 찾지 못하면 `runtimeExecutable`에 `C:/Program Files/nodejs/node.exe`처럼 슬래시(`/`)로 쓴 전체 경로를 넣습니다.
+- 미리보기는 `pnpm build` 결과를 보여주므로 화면 코드를 바꾸면 다시 빌드합니다.
+- `worker/`(API) 코드는 미리보기 서버가 시작할 때 읽으므로, 바꾼 뒤에는 미리보기 서버를 껐다 켜야 반영됩니다.
+- 운영 사이트는 소유자 전용이라 브라우저 패널에서 처음 열면 ChatGPT 로그인이 필요합니다.
 
 ### 3. 작업 흐름
 
 [AGENTS.md](AGENTS.md)의 규칙을 따릅니다.
 
-1. `main`에서 작업 브랜치를 만듭니다. 예: `git switch -c design/pages-v2`
-2. 수정한 뒤 `pnpm check`, `pnpm test`, `pnpm build`를 실행합니다. 화면을 바꿨다면 로컬 미리보기에서 PC·모바일, 다크·라이트를 확인합니다.
-3. 사용법이나 동작이 바뀌었으면 README와 [docs/verification.md](docs/verification.md)를 고칩니다. 디자인 기준이 바뀌었으면 [docs/home-design.md](docs/home-design.md)도 고칩니다.
+1. `main`에서 작업 브랜치를 만듭니다. 예: `git switch -c feature/tabs-phase2`
+2. 수정한 뒤 `pnpm check`, `pnpm test`, `pnpm build`를 실행합니다. 화면을 바꿨다면 로컬 미리보기에서 PC(1440px)·휴대폰(402px), 다크·라이트를 확인합니다.
+3. 사용법이나 동작이 바뀌었으면 README, [docs/verification.md](docs/verification.md), [docs/next-steps.md](docs/next-steps.md)의 진행 표를 고칩니다. 디자인 기준이 바뀌었으면 [docs/home-design.md](docs/home-design.md)도 고칩니다.
 4. 해당 작업의 파일만 커밋하고 `origin`의 작업 브랜치로 푸시합니다. 로컬 커밋과 원격 브랜치가 같은지 확인합니다.
 5. 확인이 끝나면 `main`에 합쳐 푸시하고, ChatGPT의 사이트 관리 채팅에서 최신 `main` 배포를 요청합니다. 배포 후 운영 사이트에서 다시 확인합니다.
 
-토큰, 실제 캘린더 일정, 개인 계정 ID는 소스나 문서에 넣지 않습니다.
+토큰, 실제 캘린더 일정, 개인 계정 ID, 실제 장비·게임 목록 같은 개인 기록은 소스나 문서에 넣지 않습니다(이 저장소는 공개 저장소입니다). 로컬 예시 기록도 지어낸 이름만 씁니다.
 
 ### 4. 현재 상태 (2026-11-23)
 
-- 운영 사이트에는 홈 재구성(시안 2), 저널 톤 전체 통일, 최소 글자 12px, QHD·4K 배율, 하단 카드 시안 맞춤, 홈 밖 페이지 디자인 통일, 게임 한 줄 목록과 오디오 목록 카드, 취미 탭과 게임 목록의 Steam 시간 표시, 테마 깜빡임 수정, 쓰지 않는 CSS 정리까지 반영되어 있습니다(`main`과 같은 버전). 모바일 게임 페이지 길이는 약 24,300px에서 4,450px로 줄었습니다.
-- 운영 사이트에서 375·1024·1440·1920·2560px로 확인했습니다. 실제 아이폰과 실제 QHD 모니터에서는 아직 확인하지 않았습니다.
-- 디자인 시안은 Claude의 [홈 재구성 시안 캔버스](https://claude.ai/artifact/4EinW9jEKPy6py9HkT7AnB)에 있습니다(본인 계정 전용). ‘시안 2’ 페이지가 현재 홈의 기준이고, ‘시안 1’은 비교용입니다.
-- 시안 2는 [gyupage](https://gyupage.vercel.app/)의 큰 날짜 숫자, 날씨가 들어간 7일 달력과 Pinterest ‘웹디’ 보드의 떠 있는 면, 알약 메뉴, 벤토 배치를 참고했습니다.
-- 작업이 끝난 브랜치 `design/journal-tone`, `design/home-v2`, `design/qhd-weather-fix`, `design/pages-unify`, `design/games-compact`, `design/hobby-tabs`, `fix/theme-flash`, `chore/unused-css`는 모두 `main`에 합쳐져 있어 지워도 됩니다.
-- 브랜치 `feature/tabs-phase1`에서 탭 개선 1단계(축구 로고·시즌 카드, 게임 플레이 시간 기준, 오디오 분류 묶음·이어팁/케이블 나누기, 홈 테두리)를 마쳤습니다. 로컬 미리보기에서만 확인했고 아직 `main`에 합치지 않았습니다.
-- 쓰지 않는 클래스 151개의 CSS 규칙(선택자 635개)을 지워 CSS 원본이 약 237KB에서 193KB로, 운영 사이트가 내려받는 스타일 파일이 171KB로 줄었습니다. 배포 후 14개 페이지를 375·1440px에서 다시 검사했고 높이·글자·가로 스크롤이 정리 전과 같습니다.
+- **운영 사이트:** 홈 재구성(시안 2), 저널 톤 전체 통일, 최소 글자 12px, QHD·4K 배율, 홈 밖 페이지 디자인 통일, 게임 한 줄 목록, 취미 탭, 게임 목록의 Steam 시간 표시, 테마 깜빡임 수정, 쓰지 않는 CSS 정리까지 반영되어 있습니다.
+- **`main`:** 위 내용에 탭 개선 1단계(축구 로고·시즌 카드, 게임 플레이 시간 기준, 오디오 분류 묶음·이어팁/케이블 나누기, 홈 테두리)가 더 들어가 있습니다. **아직 배포하지 않았습니다.** 배포한 뒤 확인할 것은 [docs/next-steps.md](docs/next-steps.md#1단계-배포-후-확인할-것)에 있습니다.
+- 운영 사이트를 375·1024·1440·1920·2560px로 확인했습니다. 실제 아이폰과 실제 QHD 모니터에서는 아직 확인하지 않았습니다.
+- **시안:** 홈은 [홈 재구성 시안 캔버스](https://claude.ai/artifact/4EinW9jEKPy6py9HkT7AnB)의 ‘시안 2’, 각 탭은 [탭 개선 시안 캔버스](https://claude.ai/artifact/G8C33UJkrkY5wyyi6dTLDp)가 기준입니다(둘 다 본인 계정 전용). 시안 2는 [gyupage](https://gyupage.vercel.app/)의 큰 날짜 숫자, 날씨가 들어간 7일 달력과 Pinterest ‘웹디’ 보드의 떠 있는 면, 알약 메뉴, 벤토 배치를 참고했습니다.
+- 작업이 끝난 브랜치 `design/journal-tone`, `design/home-v2`, `design/qhd-weather-fix`, `design/pages-unify`, `design/games-compact`, `design/hobby-tabs`, `fix/theme-flash`, `chore/unused-css`, `docs/status-css-deployed`, `feature/tabs-phase1`은 모두 `main`에 합쳐져 있어 지워도 됩니다.
 
 ### 5. 다음 작업
 
-각 탭 개선은 Claude의 [탭 개선 시안 캔버스](https://claude.ai/artifact/G8C33UJkrkY5wyyi6dTLDp)(본인 계정 전용)를 기준으로, 아래 단계 순서로 진행합니다. 단계마다 브랜치에서 확인한 뒤 `main`에 합치고 배포합니다.
+우선순위 순서입니다. 각 단계의 정한 내용, 대상 파일, 시작 전에 정할 것은 [docs/next-steps.md](docs/next-steps.md)에 있습니다.
 
-1. **빠른 개선** (브랜치 `feature/tabs-phase1`, 병합·배포 후 운영에서 실제 장비 43개의 나누기와 로고 표시 확인) — 축구: EPL 팀 로고(OpenLigaDB `teamIconUrl`), 맨시티 시즌 요약(순위·승점·전적·최근 경기)과 ‘순위 싸움’ 카드. 게임: 직접 기록한 플레이 시간은 Steam 시간이 0분이거나 없는 게임에만 표시. 오디오: 분류별 묶음(5열 같은 크기 칸, 모델명·제조사 두 줄)과 이어팁·케이블 나누기. 홈: ‘즐겨찾는 곳’ 버튼(`.quick-link`), 날씨 예보 창의 지역 선택·시간별 칸(`.weather-card select`, `.weather-period`)에 남은 테두리 정리.
-2. **게임 목록 개편** — 목록·표지 보기 전환(기기별 기억), 별점 바로 수정(PC는 별 클릭과 되돌리기, 휴대폰은 별을 쓸어 0.5점 단위로 주는 팝업), 묶어 보기(별점·장르·상태·플랫폼), ‘한 줄 메모’ 칸. 같은 별점 부품을 음악·작품에도 씁니다.
-3. **간편 추가와 찜 목록** — 목록 위 입력칸 하나로 이름 검색 후 바로 추가(게임은 Steam 이름 검색, 작품은 TMDB, 앨범은 MusicBrainz). 상태는 보고 있는 탭을 따릅니다. Steam 찜 목록(프로필·찜 목록 공개 필요)을 하루 한 번과 버튼으로 가져와 위시리스트에 담습니다.
-4. **오디오 CSV** — CSV 가져오기(미리보기, 같은 이름 건너뛰기, 이름으로 분류 추측)와 내보내기. 직접 추가할 때도 이름으로 분류를 추측합니다.
-5. **기록 탭 개편** — ‘무엇이든 적기’ 입력칸 하나로 종류 자동 판별(링크는 북마크, 날짜가 있으면 할 일, 나머지는 메모). PC는 3단(입력·필터 / 할 일·메모·북마크 / 이번 주 마감·고정 메모), 휴대폰은 하나로 합친 목록.
-6. **실기기 확인** — 실제 아이폰에서 로그인, 저장·동기화 왕복, 새 홈 배치, 라이트 테마 첫 화면을 확인합니다. QHD 모니터에서 125% 배율이 적당한지도 봅니다.
-7. **더 촘촘하게** — 뉴스 카드(한 장에 약 228px)도 한 줄 목록형을 둘 수 있습니다. 일정 추가·작품 추가 같은 대화 상자는 아직 예전 테두리 입력칸을 씁니다.
+1. **1단계 배포와 확인** — 사이트 관리 채팅에서 최신 `main`을 배포한 뒤, 실제 장비 43개의 이어팁·케이블 나누기, 축구 로고, Steam 연결 게임의 시간 표시를 확인합니다.
+2. **게임 목록 개편** — 목록·표지 보기 전환, 별점 바로 수정(PC 클릭, 휴대폰은 별을 쓸어 0.5점 단위), 묶어 보기(별점·장르·상태·플랫폼), 한 줄 메모 칸. 시작 전에 한 줄 메모를 어디에 저장할지 정합니다.
+3. **간편 추가와 Steam 찜 목록** — 입력칸 하나로 이름 검색 후 추가(게임 Steam, 작품 TMDB, 앨범 MusicBrainz), Steam 찜 목록을 위시리스트로 가져오기.
+4. **오디오 CSV** — 가져오기(미리보기, 같은 이름 건너뛰기, 분류 추측)와 내보내기.
+5. **기록 탭 개편** — ‘무엇이든 적기’ 입력칸으로 종류 자동 판별, PC 3단 배치, 휴대폰 합친 목록.
+6. **실기기 확인** — 실제 아이폰과 QHD 모니터.
+7. **더 촘촘하게** — 뉴스 카드 한 줄 목록형, 대화 상자의 남은 테두리 입력칸.
 
 그 밖에 필요하면 뉴스 출처·수집량·언어 설정을 넓힐 수 있습니다. 모바일 설치용 웹 앱 매니페스트는 있지만, 오프라인 실행과 푸시 알림은 아직 없습니다.

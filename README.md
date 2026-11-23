@@ -336,7 +336,7 @@ pnpm build
 
 - **운영 사이트와 `main`:** 같은 버전입니다. 홈 재구성(시안 2), 저널 톤 전체 통일, 최소 글자 12px, QHD·4K 배율, 홈 밖 페이지 디자인 통일, 게임 한 줄 목록, 취미 탭, 테마 깜빡임 수정, 쓰지 않는 CSS 정리, 탭 개선 1단계(축구 로고·시즌 카드, 게임 플레이 시간 기준, 오디오 분류 묶음·이어팁/케이블 나누기, 홈 테두리)까지 반영되어 있습니다.
 - **1단계 배포 확인:** 운영에서 축구 로고, 게임 시간 표시, 이어팁·케이블 나누기 추측을 확인했습니다([검증 기록](docs/verification.md)). 운영 장비의 나누기는 아직 적용하지 않았고, AZLA Mithril은 직접 정해야 합니다.
-- **배포 대기:** `/games/steam/`, `/music/spotify/`처럼 두 단계 주소의 미리 불러오기 파일이 운영에서 404로 나오던 문제를 고쳤습니다(`fix/nested-prefetch` 브랜치). 아직 `main`에 합치거나 배포하지 않았습니다.
+- **배포 대기:** `/games/steam/`, `/music/spotify/`처럼 두 단계 주소의 미리 불러오기 파일이 운영에서 404로 나오던 문제를 고쳐 `main`에 합쳤습니다. **아직 배포하지 않았습니다.** 배포한 뒤 운영에서 두 파일이 200으로 나오는지 확인합니다.
 - 운영 사이트를 375·1024·1440·1920·2560px로 확인했습니다. 실제 아이폰과 실제 QHD 모니터에서는 아직 확인하지 않았습니다.
 - **시안:** 홈은 [홈 재구성 시안 캔버스](https://claude.ai/artifact/4EinW9jEKPy6py9HkT7AnB)의 ‘시안 2’, 각 탭은 [탭 개선 시안 캔버스](https://claude.ai/artifact/G8C33UJkrkY5wyyi6dTLDp)가 기준입니다(둘 다 본인 계정 전용). 시안 2는 [gyupage](https://gyupage.vercel.app/)의 큰 날짜 숫자, 날씨가 들어간 7일 달력과 Pinterest ‘웹디’ 보드의 떠 있는 면, 알약 메뉴, 벤토 배치를 참고했습니다.
 - 작업이 끝난 브랜치 `design/journal-tone`, `design/home-v2`, `design/qhd-weather-fix`, `design/pages-unify`, `design/games-compact`, `design/hobby-tabs`, `fix/theme-flash`, `chore/unused-css`, `docs/status-css-deployed`, `feature/tabs-phase1`은 모두 `main`에 합쳐져 있어 지워도 됩니다.

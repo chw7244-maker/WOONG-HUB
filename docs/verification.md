@@ -1,12 +1,19 @@
 # 검증 기록
 
+## 두 단계 주소의 미리 불러오기 · 2026-11-23
+
+- Next.js는 화면 조각을 `__next.games.steam.__PAGE__.txt`처럼 주소 단계를 점으로 이은 이름으로 미리 불러오는데, 정적 내보내기는 `__next.games/steam/__PAGE__.txt`처럼 폴더에 씁니다. 빌드가 한 단계(`__next.$d$section/__PAGE__.txt`)만 평평한 이름을 더 붙이고 있어, `/games/steam/`과 `/music/spotify/`의 미리 불러오기가 운영에서 404였습니다.
+- 이름 바꾸기를 `scripts/prefetch-alias.mjs`로 옮기고 폴더 단계를 모두 점으로 잇게 했습니다. 빌드한 Worker(`dist/server/index.js`)에 직접 요청해서 두 파일과 기존 `/audio/__next.$d$section.__PAGE__.txt`가 200, 없는 이름은 404인 것을 확인했습니다. 자산은 110개에서 112개가 되었습니다.
+- 로컬 미리보기(`scripts/serve.mjs`)는 `out/`을 그대로 읽어 이 별칭을 쓰지 않으므로, 미리보기에서는 한 단계 주소도 원래부터 404입니다. 운영 확인은 배포 후에 해야 합니다.
+- TypeScript 검사, 자동 테스트 162/162(별칭 테스트 2개 추가), 빌드를 통과했습니다.
+
 ## 탭 개선 1단계 배포 확인 · 2026-11-23
 
 - 배포 후 운영 사이트에서 로그인해 확인했습니다.
 - 오디오: ‘이어팁 · 케이블로 나누기’ 창에서 ‘케이블 · 이어팁’ 18개 중 17개가 추측됐습니다. 이어팁은 Divinus Velvet·Velvet Wide Bore, AZLA SednaEarfit Origin·MAX, SpinFit W1·CP145, JVC Spiral Dot Original, final Type E, 케이블은 NICEHCK MOONGOD·WHITESKY·SNOW WINGS·STARDREAM·SnowAg, Eletech Baroque·Baroque Stage, iFi Audio 4.4mm 케이블, Effect Audio Cadmus 8W이며 모두 맞았습니다. AZLA Mithril은 ‘그대로 두기’입니다. 확인만 하고 ‘취소’로 닫아서 운영 장비의 분류는 바꾸지 않았습니다.
 - 축구: 화면의 로고 50개 중 EPL 팀 44개가 모두 이미지로 받아졌습니다. Napoli, FC Barcelona, Bradford City, RC Lens, Sporting CP는 순위표에 없는 팀이라 404를 받고 약칭 배지로 남습니다(설계대로).
 - 게임: 56개 모두 Steam 시간을 씁니다. 55개는 ‘Steam ○시간’이고, Portal은 Steam 0분에 직접 기록이 없어 ‘Steam 0분’입니다. 운영 기록에는 Steam 0분이면서 직접 시간이 있는 게임이 없어 ‘직접 ○시간’ 표시는 운영에서 볼 수 없었습니다(자동 테스트와 로컬 확인으로 대신함).
-- 남은 문제: `/games/steam/`의 미리 불러오기 파일 `__next.games.steam.__PAGE__.txt`가 404입니다. 빌드(`scripts/build.mjs`)가 두 단계 주소(`/games/steam/`, `/music/spotify/`)의 `__next.games/steam/__PAGE__.txt`를 평평한 이름으로 바꾸지 못하기 때문입니다. 1단계 변경 때문에 생긴 문제는 아닙니다.
+- 남은 문제: `/games/steam/`의 미리 불러오기 파일 `__next.games.steam.__PAGE__.txt`가 404입니다. 빌드(`scripts/build.mjs`)가 두 단계 주소(`/games/steam/`, `/music/spotify/`)의 `__next.games/steam/__PAGE__.txt`를 평평한 이름으로 바꾸지 못하기 때문입니다. 1단계 변경 때문에 생긴 문제는 아닙니다. 위의 ‘두 단계 주소의 미리 불러오기’에서 고쳤습니다.
 
 ## 탭 개선 1단계 · 2026-11-23
 

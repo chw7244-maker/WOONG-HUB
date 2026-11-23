@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import path from 'node:path';
+import { prefetchAlias } from './prefetch-alias.mjs';
 
 const nextBuild=spawnSync(process.execPath,['node_modules/next/dist/bin/next','build'],{stdio:'inherit',env:process.env,windowsHide:true});
 if(nextBuild.status!==0)process.exit(nextBuild.status??1);
@@ -13,9 +14,9 @@ async function collect(dir) {
     else if(entry.isFile()){
       const key='/'+path.relative('out',file).split(path.sep).join('/');
       const bytes=(await readFile(file)).toString('base64');assets[key]=bytes;
-      // Next's segment prefetch uses a flat name for exported dynamic page segments.
-      const alias=key.replace(/(\/__next\.[^/]+)\/(__PAGE__\.txt)$/,'$1.$2');
-      if(alias!==key)assets[alias]=bytes;
+      // Next's segment prefetch uses a flat name for exported page segments, nested pages included.
+      const alias=prefetchAlias(key);
+      if(alias)assets[alias]=bytes;
     }
     else throw new Error('Static assets must be regular files.');
   }

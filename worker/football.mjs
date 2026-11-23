@@ -56,6 +56,107 @@ export function leagueTable(data) {
   return rows;
 }
 
+/*
+ * Club crests. OpenLigaDB's community-edited table carries an icon address per team, but those mix Wikimedia files,
+ * inline data images, plain http hosts and an unreachable UEFA image server. The worker resolves a crest by team name,
+ * fetches it once and serves it from this site, so pages never contact those hosts and a dead address only means a badge.
+ */
+export const crestKey = name => clean(name).toLowerCase().replace(/&/g, ' ').replace(/\b(?:a?f\.?c\.?|and)\b/g, ' ').replace(/[^a-z0-9]+/g, '');
+// Teams whose OpenLigaDB icon does not load (UEFA's image host does not answer) or is not a crest file.
+const crestOverrides = {
+  manchestercity: 'https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg',
+  chelsea: 'https://upload.wikimedia.org/wikipedia/en/c/cc/Chelsea_FC.svg',
+  tottenhamhotspur: 'https://upload.wikimedia.org/wikipedia/en/b/b4/Tottenham_Hotspur.svg',
+  newcastleunited: 'https://upload.wikimedia.org/wikipedia/en/5/56/Newcastle_United_Logo.svg',
+  liverpool: 'https://upload.wikimedia.org/wikipedia/en/0/0c/Liverpool_FC.svg',
+};
+const crestHosts = new Set(['upload.wikimedia.org', 'mediadb.kicker.de']);
+const crestTypes = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml']);
+const crestHeaders = type => ({
+  'Content-Type': type, 'Cache-Control': 'private, max-age=604800', 'X-Content-Type-Options': 'nosniff',
+  // An SVG opened directly from this origin must not run anything.
+  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+});
+
+/** The address to fetch a crest from: an allowed https host (http is upgraded) or an inline raster image. */
+export function crestSource(icon) {
+  if (typeof icon !== 'string') return null;
+  const inline = /^data:(image\/(?:png|jpeg|gif|webp));base64,([a-z0-9+/=]+)$/i.exec(icon.trim());
+  if (inline) return inline[2].length <= 200_000 ? { inline: inline[1].toLowerCase(), data: inline[2] } : null;
+  try {
+    const url = new URL(icon.trim());
+    if (!['http:', 'https:'].includes(url.protocol) || !crestHosts.has(url.hostname)) return null;
+    url.protocol = 'https:';
+    // Wikimedia thumbnails can be 1920px wide; a crest never shows above 84px, so ask for a standard small size.
+    if (url.hostname === 'upload.wikimedia.org' && url.pathname.includes('/thumb/')) url.pathname = url.pathname.replace(/\/\d+px-([^/]+)$/, '/250px-$1');
+    return { url: url.href };
+  } catch { return null; }
+}
+
+/** Every team in the league table, by name key, with the address its crest comes from. */
+export function crestIndex(data) {
+  const index = new Map();
+  if (!Array.isArray(data)) return index;
+  for (const row of data) {
+    for (const name of [row?.teamName, row?.shortName]) {
+      const key = crestKey(name ?? '');
+      if (key && !index.has(key)) index.set(key, row?.teamIconUrl);
+    }
+  }
+  return index;
+}
+
+async function crestBytes(source, fetcher) {
+  if (source.inline) {
+    const bytes = Uint8Array.from(atob(source.data), char => char.charCodeAt(0));
+    return { bytes, type: source.inline };
+  }
+  const response = await fetcher(source.url, { redirect: 'follow', signal: AbortSignal.timeout(9000), headers: { 'User-Agent': 'WOONG-HUB/1.0 (personal dashboard; crest cache)' } });
+  const type = (response.headers.get('Content-Type') ?? '').split(';')[0].trim().toLowerCase();
+  if (!response.ok || !crestTypes.has(type) || Number(response.headers.get('Content-Length')) > 400_000) { await response.body?.cancel(); throw new Error('crest_unavailable'); }
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength > 400_000) throw new Error('crest_too_large');
+  return { bytes, type };
+}
+
+export async function handleCrest(request, ctx, { fetcher = fetch, cache = globalThis.caches?.default, now = Date.now() } = {}) {
+  const user = request.headers.get('oai-authenticated-user-id');
+  if (!user || user.length > 200) return json({ error: 'authentication_required' }, 401);
+  if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
+  const name = new URL(request.url).searchParams.get('name') ?? '';
+  const key = crestKey(name);
+  if (!key || name.length > 80) return json({ error: 'invalid_team' }, 400);
+  const cacheKey = new Request(new URL(`/__metadata/football-crest-v1/${key}`, request.url));
+  try {
+    const hit = await cache?.match(cacheKey);
+    if (hit) return new Response(hit.body, { headers: crestHeaders(hit.headers.get('Content-Type')) });
+  } catch { /* resolve it again */ }
+  let icon = crestOverrides[key];
+  if (!icon) {
+    const season = premierLeagueSeason(new Date(now));
+    // The table is cached for crests separately because the standings cache keeps only the fields pages show.
+    const table = await cachedSource(request, `crest-table-${season}`, async () => {
+      const rows = JSON.parse(await fetchText(fetcher, `${leagueApi}/getbltable/pl/${season}`, 1_000_000));
+      return [...crestIndex(rows)].map(([team, address]) => ({ team, address: typeof address === 'string' ? address.slice(0, 200_100) : null }));
+    }, { cache, ctx, now });
+    icon = table?.items.find(item => item.team === key)?.address;
+  }
+  const source = crestSource(icon);
+  const missing = () => new Response(null, { status: 404, headers: { 'Cache-Control': 'private, max-age=86400' } });
+  if (!source) return missing();
+  try {
+    const { bytes, type } = await crestBytes(source, fetcher);
+    if (cache) {
+      const write = Promise.resolve().then(() => cache.put(cacheKey, new Response(bytes, { headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=2592000' } }))).catch(() => {});
+      if (ctx?.waitUntil) ctx.waitUntil(write); else await write;
+    }
+    return new Response(bytes, { headers: crestHeaders(type) });
+  } catch {
+    // A busy or failing image host: the page shows the badge now and asks again on the next visit.
+    return new Response(null, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+  }
+}
+
 export function cityLeagueResults(matches) {
   if (!Array.isArray(matches) || !matches.length) throw new Error('invalid_matches');
   return matches.flatMap(match => {

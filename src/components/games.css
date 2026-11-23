@@ -52,3 +52,7 @@
   .game-row-actions .icon-button { width: 36px; height: 44px; }
   .game-row-actions .icon-button:first-child { display: none; }
 }
+
+.game-playtime-note { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; }
+.game-playtime-steam { display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--panel-soft); color: var(--muted); font-size: 13px; }
+

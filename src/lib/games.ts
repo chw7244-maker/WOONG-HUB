@@ -25,5 +25,27 @@ export function validateGame(input:unknown):GameDetails{
   const ref=g.steamAccount!==undefined?validateSteamRef(g.steamAccount):undefined;if(ref&&g.steam&&ref.appId!==g.steam.appId)throw new Error('Steam 상점 정보와 연결할 게임의 App ID가 달라요.');
   return {playMinutes:g.playMinutes,rating:g.rating,startedAt:g.startedAt,completedAt:g.completedAt,tags:[...new Set(g.tags.map(t=>t.trim()))],...(g.steam!==undefined?{steam:validateSteam(g.steam)}:{}),...(ref?{steamAccount:ref}:{})};
 }
+/**
+ * The play time a game shows. Steam's total wins whenever it has any minutes; the time recorded by hand only shows
+ * for games Steam reports as 0 minutes or does not know (not linked, other platforms). `steam` is undefined while
+ * a linked account is still being read, so a hand-recorded value does not flash before Steam's arrives.
+ */
+export type PlayTimeSource='steam'|'own'|'loading'|null;
+export function effectivePlayTime(own:number|null,steam:number|null|undefined,linked:boolean):{minutes:number|null;source:PlayTimeSource}{
+  if(typeof steam==='number'&&steam>0)return {minutes:steam,source:'steam'};
+  if(linked&&steam===undefined)return {minutes:null,source:'loading'};
+  if(own!==null)return {minutes:own,source:'own'};
+  if(typeof steam==='number')return {minutes:0,source:'steam'};
+  return {minutes:null,source:null};
+}
+export function playTimeLabel({minutes,source}:{minutes:number|null;source:PlayTimeSource}){
+  if(source==='loading')return 'Steam 시간 확인 중';
+  if(source==='steam')return `Steam ${playTime(minutes)}`;
+  if(source==='own')return `직접 ${playTime(minutes)}`;
+  return playTime(null);
+}
+/** Whether the hand-recorded time is in use, i.e. Steam has no minutes for this game. */
+export const ownPlayTimeShown=(steam:number|null|undefined)=>!(typeof steam==='number'&&steam>0);
+
 export function playTime(minutes:number|null){if(minutes===null)return '시간 미기록';if(minutes===0)return '0분';const hours=Math.floor(minutes/60),rest=minutes%60;return `${hours?`${hours.toLocaleString('ko-KR')}시간`:''}${hours&&rest?' ':''}${rest?`${rest}분`:''}`;}
 export function gameStats(entries:Entry[]){const games=entries.filter(e=>e.kind==='games'),recorded=games.filter(e=>e.game?.playMinutes!==null&&e.game?.playMinutes!==undefined);return {count:games.length,playing:games.filter(e=>e.status==='플레이 중').length,completed:games.filter(e=>e.status==='완료').length,wishlist:games.filter(e=>e.status==='위시리스트').length,recorded:recorded.length,minutes:recorded.reduce((sum,e)=>sum+(e.game?.playMinutes??0),0)};}

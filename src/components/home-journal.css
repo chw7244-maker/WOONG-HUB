@@ -428,3 +428,10 @@
   .hub-brand-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .home-hero-day { font-size: 80px; }
 }
+
+/* Home leftovers from the thin-border style: favorite links and the weather forecast's city select and periods. */
+.journal-home .hub-home-panels .quick-link { border: 0; border-radius: 16px; background: var(--panel-soft); }
+.journal-home .hub-home-panels .quick-link:hover { background: var(--hover); }
+.journal-home .weather-card select { border-color: transparent; border-radius: 999px; background: var(--panel-soft); box-shadow: var(--press); }
+.journal-home .weather-card select:focus { border-color: transparent; box-shadow: var(--press), 0 0 0 2px var(--accent); outline: none; }
+.journal-home .weather-period { border: 0; border-radius: 16px; background: var(--panel-soft); }

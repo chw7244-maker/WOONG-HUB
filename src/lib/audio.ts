@@ -1,6 +1,21 @@
 import type { Entry } from './store.ts';
 
-export const audioCategories=['이어폰','헤드폰','DAP','DAC · 앰프','케이블 · 이어팁','기타'];
+export const audioCategories=['이어폰','헤드폰','DAP','DAC · 앰프','이어팁','케이블','기타'];
+/** The former combined category. Existing gear keeps it until the person splits it into 이어팁 and 케이블. */
+export const legacyAccessoryCategory='케이블 · 이어팁';
+const tipWords=/이어팁|ear ?tips?|spin ?fit|spiral ?dot|sedna ?earfit|\btype ?e\b|divinus|comply|폼팁/i;
+const cableWords=/케이블|cable|eletech|nicehck|effect audio|cadmus|\b(?:2\.5|3\.5|4\.4)\s?mm\b|mmcx|2-?pin|↔/i;
+/** Guess 이어팁 or 케이블 from a gear's name and details; null when the words point both ways or nowhere. */
+export function guessAccessory(text:string):'이어팁'|'케이블'|null{
+  const tip=tipWords.test(text),cable=cableWords.test(text);
+  return tip&&!cable?'이어팁':cable&&!tip?'케이블':null;
+}
+/** Categories in display order: the standard ones first, then the legacy and any custom ones that are in use. */
+export function audioCategoryOrder(used:string[]){
+  const standard=[...audioCategories.slice(0,-1),legacyAccessoryCategory];
+  const present=new Set(used);
+  return [...standard.filter(c=>present.has(c)),...[...present].filter(c=>!standard.includes(c)&&c!=='기타').sort((a,b)=>a.localeCompare(b,'ko')),...(present.has('기타')?['기타']:[])];
+}
 export const audioStatuses=['보유 중','위시리스트','판매 완료'];
 export type AudioGear={type:'gear';manufacturer:string;model:string;purchasedAt:string;priceKRW:number|null;sound:string;connection:string};
 export type AudioSetup={type:'setup';deviceIds:string[]};

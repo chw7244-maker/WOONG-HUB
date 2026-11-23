@@ -20,6 +20,30 @@ function crest(name: string) {
   return (words.length > 1 ? words.map(word => word[0]).join('') : words[0].slice(0, 3)).slice(0, 3).toUpperCase();
 }
 
+/** A club crest served by the worker (see worker/football.mjs); clubs without one keep the short badge. */
+export function CrestMark({ name }: { name: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <>{crest(name)}</>;
+  return <img className="football-crest-image" src={`/api/football/crest?name=${encodeURIComponent(name)}`} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)}/>;
+}
+
+function Crest({ name, size = 'small' }: { name: string; size?: 'small' | 'large' }) {
+  return <span className={`football-crest football-crest-${size}`} data-city={clubName(name) === '맨시티' || undefined} aria-hidden="true"><CrestMark key={name} name={name}/></span>;
+}
+
+function Teams({ home, away }: { home: string; away: string }) {
+  return <span className="football-teams">
+    <Crest name={home}/><span>{clubName(home)}</span><span className="football-versus">vs</span><Crest name={away}/><span>{clubName(away)}</span>
+  </span>;
+}
+
+const kstDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' });
+/** Days until kick-off on the KST calendar: 오늘, D-1, D-2 … */
+function dDay(kickOff: string, now: number) {
+  const days = Math.round((Date.parse(kstDay.format(new Date(kickOff))) - Date.parse(kstDay.format(new Date(now)))) / 86_400_000);
+  return days <= 0 ? '오늘' : `D-${days}`;
+}
+
 type Standing = { rank: number; teamId: number; name: string; matches: number; won: number; draw: number; lost: number; goalDiff: number; points: number; city: boolean };
 type Result = { id: string; home: string; away: string; kickOff: string; homeGoals: number; awayGoals: number };
 type Source<T> = { items: T[]; stale: boolean; checkedAt: string };
@@ -80,7 +104,7 @@ function SourceNote<T>({ source, url, name }: { source?: Source<T> | null; url: 
 
 function MatchTeam({ name, city }: { name: string; city: boolean }) {
   return <span className="home-match-team" data-city={city || undefined}>
-    <span className="home-match-crest" aria-hidden="true">{crest(name)}</span><strong>{clubName(name)}</strong>
+    <span className="home-match-crest" aria-hidden="true"><CrestMark key={name} name={name}/></span><strong>{clubName(name)}</strong>
   </span>;
 }
 
@@ -114,19 +138,42 @@ export default function FootballHub({ saved, onSave }: FixtureActions) {
   }, []);
   const source = data?.[tab];
   const next = data?.fixtures?.items.find(match => match.postponed !== 'cancelled');
-  const city = data?.standings?.items.find(team => team.city);
+  const table = data?.standings?.items ?? [];
+  const city = table.find(team => team.city);
+  // Latest league results first, as City's 승/무/패.
+  const form = (data?.results?.items ?? []).slice(0, 5).map(match => {
+    const home = clubName(match.home) === '맨시티', ours = home ? match.homeGoals : match.awayGoals, theirs = home ? match.awayGoals : match.homeGoals;
+    return { id: match.id, result: ours > theirs ? '승' : ours < theirs ? '패' : '무', label: `${clubName(match.home)} ${match.homeGoals} : ${match.awayGoals} ${clubName(match.away)}` };
+  });
+  const leader = city && (city.rank === 1 ? table[1] : table[0]);
+  const edge = city && (city.rank <= 4 ? table[4] : table[3]);
+  const gap = (other?: Standing) => other && city ? city.points - other.points : 0;
+  const signed = (value: number) => value > 0 ? `+${value}` : value < 0 ? `−${-value}` : '0';
   return <div className="football-hub">
     <div className="football-overview">
       <section className="hub-summary-card football-feature" aria-labelledby="football-feature-title">
-        <div className="hub-summary-heading"><h2 id="football-feature-title"><Goal size={18} aria-hidden="true"/>맨시티 다음 경기</h2></div>
-        {next ? <><strong className="football-matchup">{matchup(next)}</strong><p className="football-kickoff"><time dateTime={next.kickOff}>{kst.format(new Date(next.kickOff))} KST</time> · {next.competition}{kickOffLabel(next) && ` · ${kickOffLabel(next)}`}</p></>
-          : <p className="hub-summary-empty" role="status">{busy ? '경기 확인 중' : data?.fixtures ? '예정 경기 없음' : '공식 일정 확인'}</p>}
+        <div className="hub-summary-heading"><h2 id="football-feature-title"><Goal size={18} aria-hidden="true"/>맨시티 다음 경기</h2>{next && <small>{next.competition}</small>}</div>
+        {next ? <div className="home-match-board football-board" aria-label={`${matchup(next)}, ${kst.format(new Date(next.kickOff))} KST`}>
+          <MatchTeam name={next.home} city={clubName(next.home) === '맨시티'}/>
+          <span className="home-match-kickoff"><time dateTime={next.kickOff}>{kickOffTime.format(new Date(next.kickOff))}</time><small>{kickOffDay.format(new Date(next.kickOff))} · {dDay(next.kickOff, Date.now())}{kickOffLabel(next) && ` · ${kickOffLabel(next)}`}</small></span>
+          <MatchTeam name={next.away} city={clubName(next.away) === '맨시티'}/>
+        </div> : <p className="hub-summary-empty" role="status">{busy ? '경기 확인 중' : data?.fixtures ? '예정 경기 없음' : '공식 일정 확인'}</p>}
         {next && <FixtureAction match={next} saved={saved} onSave={onSave}/>}
         <SourceNote source={data?.fixtures} url={clubFixturesUrl} name="맨시티 공식 일정"/>
       </section>
-      {city && <section className="hub-summary-card football-position" aria-labelledby="football-position-title">
-        <div className="hub-summary-heading"><h2 id="football-position-title"><Trophy size={18} aria-hidden="true"/>맨시티 리그 순위</h2></div>
-        <strong>{city.rank}<small>위</small></strong><span>{city.matches}경기 · 승점 {city.points}{(data?.standings?.stale || error) && ' · 마지막 조회'}</span>
+      {city && <section className="hub-summary-card football-season" aria-labelledby="football-season-title">
+        <div className="hub-summary-heading"><h2 id="football-season-title"><Trophy size={18} aria-hidden="true"/>맨시티 시즌</h2><small>EPL {city.matches}경기{(data?.standings?.stale || error) && ' · 마지막 조회'}</small></div>
+        <dl className="football-season-stats">
+          <div><dt>순위</dt><dd>{city.rank}<small>위</small></dd></div>
+          <div><dt>승점</dt><dd>{city.points}</dd></div>
+          <div><dt>전적</dt><dd>{city.won}·{city.draw}·{city.lost}<small>승무패</small></dd></div>
+          <div><dt>득실</dt><dd>{signed(city.goalDiff)}</dd></div>
+        </dl>
+        <dl className="football-race">
+          {leader && <div><dt>{city.rank === 1 ? `2위 ${leader.name}와` : `1위 ${leader.name}까지`}</dt><dd>{signed(gap(leader))}<small>점</small></dd></div>}
+          {edge && <div><dt>{city.rank <= 4 ? `5위 ${edge.name}와` : `4위 ${edge.name}까지`}</dt><dd>{signed(gap(edge))}<small>점</small></dd></div>}
+        </dl>
+        {!!form.length && <div className="football-form"><span>최근 리그 {form.length}경기</span><ol>{form.map(match => <li key={match.id} data-result={match.result} title={match.label}><span className="sr-only">{match.label} </span>{match.result}</li>)}</ol></div>}
       </section>}
     </div>
     <div className="football-toolbar">
@@ -144,7 +191,7 @@ export default function FootballHub({ saved, onSave }: FixtureActions) {
       {tab === 'fixtures' && !!data?.fixtures?.items.length && <ul className="football-matches football-fixtures">
         {data.fixtures.items.map(match => <li key={match.id}>
           <time dateTime={match.kickOff}>{kst.format(new Date(match.kickOff))} KST</time>
-          <div><strong>{matchup(match)}</strong><small>{[match.competition, match.venue, kickOffLabel(match)].filter(Boolean).join(' · ')}</small></div>
+          <div><strong><Teams home={match.home} away={match.away}/></strong><small>{[match.competition, match.venue, kickOffLabel(match)].filter(Boolean).join(' · ')}</small></div>
           <FixtureAction match={match} saved={saved} onSave={onSave}/>
         </li>)}
       </ul>}
@@ -152,12 +199,12 @@ export default function FootballHub({ saved, onSave }: FixtureActions) {
         <table className="football-table"><caption>{data.season}/{String(data.season + 1).slice(-2)} 프리미어리그</caption>
           <thead><tr><th scope="col">순위</th><th scope="col">팀</th><th scope="col">경기</th><th scope="col" className="football-table-detail">승</th><th scope="col" className="football-table-detail">무</th><th scope="col" className="football-table-detail">패</th><th scope="col">득실</th><th scope="col">승점</th></tr></thead>
           <tbody>{data.standings.items.map(team => <tr key={team.teamId} className={team.city ? 'football-city-row' : undefined}>
-            <td>{team.rank}</td><th scope="row">{team.city ? '맨체스터 시티' : team.name}</th><td>{team.matches}</td><td className="football-table-detail">{team.won}</td><td className="football-table-detail">{team.draw}</td><td className="football-table-detail">{team.lost}</td><td>{team.goalDiff > 0 ? `+${team.goalDiff}` : team.goalDiff}</td><td><strong>{team.points}</strong></td>
+            <td>{team.rank}</td><th scope="row"><span className="football-team-cell"><Crest name={team.name}/>{team.city ? '맨체스터 시티' : team.name}</span></th><td>{team.matches}</td><td className="football-table-detail">{team.won}</td><td className="football-table-detail">{team.draw}</td><td className="football-table-detail">{team.lost}</td><td>{team.goalDiff > 0 ? `+${team.goalDiff}` : team.goalDiff}</td><td><strong>{team.points}</strong></td>
           </tr>)}</tbody>
         </table>
       </div>}
       {tab === 'results' && !!data?.results?.items.length && <ul className="football-matches">
-        {data.results.items.map(match => <li key={match.id}><time dateTime={match.kickOff}>{kst.format(new Date(match.kickOff))} KST</time><div><strong>{clubName(match.home)} <span className="football-score">{match.homeGoals} : {match.awayGoals}</span> {clubName(match.away)}</strong></div></li>)}
+        {data.results.items.map(match => <li key={match.id}><time dateTime={match.kickOff}>{kst.format(new Date(match.kickOff))} KST</time><div><strong className="football-result"><Crest name={match.home}/><span>{clubName(match.home)}</span><span className="football-score">{match.homeGoals} : {match.awayGoals}</span><Crest name={match.away}/><span>{clubName(match.away)}</span></strong></div></li>)}
       </ul>}
       <div className="football-sources">
         {tab === 'fixtures' ? <><SourceNote source={data?.fixtures} url={clubFixturesUrl} name="맨시티 공식 일정"/><p className="football-source">킥오프 시간은 변경될 수 있어요.</p></> : <>

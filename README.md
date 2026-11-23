@@ -307,13 +307,13 @@ pnpm preview    # http://127.0.0.1:3000
 - 디자인 시안은 Claude의 [홈 재구성 시안 캔버스](https://claude.ai/artifact/4EinW9jEKPy6py9HkT7AnB)에 있습니다(본인 계정 전용). ‘시안 2’ 페이지가 현재 홈의 기준이고, ‘시안 1’은 비교용입니다.
 - 시안 2는 [gyupage](https://gyupage.vercel.app/)의 큰 날짜 숫자, 날씨가 들어간 7일 달력과 Pinterest ‘웹디’ 보드의 떠 있는 면, 알약 메뉴, 벤토 배치를 참고했습니다.
 - 작업이 끝난 브랜치 `design/journal-tone`, `design/home-v2`, `design/qhd-weather-fix`, `design/pages-unify`, `design/games-compact`, `design/hobby-tabs`, `fix/theme-flash`는 모두 `main`에 합쳐져 있어 지워도 됩니다.
-- 브랜치 `chore/unused-css`에서 코드에서 쓰지 않는 클래스 151개의 CSS 규칙(선택자 635개)을 지웠습니다. CSS가 약 237KB에서 193KB로 줄었고 화면은 바뀌지 않습니다. 아직 `main`에 합치지 않았습니다.
+- 브랜치 `chore/unused-css`에서 코드에서 쓰지 않는 클래스 151개의 CSS 규칙(선택자 635개)을 지웠습니다. CSS가 약 237KB에서 193KB로 줄었고 화면은 바뀌지 않습니다. `main`에 합쳤고, 운영 사이트 배포는 아직 하지 않았습니다.
 
 ### 5. 다음 작업
 
 우선순위 순서입니다.
 
-1. **CSS 정리 마무리** — `chore/unused-css`를 `main`에 합치고 배포한 뒤 운영 사이트 화면이 그대로인지 확인합니다.
+1. **CSS 정리 마무리** — 사이트 관리 채팅에서 최신 `main`을 배포한 뒤 운영 사이트 화면이 그대로인지 확인합니다.
 2. **실기기 확인** — 실제 아이폰에서 로그인, 저장·동기화 왕복, 새 홈 배치, 라이트 테마 첫 화면을 확인합니다. QHD 모니터에서 125% 배율이 적당한지도 봅니다.
 3. **더 촘촘하게** — 뉴스 카드(한 장에 약 228px)도 게임처럼 한 줄 목록형을 둘 수 있습니다. 일정 추가·작품 추가 같은 대화 상자는 아직 예전 테두리 입력칸을 씁니다.
 

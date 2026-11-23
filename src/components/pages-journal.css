@@ -1,0 +1,188 @@
+/*
+ * Journal surfaces for every page except home: the page title, floating cards, pill tabs and buttons,
+ * pressed inputs and empty states, matching the home cards in home-journal.css.
+ * Colors, surfaces (--raise / --press) and fonts are tokens in globals.css. Imported last, so it wins over
+ * the older thin-border rules in the per-page stylesheets; the home (.journal-home) is left untouched.
+ */
+
+/* ---------- Page title ---------- */
+
+.app-shell:not(.journal-home) .main-content .page-heading h1 { font-size: clamp(30px, 3.4vw, 40px); font-weight: 800; letter-spacing: -.035em; line-height: 1.1; }
+.app-shell:not(.journal-home) .main-content .page-heading p { color: var(--muted); font-size: 14px; }
+
+/* ---------- Cards: a floating panel surface instead of a thin border ---------- */
+
+.app-shell:not(.journal-home) .main-content :is(
+  .panel, .hub-summary-card, .records-empty, .collection-empty,
+  .music-overview, .game-overview, .audio-overview,
+  .watch-feature, .watch-news-settings,
+  .news-source-section, .news-notice, .news-language, .news-topic-setting, .journal-side-stories,
+  .calendar-saved-matches, .calendar-source-drawer,
+  .spotify-browser, .steam-profile, .listening-journal, .catalog-player, .hub-highlight
+) {
+  border: 0;
+  border-radius: 28px;
+  background: var(--panel);
+  box-shadow: var(--raise);
+}
+
+/* Collection tiles and rows sit in grids, so they use a slightly tighter corner. */
+.app-shell:not(.journal-home) .main-content :is(.album-card, .game-card, .watch-entry, .hobby-destination, .news-reading-row) {
+  border: 0;
+  border-radius: 22px;
+  background: var(--panel);
+  box-shadow: var(--raise);
+}
+.app-shell:not(.journal-home) .main-content .hobby-destination:hover { box-shadow: var(--raise), inset 0 0 0 1.5px var(--accent); }
+.app-shell:not(.journal-home) .main-content .watch-feature { background: linear-gradient(120deg, color-mix(in srgb, var(--panel) 70%, var(--accent-soft)), var(--panel) 72%); }
+.app-shell:not(.journal-home) .main-content :is(.album-card-footer, .game-card-footer) { border-top-color: var(--hair); }
+
+/* Drawers that used to be a line between sections get the same padding as a card. */
+.app-shell:not(.journal-home) .main-content :is(.calendar-source-drawer, .calendar-saved-matches) { padding-inline: 20px; }
+.app-shell:not(.journal-home) .main-content :is(.collection-empty, .records-empty) { padding: 32px 24px; }
+.app-shell:not(.journal-home) .main-content .hub-highlight { padding: 18px 20px; }
+
+/* A card inside another card becomes an inset item instead of floating twice. */
+.app-shell:not(.journal-home) .main-content :is(.panel, .hub-summary-card, .spotify-browser, .steam-profile, .listening-journal, .news-topic-setting) :is(.panel, .hub-summary-card, .spotify-browser, .steam-profile, .listening-journal, .news-topic-setting) {
+  border-radius: 18px;
+  background: var(--panel-soft);
+  box-shadow: none;
+}
+
+/* ---------- Items inside cards: soft inset surface ---------- */
+
+.app-shell:not(.journal-home) .main-content :is(
+  .steam-home-stats > div, .steam-library-stats > div, .steam-owned-card, .steam-key-form, .steam-entry-link, .steam-game-time,
+  .spotify-entity-card, .spotify-preview,
+  .album-import, .album-search-results, .album-linked,
+  .game-import, .game-import-preview, .game-linked-steam, .game-playtime-fields,
+  .audio-member-picker, .weather-period, .hub-records-strip button
+) {
+  border: 0;
+  border-radius: 16px;
+  background: var(--panel-soft);
+}
+.app-shell:not(.journal-home) .main-content .hub-records-strip button:hover { background: var(--hover); }
+
+.app-shell:not(.journal-home) .main-content .watch-week-days > button { border: 0; border-radius: 16px; background: var(--panel-soft); }
+.app-shell:not(.journal-home) .main-content .watch-week-days > button:hover { background: var(--hover); }
+.app-shell:not(.journal-home) .main-content .watch-week-days > button[aria-pressed=true] { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+.app-shell:not(.journal-home) .main-content .theme-choice { border: 0; border-radius: 18px; background: var(--panel-soft); }
+.app-shell:not(.journal-home) .main-content .theme-choice.selected { color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+.app-shell:not(.journal-home) .main-content .connected-month-grid button { border: 0; border-radius: 14px; }
+.app-shell:not(.journal-home) .main-content .connected-month-grid button:hover { background: var(--hover); }
+.app-shell:not(.journal-home) .main-content .connected-month-grid button[aria-pressed=true] { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.app-shell:not(.journal-home) .main-content .connected-month-grid button.is-today { background: var(--accent-strong); color: var(--on-accent); }
+.app-shell:not(.journal-home) .main-content .connected-month-grid button.is-today b { text-decoration: none; }
+.app-shell:not(.journal-home) .main-content .connected-month-grid button.is-today[aria-pressed=true] { box-shadow: inset 0 0 0 2px var(--on-accent), 0 0 0 1.5px var(--accent-strong); }
+
+/* ---------- Buttons: pills ---------- */
+
+.app-shell:not(.journal-home) .main-content .button { min-height: 40px; padding-inline: 16px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+.app-shell:not(.journal-home) .main-content .button.small { min-height: 32px; padding-inline: 12px; font-size: 12px; }
+.app-shell:not(.journal-home) .main-content .button.secondary { border-color: transparent; background: var(--panel); box-shadow: var(--raise); color: var(--text); }
+.app-shell:not(.journal-home) .main-content .button.secondary:hover { border-color: transparent; background: var(--hover); }
+/* On a card the raised pill would float twice, so it becomes a soft pill like the home's buttons. */
+.app-shell:not(.journal-home) .main-content :is(.panel, .hub-summary-card, .album-card, .game-card, .watch-entry, .watch-feature, .news-source-section, .news-reading-row, .spotify-browser, .steam-profile) .button.secondary { background: var(--panel-soft); box-shadow: none; }
+.app-shell:not(.journal-home) .main-content :is(.panel, .hub-summary-card, .album-card, .game-card, .watch-entry, .watch-feature, .news-source-section, .news-reading-row, .spotify-browser, .steam-profile) .button.secondary:hover { background: var(--hover); }
+
+.app-shell:not(.journal-home) .main-content :is(.news-row-actions button, .watch-entry-actions .watch-news-follow, .records-empty .text-button) { border: 0; border-radius: 999px; background: var(--panel-soft); }
+.app-shell:not(.journal-home) .main-content :is(.news-row-actions button, .watch-entry-actions .watch-news-follow, .records-empty .text-button):hover { background: var(--hover); }
+.app-shell:not(.journal-home) .main-content :is(.news-row-actions button, .watch-entry-actions .watch-news-follow)[aria-pressed=true] { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+/* Jump links, today and bookmark controls become pills; labels lose their outline. */
+.app-shell:not(.journal-home) .main-content :is(.settings-jump a, .calendar-today) { border: 0; border-radius: 999px; background: var(--panel); box-shadow: var(--raise); }
+.app-shell:not(.journal-home) .main-content :is(.settings-jump a, .calendar-today):hover { background: var(--hover); }
+.app-shell:not(.journal-home) .main-content .connected-month .calendar-today { background: var(--panel-soft); box-shadow: none; }
+.app-shell:not(.journal-home) .main-content .news-bookmark { border: 0; border-radius: 50%; background: var(--panel-soft); }
+.app-shell:not(.journal-home) .main-content .news-bookmark:hover { background: var(--hover); }
+.app-shell:not(.journal-home) .main-content .badge { border-color: transparent; border-radius: 999px; background: var(--panel-soft); }
+
+/* ---------- Tabs: a pill bar like the header menu ---------- */
+
+.app-shell:not(.journal-home) .main-content :is(.tabs, .news-view-tabs) {
+  gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px;
+  border-radius: 26px;
+  background: var(--panel);
+  box-shadow: var(--raise);
+}
+.app-shell:not(.journal-home) .main-content :is(.tabs, .news-view-tabs) > button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+}
+.app-shell:not(.journal-home) .main-content :is(.tabs, .news-view-tabs) > button:hover { background: var(--panel-soft); color: var(--text); }
+.app-shell:not(.journal-home) .main-content :is(.tabs, .news-view-tabs) > button.selected { background: var(--accent-strong); color: var(--on-accent); font-weight: 700; }
+.app-shell:not(.journal-home) .main-content :is(.tabs, .news-view-tabs) > button > span { opacity: .8; }
+/* Tabs inside a card sit on the soft surface. */
+.app-shell:not(.journal-home) .main-content :is(.panel, .hub-summary-card, .spotify-browser, .steam-profile) .tabs { background: var(--panel-soft); box-shadow: none; }
+
+/* News topic chips scroll sideways, so they stay single pills without a bar. */
+.app-shell:not(.journal-home) .main-content .news-topics-nav > button { min-height: 40px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--panel); box-shadow: var(--raise); font-size: 13px; }
+.app-shell:not(.journal-home) .main-content .news-topics-nav > button:hover { background: var(--hover); }
+.app-shell:not(.journal-home) .main-content .news-topics-nav > button.selected { background: var(--accent-strong); color: var(--on-accent); font-weight: 700; }
+.app-shell:not(.journal-home) .main-content .news-topics-nav { padding-block: 4px 16px; }
+
+/* ---------- Filters and inputs: pressed fields, pill controls ---------- */
+
+.app-shell:not(.journal-home) .main-content :is(.music-search, .game-search, .audio-search, .watch-search, .news-search) {
+  border: 0;
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: var(--press);
+}
+.app-shell:not(.journal-home) .main-content :is(.music-search, .game-search, .audio-search, .watch-search, .news-search):focus-within { box-shadow: var(--press), 0 0 0 2px var(--accent); }
+.app-shell:not(.journal-home) .main-content :is(.music-search, .game-search, .audio-search, .watch-search, .news-search) input { border: 0; background: transparent; box-shadow: none; }
+
+.app-shell:not(.journal-home) .main-content :is(.music-filters, .game-filters, .audio-filters, .watch-toolbar, .section-filter-fields, .hub-section-heading) select,
+.app-shell:not(.journal-home) .main-content .section-filters summary {
+  border: 0;
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: var(--raise);
+}
+.app-shell:not(.journal-home) .main-content .section-filters summary:hover { background: var(--hover); }
+
+.app-shell:not(.journal-home) .main-content .news-condition { border: 0; border-radius: 999px; background: var(--panel); box-shadow: var(--raise); }
+.app-shell:not(.journal-home) .main-content .news-condition:hover { color: var(--accent); box-shadow: var(--raise), inset 0 0 0 1.5px var(--accent); }
+.app-shell:not(.journal-home) .main-content input.news-date-filter { border-color: transparent; border-radius: 999px; background: var(--panel-soft); box-shadow: var(--press); }
+
+/* Fields inside cards (settings, account keys, forms) use the pressed surface. */
+.app-shell:not(.journal-home) .main-content :is(.panel, .hub-summary-card, .news-topic-setting, .listening-journal, .steam-key-form) :is(input:not([type=checkbox], [type=radio], [type=range], [type=color], [type=file]), select, textarea) {
+  border-color: transparent;
+  border-radius: 14px;
+  background: var(--panel-soft);
+  box-shadow: var(--press);
+}
+.app-shell:not(.journal-home) .main-content :is(.panel, .hub-summary-card, .news-topic-setting, .listening-journal, .steam-key-form) :is(input:not([type=checkbox], [type=radio], [type=range], [type=color], [type=file]), select, textarea):focus { border-color: transparent; box-shadow: var(--press), 0 0 0 2px var(--accent); outline: none; }
+
+/* ---------- Narrow screens ---------- */
+
+@media (max-width: 760px) {
+  .app-shell:not(.journal-home) .main-content :is(
+    .panel, .hub-summary-card, .records-empty, .collection-empty,
+    .music-overview, .game-overview, .audio-overview,
+    .watch-feature, .watch-news-settings,
+    .news-source-section, .news-notice, .news-language, .news-topic-setting, .journal-side-stories,
+    .calendar-saved-matches, .calendar-source-drawer,
+    .spotify-browser, .steam-profile, .listening-journal, .catalog-player, .hub-highlight
+  ) { border-radius: 24px; }
+  .app-shell:not(.journal-home) .main-content :is(.album-card, .game-card, .watch-entry, .hobby-destination, .news-reading-row) { border-radius: 20px; }
+  .app-shell:not(.journal-home) .main-content :is(.calendar-source-drawer, .calendar-saved-matches) { padding-inline: 16px; }
+  .app-shell:not(.journal-home) .main-content .page-heading h1 { font-size: 30px; }
+  /* The phone calendar shows the day list straight on the page, without a card. */
+  .app-shell:not(.journal-home) .main-content .connected-agenda { background: transparent; box-shadow: none; padding: 0; }
+  /* One scrolling row instead of a bar that wraps onto a second line. */
+  .app-shell:not(.journal-home) .main-content :is(.tabs, .news-view-tabs) { flex-wrap: nowrap; width: auto; overflow-x: auto; scrollbar-width: none; }
+  .app-shell:not(.journal-home) .main-content :is(.tabs, .news-view-tabs)::-webkit-scrollbar { display: none; }
+  .app-shell:not(.journal-home) .main-content :is(.tabs, .news-view-tabs) > button { flex: none; padding-inline: 14px; min-height: 44px; white-space: nowrap; }
+}

@@ -70,3 +70,20 @@ test('the server keeps relative paths, bounded text, and cover references of alb
     assert.throws(() => validateLocalLibrary({ ...library, tracks: [{ ...library.tracks[0], ...bad }] }));
   assert.throws(() => validateLocalLibrary({ ...library, tracks: [] }));
 });
+
+test('odd real-world tags and names still make tracks the server accepts', () => {
+  const odd = [
+    t('Flac/Artist - ...And More/01 - Wait....flac', { title: 'Wait...', artist: 'Artist', album: '...And More', track: { no: 2147483647 }, disk: { no: 1000 }, year: 20230101 }),
+    t('Flac/Album/01 - .flac', { track: { no: NaN }, disk: { no: -1 } }, { container: 'FLAC', lossless: true, sampleRate: 44100.5, bitsPerSample: 0, duration: Infinity, bitrate: 1e12 }),
+    t('Music/Vol.. 2/CD 3/Track.mp3', { title: '  \u0000 ', genre: ['x'.repeat(200)] }, { container: 'MPEG', lossless: false, bitrate: 320000, duration: 0.2 }, -5),
+    t('Music/긴 앨범/' + '가'.repeat(400) + '.flac', {}),
+  ];
+  assert.deepEqual([odd[0].track, odd[0].disc, odd[0].year], [null, null, null]);
+  assert.deepEqual([odd[1].title, odd[1].track, odd[1].disc, odd[1].sampleRate, odd[1].bits, odd[1].seconds, odd[1].kbps], ['01 - .flac', null, null, 44101, null, null, null]);
+  assert.deepEqual([odd[2].title, odd[2].disc, odd[2].genre.length, odd[2].seconds, odd[2].modified], ['Track', 3, 60, null, 0]);
+  assert.equal(odd[3].title.length, 300);
+  assert.equal(validateLocalLibrary({ folder: 'Music', scannedAt: '2026-11-24T00:00:00.000Z', tracks: odd, covers: {} }).tracks.length, 4);
+  for (const path of ['Music/../x.flac', 'Music/./x.flac', 'Music//x.flac', '/x.flac', 'a\b.flac'])
+    assert.throws(() => validateLocalLibrary({ folder: 'Music', scannedAt: '2026-11-24T00:00:00.000Z', tracks: [{ ...odd[0], path }], covers: {} }), /곡 정보를 확인해주세요/);
+  assert.throws(() => validateLocalLibrary({ folder: 'Music', scannedAt: '2026-11-24T00:00:00.000Z', tracks: [{ ...odd[0], title: '' }], covers: {} }), /Wait\.\.\.\.flac/);
+});

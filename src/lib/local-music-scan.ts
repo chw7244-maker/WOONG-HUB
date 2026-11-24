@@ -2,7 +2,7 @@
  * Reads a music folder picked in the browser (Chrome/Edge): tags with music-metadata, one cover per album made
  * into a 300px JPEG thumbnail. Runs only in the browser; nothing is sent anywhere here.
  */
-import {AUDIO_EXTENSIONS,COVER_NAMES,albumFolder,albumKeyOf,trackFromTags,type CoverRef,type LocalLibrary,type LocalTrack} from './local-music.ts';
+import {AUDIO_EXTENSIONS,COVER_NAMES,albumFolder,albumKeyOf,safePath,trackFromTags,type CoverRef,type LocalLibrary,type LocalTrack} from './local-music.ts';
 
 export type ScanProgress={read:number;total:number;covers:number;coverTotal:number;current:string;skipped:number};
 export type ScanResult={library:LocalLibrary;thumbnails:Map<string,Blob>;skipped:number};
@@ -36,6 +36,7 @@ export async function scanFolder(files:File[],onProgress:(p:ScanProgress)=>void,
     while(next<audio.length&&!signal.aborted){
       const file=audio[next++],{path}=relative(file),folder=albumFolder(path);
       progress.current=path;
+      if(!safePath(path)){progress.skipped++;progress.read++;onProgress({...progress});continue;}
       try{
         const meta=await parseBlob(file,{skipCovers:pictures.has(folder),duration:false});
         tracks.push(trackFromTags(path,meta.common,meta.format,file.lastModified||0));

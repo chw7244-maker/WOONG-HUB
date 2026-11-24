@@ -12,6 +12,21 @@ const json = (body, status = 200) => Response.json(body, { status, headers });
 const sameOrigin = request => request.headers.get('Origin') === new URL(request.url).origin && request.headers.get('Sec-Fetch-Site') !== 'cross-site';
 const hex = bytes => Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('');
 export const coverId = async bytes => hex(await crypto.subtle.digest('SHA-256', bytes)).slice(0, 32);
+const MAX_GZIP_BODY = 4 * 1024 * 1024;
+
+/** A gzip-compressed JSON body, with limits on both the compressed bytes and the unpacked text. */
+async function boundedGzipJson(request, maxCompressed, maxText) {
+  if (Number(request.headers.get('content-length')) > maxCompressed) throw new Error('too_large');
+  const compressed = await request.arrayBuffer();
+  if (compressed.byteLength > maxCompressed) throw new Error('too_large');
+  let reader;
+  try { reader = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip')).getReader(); } catch { throw new Error('invalid_json'); }
+  const decoder = new TextDecoder(); let size = 0, text = '';
+  try {
+    while (true) { const { done, value } = await reader.read(); if (done) break; size += value.byteLength; if (size > maxText) { await reader.cancel(); throw new Error('too_large'); } text += decoder.decode(value, { stream: true }); }
+  } catch (e) { throw new Error(e.message === 'too_large' ? 'too_large' : 'invalid_json'); }
+  try { return JSON.parse(text + decoder.decode()); } catch { throw new Error('invalid_json'); }
+}
 
 export async function handleMusicLocal(request, env) {
   const user = request.headers.get('oai-authenticated-user-id');
@@ -54,9 +69,18 @@ export async function handleMusicLocal(request, env) {
       await env.DB.batch([env.DB.prepare('DELETE FROM music_local_libraries WHERE user_id = ?').bind(user), env.DB.prepare('DELETE FROM music_local_covers WHERE user_id = ?').bind(user)]);
       return json({ removed: true });
     }
-    if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return json({ error: 'json_required' }, 415);
+    // The page sends the library gzip-compressed (application/gzip) to keep large folders well under request size
+    // limits on the way in; plain JSON is still accepted.
+    const type = request.headers.get('Content-Type')?.toLowerCase() ?? '';
+    if (!type.startsWith('application/json') && !type.startsWith('application/gzip')) return json({ error: 'json_required' }, 415);
     let library;
-    try { library = validateLocalLibrary(await boundedJson(request, MAX_LIBRARY_BODY)); } catch (e) { return json({ error: e.message === 'too_large' ? 'too_large' : 'invalid_library' }, e.message === 'too_large' ? 413 : 400); }
+    try {
+      const body = type.startsWith('application/gzip') ? await boundedGzipJson(request, MAX_GZIP_BODY, MAX_LIBRARY_BODY) : await boundedJson(request, MAX_LIBRARY_BODY);
+      library = validateLocalLibrary(body);
+    } catch (e) {
+      if (e.message === 'too_large') return json({ error: 'too_large' }, 413);
+      return json({ error: 'invalid_library', detail: e.message.startsWith('곡 정보') || e.message.startsWith('음원') ? e.message : e.message === 'invalid_json' ? '보낸 내용을 읽지 못했어요.' : '' }, 400);
+    }
     const stored = await gzip(JSON.stringify(library));
     if (stored.length > MAX_STORED) return json({ error: 'too_large' }, 413);
     await env.DB.prepare('INSERT INTO music_local_libraries (user_id, folder, data, track_count, scanned_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET folder = excluded.folder, data = excluded.data, track_count = excluded.track_count, scanned_at = excluded.scanned_at')
@@ -67,7 +91,8 @@ export async function handleMusicLocal(request, env) {
     const stale = (await env.DB.prepare('SELECT id FROM music_local_covers WHERE user_id = ?').bind(user).all()).results.map(r => r.id).filter(id => !kept.has(id));
     for (let i = 0; i < stale.length; i += 90) { const part = stale.slice(i, i + 90); await env.DB.prepare(`DELETE FROM music_local_covers WHERE user_id = ? AND id IN (${part.map(() => '?').join(',')})`).bind(user, ...part).run(); }
     return json({ saved: true, tracks: library.tracks.length });
-  } catch {
+  } catch (e) {
+    console.error('music-local', request.method, path, e?.message?.slice(0, 200));
     return json({ error: 'database_unavailable' }, 503);
   }
 }

@@ -17,6 +17,9 @@ const clean=(v:unknown,max=300)=>typeof v==='string'?v.replace(/[\u0000-\u001f]/
 export function albumFolder(path:string){const dirs=path.split('/').slice(0,-1);if(dirs.length>1&&discFolder.test(dirs.at(-1)!))dirs.pop();return dirs.join('/');}
 /** "Artist_Album" or "Artist - Album" folder names, as many rips are named. */
 export function splitFolderName(name:string){const dash=name.indexOf(' - '),under=name.indexOf('_');const at=dash>0?{i:dash,len:3}:under>0?{i:under,len:1}:null;return at?{artist:name.slice(0,at.i).trim(),album:name.slice(at.i+at.len).trim()}:{artist:'',album:name.trim()};}
+const whole=(v:unknown,min:number,max:number)=>typeof v==='number'&&Number.isFinite(v)&&Math.round(v)>=min&&Math.round(v)<=max?Math.round(v):null;
+/** A path inside the picked folder the server accepts: relative, no '.' or '..' parts, no control characters or backslashes. */
+export const safePath=(path:string)=>!!path&&path.length<=1000&&!path.startsWith('/')&&!/[\u0000-\u001f\\]/.test(path)&&path.split('/').every(p=>p!==''&&p!=='.'&&p!=='..');
 const titleFromFile=(file:string)=>{const base=file.replace(/\.[^.]+$/,'');const m=base.match(/^(?:\d{1,2}[-.])?\d{1,3}(?:\s*[-._]\s*|\s+)(.+)$/);return (m?m[1]:base).trim();};
 
 type Tags={title?:string;artist?:string;albumartist?:string;album?:string;year?:number;genre?:string[];track?:{no:number|null};disk?:{no:number|null}};
@@ -28,10 +31,12 @@ export function trackFromTags(path:string,tags:Tags,format:Format,modified:numbe
   const rate=format.sampleRate&&format.sampleRate>0?Math.round(format.sampleRate):null;
   const dsd=ext==='dsf'||ext==='dff'||/dsd/i.test(format.codec??'');
   const label=dsd?'DSD':ext==='m4a'?(format.lossless?'ALAC':'AAC'):(clean(format.container,20)||ext).toUpperCase().replace('MPEG','MP3');
-  return {path,title:clean(tags.title)||titleFromFile(file),artist:artist||'아티스트 미상',albumArtist:clean(tags.albumartist)||artist||'아티스트 미상',album:clean(tags.album)||fromFolder.album||'앨범 미상',
-    track:tags.track?.no??null,disc:tags.disk?.no??(path.split('/').slice(-2,-1)[0]?.match(discFolder)?Number(path.split('/').slice(-2,-1)[0].replace(/\D/g,'')):null),year:tags.year&&tags.year>1000&&tags.year<3000?tags.year:null,
-    genre:clean(tags.genre?.[0],60),seconds:format.duration&&format.duration>0?Math.round(format.duration):null,format:label.slice(0,12),sampleRate:rate,bits:format.bitsPerSample&&format.bitsPerSample>0?format.bitsPerSample:null,
-    kbps:format.bitrate&&format.bitrate>0?Math.round(format.bitrate/1000):null,lossless:dsd||!!format.lossless,modified};
+  // Every value stays inside what validateLocalLibrary accepts, so odd tags (huge or broken numbers, empty titles) never block saving.
+  const parent=path.split('/').slice(-2,-1)[0]??'';
+  return {path,title:clean(tags.title)||clean(titleFromFile(file))||clean(file)||'제목 없음',artist:clean(artist)||'아티스트 미상',albumArtist:clean(tags.albumartist)||clean(artist)||'아티스트 미상',album:clean(tags.album)||clean(fromFolder.album)||'앨범 미상',
+    track:whole(tags.track?.no,0,9999),disc:whole(tags.disk?.no,0,99)??(discFolder.test(parent)?whole(Number(parent.replace(/\D/g,'')),0,99):null),year:whole(tags.year,1001,2999),
+    genre:clean(tags.genre?.[0],60),seconds:whole(format.duration,1,1000000),format:label.slice(0,12),sampleRate:whole(rate,1,50000000),bits:whole(format.bitsPerSample,1,64),
+    kbps:whole(format.bitrate?format.bitrate/1000:null,1,100000),lossless:dsd||!!format.lossless,modified:Number.isSafeInteger(modified)&&modified>=0?modified:0};
 }
 
 export const albumKeyOf=(t:Pick<LocalTrack,'albumArtist'|'album'>)=>`${t.albumArtist.toLocaleLowerCase()}\u0001${t.album.toLocaleLowerCase()}`;
@@ -85,7 +90,7 @@ export function validateLocalLibrary(input:unknown):LocalLibrary{
   const d=input as LocalLibrary;
   if(!d||typeof d!=='object'||!isText(d.folder,200)||!isText(d.scannedAt,40)||!Number.isFinite(Date.parse(d.scannedAt))||!Array.isArray(d.tracks)||!d.tracks.length||d.tracks.length>MAX_LOCAL_TRACKS||!d.covers||typeof d.covers!=='object'||Array.isArray(d.covers))throw new Error('음원 라이브러리를 확인해주세요.');
   const tracks=d.tracks.map(t=>{
-    if(!t||!isText(t.path,1000)||!t.path||t.path.startsWith('/')||t.path.includes('..')||/[\u0000-\u001f\\]/.test(t.path)||![t.title,t.artist,t.albumArtist,t.album].every(v=>isText(v,300)&&v)||!isText(t.genre,60)||!isText(t.format,12)||!isCount(t.track,9999)||!isCount(t.disc,99)||!isCount(t.year,3000)||!isCount(t.seconds,1000000)||!isCount(t.sampleRate,50000000)||!isCount(t.bits,64)||!isCount(t.kbps,100000)||typeof t.lossless!=='boolean'||!Number.isSafeInteger(t.modified)||t.modified<0)throw new Error('곡 정보를 확인해주세요.');
+    if(!t||!isText(t.path,1000)||!safePath(t.path)||![t.title,t.artist,t.albumArtist,t.album].every(v=>isText(v,300)&&v)||!isText(t.genre,60)||!isText(t.format,12)||!isCount(t.track,9999)||!isCount(t.disc,99)||!isCount(t.year,3000)||!isCount(t.seconds,1000000)||!isCount(t.sampleRate,50000000)||!isCount(t.bits,64)||!isCount(t.kbps,100000)||typeof t.lossless!=='boolean'||!Number.isSafeInteger(t.modified)||t.modified<0)throw new Error(`곡 정보를 확인해주세요: ${typeof t?.path==='string'?t.path.slice(0,200):'경로 없음'}`);
     return {path:t.path,title:t.title,artist:t.artist,albumArtist:t.albumArtist,album:t.album,track:t.track,disc:t.disc,year:t.year,genre:t.genre,seconds:t.seconds,format:t.format,sampleRate:t.sampleRate,bits:t.bits,kbps:t.kbps,lossless:t.lossless,modified:t.modified};
   });
   const keys=new Set(tracks.map(albumKeyOf)),covers:Record<string,CoverRef>={};

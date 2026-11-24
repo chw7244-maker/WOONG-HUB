@@ -20,10 +20,11 @@ const server=http.createServer(async(req,res)=>{
       // Injected only by this loopback-only development server; never packaged for deployment.
       headers.set('oai-authenticated-user-id','local-preview-owner');
       const chunks=[];let length=0;
-      for await(const chunk of req){length+=chunk.length;if(length>1024*1024+1024){res.writeHead(413);res.end();return;}chunks.push(chunk);}
+      for await(const chunk of req){length+=chunk.length;if(length>16*1024*1024){res.writeHead(413);res.end();return;}chunks.push(chunk);}
       const request=new Request(url,{method:req.method,headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})});
-      const result=await handleApi(request,{DB},{waitUntil:promise=>{promise.catch(()=>{});}});let body=await result.text();
-      if(url.pathname==='/api/hub'){const value=JSON.parse(body);value.localPreview=true;body=JSON.stringify(value);}
+      const result=await handleApi(request,{DB},{waitUntil:promise=>{promise.catch(()=>{});}});// Bytes as they are: images (covers, crests) must not go through a text decode.
+      let body=Buffer.from(await result.arrayBuffer());
+      if(url.pathname==='/api/hub'){const value=JSON.parse(body.toString('utf8'));value.localPreview=true;body=Buffer.from(JSON.stringify(value));}
       res.writeHead(result.status,Object.fromEntries(result.headers));res.end(body);return;
     }
     let file=path.resolve(root,'.'+decodeURIComponent(url.pathname));

@@ -29,6 +29,7 @@ export default function MusicHub({entries,onAdd,onEdit,onDelete,onSave}:{entries
     <MusicHighlights entries={allEntries} hideWhenPlaying onOpen={entry=>setSelectedId(entry.id)}/>
     <div className="section-list-top">
     <div className="tabs music-view-tabs" role="group" aria-label="음악 보기">{[['albums','앨범 컬렉션'],['playlists','플레이리스트'],['journal','감상 기록']].map(([id,label])=><button key={id} className={view===id?'selected':''} aria-pressed={view===id} onClick={()=>{setView(id);setQuery('');setStatus('전체');setFormat('전체');setSelectedId(null);}}>{label}</button>)}</div>
+      <Link href="/music/local/" className="catalog-service-link">내 음원 라이브러리<ArrowUpRight size={14}/></Link>
       <Link href="/music/fiio/" className="catalog-service-link">M23 플레이리스트<ArrowUpRight size={14}/></Link>
       {view!=='journal'&&<button type="button" className="button primary" onClick={add}><Plus size={15}/>{view==='playlists'?'플레이리스트 추가':'앨범 추가'}</button>}
     </div>

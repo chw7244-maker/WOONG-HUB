@@ -57,6 +57,7 @@ test('due labels, this week\'s due list and to-do order', () => {
   assert.deepEqual(['2026-11-23', '2026-11-24', '2026-11-22', '2026-11-25', '2026-11-27', '2026-11-30', '2026-11-23T09:00'].map(d => dueLabel(d, today)), ['오늘', '내일', '어제', '모레', '금요일', '11. 30.', '오늘']);
   const todo = (id, date, done = false) => ({ id, kind: 'todo', title: id, detail: '', category: '', status: '', url: '', date, done, createdAt: '2026-11-01T00:00:00Z' });
   const list = [todo('late', '2026-11-20'), todo('fri', '2026-11-27'), todo('today', '2026-11-23'), todo('next', '2026-11-30'), todo('none', ''), todo('done', '2026-11-24', true)];
+  assert.deepEqual(dueThisWeek(list, ''), []);
   assert.deepEqual(dueThisWeek(list, today).map(e => e.id), ['today', 'fri']);
   assert.deepEqual(sortTodos(list).map(e => e.id), ['late', 'today', 'fri', 'next', 'none', 'done']);
 });

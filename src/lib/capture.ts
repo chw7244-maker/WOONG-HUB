@@ -84,6 +84,7 @@ export function dueLabel(date:string,today:string){
 }
 /** Open to-dos due from today through Sunday (Korean week), earliest first; overdue ones are listed separately by the to-do card. */
 export function dueThisWeek(entries:Entry[],today:string){
+  if(!today)return [];
   const end=addDays(today,(7-weekdayOf(today))%7);
   return entries.filter(e=>e.kind==='todo'&&!e.done&&e.date&&e.date.slice(0,10)>=today&&e.date.slice(0,10)<=end).sort((a,b)=>a.date.localeCompare(b.date));
 }

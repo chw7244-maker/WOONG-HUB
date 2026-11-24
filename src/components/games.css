@@ -30,6 +30,12 @@
   .game-platform-nav a:not([aria-current]):hover { background: var(--panel-soft); color: var(--text); }
 }
 .game-platform-nav a[aria-current=page] { background: var(--accent-strong); color: var(--on-accent); font-weight: 700; }
+.game-add-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: 18px; }
+.game-add-tools > .button { min-height: 44px; flex: none; }
+.game-add-tools > .quick-add { order: 0; }
+@media (max-width: 760px) {
+  .game-add-tools > .quick-add { flex: 1 1 100%; }
+}
 .games-summary > :is(summary, .xbox-history-heading) { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 18px; border-radius: 24px; }
 .games-summary > summary { list-style: none; cursor: pointer; }
 .games-summary > summary::-webkit-details-marker { display: none; }

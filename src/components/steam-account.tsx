@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
-import {ArrowUpRight,Check,ChevronLeft,ChevronRight,Gamepad2,KeyRound,Link2,Plus,RefreshCw,Search,ShieldCheck,Timer,Unlink} from 'lucide-react';
+import {ArrowDownRight,ArrowUpRight,Check,ChevronDown,ChevronLeft,ChevronRight,Gamepad2,KeyRound,Link2,Plus,RefreshCw,Search,ShieldCheck,Timer,Unlink} from 'lucide-react';
 import {type Entry} from '@/lib/store';
 import {emptyGame,playTime} from '@/lib/games';
 import type {SteamAccountRef,SteamAccountStatus,SteamEntryStat,SteamLinkedAccount,SteamOwnedGame} from '@/lib/steam-account';
@@ -30,17 +30,17 @@ export function SteamAccountField({appId,value,onChange}:{appId?:number;value?:S
   return <section className="steam-entry-link"><div><strong>Steam 계정의 플레이 시간 연결</strong><Link href="/games/steam/" className="text-button blue">계정 관리<ArrowUpRight size={12}/></Link></div>{appId&&status?.accounts.length?<label>연결할 계정<select value={value?.steamId??''} onChange={e=>onChange(e.target.value?{steamId:e.target.value,appId}:undefined)}><option value="">계정 시간 연결 안 함</option>{status.accounts.map(a=><option key={a.steamId} value={a.steamId}>{a.name}{stats.find(s=>s.steamId===a.steamId)?.game?` · ${playTime(stats.find(s=>s.steamId===a.steamId)!.game!.totalMinutes)}`:''}</option>)}{value&&!status.accounts.some(a=>a.steamId===value.steamId)&&<option value={value.steamId}>연결 해제된 계정 · {value.steamId}</option>}</select></label>:<p>Steam 상점 정보를 연결하거나 Steam 라이브러리에서 게임을 선택하면 계정별 시간을 연결할 수 있어요.</p>}{value&&<button type="button" className="text-button muted" onClick={()=>onChange(undefined)}><Unlink size={12}/>게임의 계정 연결 해제</button>}{value&&appId!==value.appId&&<p className="form-error">상점의 App ID가 달라요. 기존 계정 연결을 해제한 뒤 올바른 게임으로 연결해주세요.</p>}{error&&<p className="form-error">{error}</p>}<small>Steam 조회 시간이 기존 수동 시간과 감상을 덮어쓰지 않습니다.</small></section>;
 }
 type Library={account:SteamLinkedAccount;items:SteamOwnedGame[];count:number;offset:number;nextOffset:number;hasMore:boolean;stats:{owned:number|null;totalMinutes:number;recorded:number;recentCount:number|null;recentMinutes:number}};
-export default function SteamAccount({detailed=false,entries=[],onEdit,onSave}:{detailed?:boolean;entries?:Entry[];onEdit?:(entry:Entry)=>void;onSave?:(entry:Entry)=>boolean}){
+export default function SteamAccount({entries,onEdit,onSave}:{entries:Entry[];onEdit:(entry:Entry)=>void;onSave:(entry:Entry)=>boolean}){
   const {userId}=useHubSync(),[status,setStatus]=useState<SteamAccountStatus|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[busy,setBusy]=useState(false),[selected,setSelected]=useState(''),[library,setLibrary]=useState<Library|null>(null),[query,setQuery]=useState(''),[draft,setDraft]=useState(''),[sort,setSort]=useState('time'),[filter,setFilter]=useState('all'),[offset,setOffset]=useState(0),[revision,setRevision]=useState(0),[keyValue,setKeyValue]=useState(''),[keyOpen,setKeyOpen]=useState(false),[confirm,setConfirm]=useState<'disconnect'|'key'|null>(null),[linkGame,setLinkGame]=useState<SteamOwnedGame|null>(null),[linkEntry,setLinkEntry]=useState(''),[callback,setCallback]=useState(''),[clock,setClock]=useState(Date.now()),[waitUntil,setWaitUntil]=useState(0);
   const action=useRef(false),generation=useRef(0),statusAbort=useRef<AbortController|null>(null),requestedAccount=useRef('');
-  useEffect(()=>{if(!detailed)return;const params=new URL(window.location.href).searchParams,id=params.get('steamId')??'',q=(params.get('q')??'').slice(0,120);requestedAccount.current=/^\d{17}$/.test(id)?id:'';if(q){setDraft(q);setQuery(q);setOffset(0);}},[detailed]);
+  useEffect(()=>{const params=new URL(window.location.href).searchParams,id=params.get('steamId')??'',q=(params.get('q')??'').slice(0,120);requestedAccount.current=/^\d{17}$/.test(id)?id:'';if(q){setDraft(q);setQuery(q);setOffset(0);}},[]);
   const refresh=useCallback(async()=>{const version=generation.current;statusAbort.current?.abort();const controller=new AbortController();statusAbort.current=controller;try{const data=await steamFetch<SteamAccountStatus>('status',undefined,controller.signal);if(!controller.signal.aborted&&version===generation.current){setStatus(data);setSelected(previous=>data.accounts.some(a=>a.steamId===previous)?previous:data.accounts.some(a=>a.steamId===requestedAccount.current)?requestedAccount.current:data.activeSteamId);setError('');}}catch(e){if(!controller.signal.aborted&&version===generation.current)setError((e as Error).message);}finally{if(!controller.signal.aborted&&version===generation.current)setLoading(false);}},[]);
   useEffect(()=>{generation.current++;setStatus(null);setLibrary(null);setSelected('');setKeyValue('');setKeyOpen(false);setConfirm(null);setLinkGame(null);setLoading(true);void refresh();return()=>{generation.current++;statusAbort.current?.abort();};},[userId,refresh]);
   useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(timer);},[]);
   useEffect(()=>{const url=new URL(window.location.href),result=url.searchParams.get('steam');if(!result)return;setCallback(({connected:'Steam 계정을 확인했어요. API 키가 있으면 라이브러리를 불러와주세요.',cancelled:'Steam 연결을 취소했어요.',invalid_state:'인증 요청이 만료됐어요. Steam 로그인을 다시 시작해주세요.',failed:'Steam 계정 인증을 확인하지 못했어요. 다시 연결해주세요.'} as Record<string,string>)[result]??'계정 연결 상태를 확인해주세요.');url.searchParams.delete('steam');window.history.replaceState(null,'',url.pathname+url.search+url.hash);},[]);
   useEffect(()=>{
-    if(!detailed||!selected)return;const controller=new AbortController();setLoading(true);const version=generation.current;void steamFetch<Library>('library?'+new URLSearchParams({steamId:selected,q:query,sort,filter,offset:String(offset)}),undefined,controller.signal).then(data=>{if(!controller.signal.aborted&&version===generation.current)setLibrary(data);}).catch(e=>{if(!controller.signal.aborted&&version===generation.current)setError((e as Error).message);}).finally(()=>{if(!controller.signal.aborted&&version===generation.current)setLoading(false);});return()=>controller.abort();
-  },[detailed,selected,query,sort,filter,offset,revision,userId]);
+    if(!selected)return;const controller=new AbortController();setLoading(true);const version=generation.current;void steamFetch<Library>('library?'+new URLSearchParams({steamId:selected,q:query,sort,filter,offset:String(offset)}),undefined,controller.signal).then(data=>{if(!controller.signal.aborted&&version===generation.current)setLibrary(data);}).catch(e=>{if(!controller.signal.aborted&&version===generation.current)setError((e as Error).message);}).finally(()=>{if(!controller.signal.aborted&&version===generation.current)setLoading(false);});return()=>controller.abort();
+  },[selected,query,sort,filter,offset,revision,userId]);
   async function perform(task:()=>Promise<void>){if(action.current)return;action.current=true;setBusy(true);setError('');try{await task();}catch(e){setError((e as Error).message);if(e instanceof SteamClientError&&e.retryAfter)setWaitUntil(Date.now()+e.retryAfter*1000);}finally{action.current=false;setBusy(false);}}
   async function connect(){await perform(async()=>{const data=await steamFetch<{authorizationUrl:string}>('connect',{});const target=new URL(data.authorizationUrl);if(target.origin!=='https://steamcommunity.com'||target.pathname!=='/openid/login')throw new Error('Steam 인증 주소를 확인하지 못했어요.');window.location.assign(target.href);});}
   async function sync(){await perform(async()=>{await steamFetch('sync',{steamId:selected});setWaitUntil(Date.now()+60000);setRevision(v=>v+1);await refresh();setCallback('Steam 라이브러리와 시간을 새로 확인했어요.');});}
@@ -48,18 +48,114 @@ export default function SteamAccount({detailed=false,entries=[],onEdit,onSave}:{
   async function choose(id:string){if(action.current)return;setSelected(id);setLibrary(null);setOffset(0);setDraft('');setQuery('');setWaitUntil(0);await perform(async()=>{await steamFetch('select',{steamId:id});});}
   const account=status?.accounts.find(a=>a.steamId===selected),retryAt=Math.max(waitUntil,account?.retryAt??0),disabled=busy||retryAt>clock;
   const candidates=entries.filter(e=>(e.game?.steam?.appId??e.game?.steamAccount?.appId??linkGame?.appId)===linkGame?.appId);
-  return <section className="panel steam-account-panel" aria-label="Steam 계정 연결"><div className="steam-account-heading"><span><Gamepad2 size={19}/>STEAM LIBRARY</span><button className="icon-button" aria-label="Steam 연결 상태 새로고침" onClick={()=>void refresh()}><RefreshCw size={15}/></button></div><h2>{detailed?'내 Steam 라이브러리':'Steam 계정과 연결하기'}</h2><p>계정별 보유 게임과 플레이 시간을 확인하세요. 직접 기록한 게임·시간·감상은 그대로 유지합니다.</p>
-    {loading&&!status?<p role="status">Steam 연결 상태를 확인하고 있어요.</p>:<><div className="steam-account-actions"><button className="steam-sign-in" disabled={busy} onClick={()=>void connect()} aria-label="Steam 로그인으로 계정 연결"><img src="/steam-sign-in.png" alt="Sign in through Steam" width="180" height="35"/></button>{status?.accounts.length?<><span className="badge blue"><ShieldCheck size={12}/>{status.accounts.length}개 계정 연결됨</span>{!detailed&&<Link className="button secondary" href="/games/steam/">Steam 라이브러리 열기<ArrowUpRight size={13}/></Link>}</>:null}</div>
-      {!detailed&&!status?.accounts.length&&<Link className="text-button blue" href="/games/steam/">연결과 API 키 설정<ArrowUpRight size={13}/></Link>}
-      {detailed&&status?.accounts.length?<><div className="steam-account-select"><label>Steam 계정<select aria-label="Steam 계정 선택" value={selected} disabled={busy} onChange={e=>void choose(e.target.value)}>{status.accounts.map(a=><option key={a.steamId} value={a.steamId}>{a.name}</option>)}</select><small className="steam-account-stamp">{account?.ownedAt?`마지막 보유 게임 조회 · ${stamp(account.ownedAt)} KST`:'보유 게임 조회 전'}</small></label><button className="text-button muted" disabled={busy} onClick={()=>setConfirm('disconnect')}><Unlink size={13}/>이 계정 연결 해제</button></div>{account&&<div className="steam-profile">{account.avatarUrl&&<img src={account.avatarUrl} alt="Steam 프로필" referrerPolicy="no-referrer"/>}<div><strong>{account.name}</strong><small>{account.steamId}</small></div><a className="text-button blue" href={account.profileUrl} target="_blank" rel="noreferrer">Steam 프로필<ArrowUpRight size={13}/></a></div>}
-        <div className="steam-key-status"><span><KeyRound size={14}/>{status.hasKey?'API 키 등록됨':'라이브러리 조회용 API 키가 필요해요'}</span><button className="button secondary small" disabled={busy||!status.configured} onClick={()=>setKeyOpen(v=>!v)}>{status.hasKey?'키 변경':'API 키 등록'}</button>{status.keySource==='user'&&<button className="text-button muted" onClick={()=>setConfirm('key')}>저장한 키 제거</button>}</div>
-        {(keyOpen||!status.hasKey)&&<form className="steam-key-form" onSubmit={saveKey}><p><a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noreferrer">Steam에서 사용자 Web API 키 확인·등록<ArrowUpRight size={12}/></a> · 등록 도메인: <strong>woong-personal-hub.woong22222.chatgpt.site</strong></p><label>Steam Web API 키<input type="password" autoComplete="off" maxLength={64} value={keyValue} onChange={e=>setKeyValue(e.target.value)} placeholder="키는 화면이나 백업에 다시 표시하지 않습니다" required/></label><small>키를 이 HUB 계정 전용으로 암호화 보관하고, Steam 읽기 전용 조회에 사용합니다. 비밀번호·Steam Guard 코드는 입력하지 마세요.</small><button className="button primary" type="submit" disabled={busy||!status.configured||!keyValue.trim()}><Check size={14}/>키 보관하고 라이브러리 불러오기</button></form>}
-        <div className="steam-sync-bar"><div><strong>저장된 Steam 라이브러리</strong><small>Steam 공개 설정과 응답 범위에 따라 목록·시간이 제한될 수 있습니다.</small></div><button className="button secondary" disabled={disabled||!status.hasKey} onClick={()=>void sync()}><RefreshCw size={14}/>{busy?'확인 중':'라이브러리·시간 새로고침'}</button></div>
-        {account?.error&&<p className="form-error" role="alert">{steamMessage(account.error)}{account.ownedAt?' 아래에는 이전 조회 결과를 표시합니다.':''}</p>}{account?.recentError&&<p className="form-error">{steamMessage(account.recentError)} 최근 2주 시간은 이전 조회 정보일 수 있습니다.</p>}
-        {library&&<><div className="steam-library-stats"><div><span>조회한 보유 게임</span><strong>{library.stats.owned===null?'조회 전':`${library.stats.owned.toLocaleString('ko-KR')}개`}</strong></div><div><span>Steam 총 플레이 시간</span><strong>{library.stats.owned===null?'조회 전':library.stats.recorded?playTime(library.stats.totalMinutes):'제공된 시간 없음'}</strong></div><div><span>최근 2주</span><strong>{library.stats.recentCount===null?'조회 전':playTime(library.stats.recentMinutes)}</strong></div></div><div className="steam-library-filters"><form onSubmit={e=>{e.preventDefault();setQuery(draft.trim());setOffset(0);}}><label className="game-search"><Search size={15}/><input aria-label="Steam 보유 게임 검색" maxLength={120} value={draft} onChange={e=>setDraft(e.target.value)} placeholder="내 게임 이름 또는 App ID"/></label><button className="button secondary" type="submit">검색</button></form><select aria-label="Steam 게임 필터" value={filter} onChange={e=>{setFilter(e.target.value);setOffset(0);}}><option value="all">보유 게임 전체</option><option value="recent">최근 2주 플레이</option><option value="played">플레이한 게임</option><option value="unplayed">0분인 게임</option></select><select aria-label="Steam 게임 정렬" value={sort} onChange={e=>{setSort(e.target.value);setOffset(0);}}><option value="time">총 플레이 시간순</option><option value="recent">최근 실행순</option><option value="name">게임 이름순</option></select></div><p className="steam-library-count">{library.count}개 게임 · 최근 2주 {library.stats.recentCount??'미조회'}개 게임 · {library.account.recentAt?`${stamp(library.account.recentAt)} 최근 플레이 확인`:''}</p>
-          <div className="steam-owned-grid">{library.items.map(game=>{const saved=entries.some(e=>e.game?.steamAccount?.steamId===selected&&e.game.steamAccount.appId===game.appId);return <article className="steam-owned-card" key={game.appId}><SteamCover game={game}/><div><a href={game.storeUrl} target="_blank" rel="noreferrer"><strong>{game.name}</strong><ArrowUpRight size={12}/></a><p><Timer size={12}/>{playTime(game.totalMinutes)}</p><small>최근 2주 {game.recentMinutes===null?'정보 없음':playTime(game.recentMinutes)}</small><small>최근 실행 {stamp(game.lastPlayedAt)||'정보 없음'}</small><div className="steam-owned-actions"><button className="button secondary small" disabled={saved||!onEdit} onClick={()=>onEdit?.(gameDraft(selected,game))}><Plus size={12}/>{saved?'HUB에 연결됨':'HUB 게임으로 추가'}</button><button className="text-button muted" disabled={saved||!onSave||!entries.length} onClick={()=>{setLinkGame(game);setLinkEntry('');}}>기존 기록에 연결</button></div></div></article>;})}</div>{!library.items.length&&!loading&&<div className="steam-library-empty"><Gamepad2 size={32}/><p>{library.account.ownedAt?'조건에 맞는 보유 게임이 없어요.':'API 키를 등록한 뒤 라이브러리를 새로고침해주세요.'}</p></div>}{(library.hasMore||offset>0)&&<div className="steam-pagination"><button className="button secondary" disabled={loading||offset===0} onClick={()=>setOffset(Math.max(0,offset-30))}><ChevronLeft size={13}/>이전</button><span>{Math.floor(offset/30)+1}페이지</span><button className="button secondary" disabled={loading||!library.hasMore} onClick={()=>setOffset(library.nextOffset)}>다음<ChevronRight size={13}/></button></div>}</>}
-      </>:detailed?<p className="steam-empty-note">먼저 Steam 로그인으로 본인의 계정을 확인해주세요. 로그인 승인 후 이 화면으로 돌아옵니다.</p>:null}
-    </>}{loading&&status&&<p className="steam-feedback" role="status">저장된 라이브러리를 읽고 있어요.</p>}{callback&&<p className="steam-feedback" role="status">{callback}</p>}{error&&<p className="form-error" role="alert">{error}</p>}{retryAt>clock&&<p className="steam-feedback" role="status">{Math.ceil((retryAt-clock)/1000)}초 후 다시 조회할 수 있어요.</p>}<p className="steam-account-note">Steam 로그인과 라이브러리 조회는 HUB 로그인과 별개입니다. Steam 게임·프로필·구매 내역은 수정하지 않습니다.</p>
+  const hasAccounts=Boolean(status?.accounts.length);
+  const needsSetup=Boolean(status&&(!hasAccounts||!status.hasKey));
+
+  return <section className="panel steam-account-panel" aria-labelledby="steam-library-title">
+    <div className="steam-library-heading">
+      <h2 id="steam-library-title">저장된 Steam 라이브러리</h2>
+      <a className="text-button muted" href="#steam-wishlist" aria-label="찜 목록·상점 정보">찜 목록<ArrowDownRight size={13} aria-hidden="true"/></a>
+    </div>
+    {loading&&!status&&<p role="status">Steam 연결 상태를 확인하고 있어요.</p>}
+    {hasAccounts&&status&&<div className="steam-account-bar">
+      <label>Steam 계정
+        <select aria-label="Steam 계정 선택" value={selected} disabled={busy} onChange={e=>void choose(e.target.value)}>
+          {status.accounts.map(a=><option key={a.steamId} value={a.steamId}>{a.name}</option>)}
+        </select>
+      </label>
+      <p className="steam-account-stamp">{account?.ownedAt?`마지막 조회 ${stamp(account.ownedAt)}`:'보유 게임 조회 전'}</p>
+      <button type="button" className="button secondary" aria-label={busy?'Steam 라이브러리 확인 중':'Steam 라이브러리 새로고침'} disabled={disabled||!account||!status.hasKey} onClick={()=>void sync()}>
+        <RefreshCw size={14} aria-hidden="true"/>{busy?'확인 중':'새로고침'}
+      </button>
+    </div>}
+    {callback&&<p className="steam-feedback" role="status">{callback}</p>}
+    {error&&<p className="form-error" role="alert">{error}</p>}
+    {retryAt>clock&&<p className="steam-feedback" role="status">{Math.ceil((retryAt-clock)/1000)}초 후 다시 조회할 수 있어요.</p>}
+    {account?.error&&<p className="form-error" role="alert">{steamMessage(account.error)}{account.ownedAt?' 이전 조회 결과를 표시합니다.':''}</p>}
+    {account?.recentError&&<p className="form-error">{steamMessage(account.recentError)} 최근 2주 시간은 이전 조회 정보일 수 있습니다.</p>}
+    <details className="steam-disclosure steam-settings" open={needsSetup}>
+      <summary><KeyRound size={15} aria-hidden="true"/>Steam 계정·API 키 관리<ChevronDown size={16} className="section-chevron" aria-hidden="true"/></summary>
+      <div id="steam-account" className="steam-disclosure-body">
+        <div className="steam-account-actions">
+          <button type="button" className="steam-sign-in" disabled={busy} onClick={()=>void connect()} aria-label="Steam 로그인으로 계정 연결">
+            <img src="/steam-sign-in.png" alt="Sign in through Steam" width="180" height="35"/>
+          </button>
+          <button type="button" className="text-button muted" aria-label="Steam 연결 상태 새로고침" onClick={()=>void refresh()}>
+            <RefreshCw size={14} aria-hidden="true"/>연결 상태 확인
+          </button>
+          {hasAccounts&&<span className="badge blue"><ShieldCheck size={12} aria-hidden="true"/>{status?.accounts.length}개 계정 연결됨</span>}
+        </div>
+        {status&&!hasAccounts&&<p className="steam-feedback">Steam 로그인으로 계정을 연결하면 보유 게임과 플레이 시간을 볼 수 있어요.</p>}
+        {account&&<div className="steam-profile">
+          {account.avatarUrl&&<img src={account.avatarUrl} alt="" referrerPolicy="no-referrer"/>}
+          <div><strong>{account.name}</strong><small>{account.steamId}</small></div>
+          <a className="text-button blue" href={account.profileUrl} target="_blank" rel="noreferrer">Steam 프로필<ArrowUpRight size={13} aria-hidden="true"/></a>
+          <button type="button" className="text-button muted" disabled={busy} onClick={()=>setConfirm('disconnect')}><Unlink size={13} aria-hidden="true"/>이 계정 연결 해제</button>
+        </div>}
+        {account?.recentAt&&<p className="steam-account-stamp">최근 플레이 확인 {stamp(account.recentAt)}</p>}
+        {hasAccounts&&status&&<>
+          <div className="steam-key-status">
+            <span>{status.hasKey?'API 키 등록됨':'라이브러리 조회용 API 키가 필요해요'}</span>
+            {status.hasKey&&<button type="button" className="button secondary small" disabled={busy||!status.configured} onClick={()=>setKeyOpen(v=>!v)}>{keyOpen?'키 변경 닫기':'키 변경'}</button>}
+            {status.keySource==='user'&&<button type="button" className="text-button muted" disabled={busy} onClick={()=>setConfirm('key')}>저장한 키 제거</button>}
+          </div>
+          {(keyOpen||!status.hasKey)&&<form className="steam-key-form" onSubmit={saveKey}>
+            <p><a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noreferrer">Steam에서 사용자 Web API 키 확인·등록<ArrowUpRight size={12} aria-hidden="true"/></a> · 등록 도메인: <strong>woong-personal-hub.woong22222.chatgpt.site</strong></p>
+            <label>Steam Web API 키<input type="password" autoComplete="off" maxLength={64} value={keyValue} onChange={e=>setKeyValue(e.target.value)} placeholder="키는 화면이나 백업에 다시 표시하지 않습니다" required/></label>
+            <small>키는 이 HUB 계정 전용으로 암호화해 Steam 읽기 전용 조회에 사용합니다.</small>
+            <button className="button primary" type="submit" disabled={busy||!status.configured||!keyValue.trim()}><Check size={14} aria-hidden="true"/>키 보관하고 라이브러리 불러오기</button>
+          </form>}
+        </>}
+      </div>
+    </details>
+    {library&&<>
+      <div className="steam-library-filters">
+        <form onSubmit={e=>{e.preventDefault();setQuery(draft.trim());setOffset(0);}}>
+          <label className="game-search"><Search size={15} aria-hidden="true"/><input aria-label="Steam 보유 게임 검색" maxLength={120} value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Steam 게임 이름 또는 App ID"/></label>
+          <button className="button secondary" type="submit">검색</button>
+        </form>
+        <select aria-label="Steam 게임 필터" value={filter} onChange={e=>{setFilter(e.target.value);setOffset(0);}}>
+          <option value="all">보유 게임 전체</option><option value="recent">최근 2주 플레이</option><option value="played">플레이한 게임</option><option value="unplayed">0분인 게임</option>
+        </select>
+        <select aria-label="Steam 게임 정렬" value={sort} onChange={e=>{setSort(e.target.value);setOffset(0);}}>
+          <option value="time">총 플레이 시간순</option><option value="recent">최근 실행순</option><option value="name">게임 이름순</option>
+        </select>
+      </div>
+      <div className="steam-library-summary">
+        <p className="steam-library-count" role="status">{library.count.toLocaleString('ko-KR')}개 게임</p>
+        <dl className="steam-library-stats">
+          <div><dt>보유</dt><dd>{library.stats.owned===null?'조회 전':`${library.stats.owned.toLocaleString('ko-KR')}개`}</dd></div>
+          <div><dt>총 플레이</dt><dd>{library.stats.owned===null?'조회 전':library.stats.recorded?playTime(library.stats.totalMinutes):'시간 정보 없음'}</dd></div>
+          <div><dt>최근 2주</dt><dd>{library.stats.recentCount===null?'조회 전':`${library.stats.recentCount}개 · ${playTime(library.stats.recentMinutes)}`}</dd></div>
+        </dl>
+      </div>
+      <div className="steam-owned-grid" aria-busy={loading}>{library.items.map(game=>{
+        const saved=entries.some(e=>e.game?.steamAccount?.steamId===selected&&e.game.steamAccount.appId===game.appId);
+        return <article className="steam-owned-card" key={game.appId}>
+          <SteamCover game={game}/>
+          <div>
+            <a href={game.storeUrl} target="_blank" rel="noreferrer"><strong>{game.name}</strong><ArrowUpRight size={12} aria-hidden="true"/></a>
+            <p><Timer size={12} aria-hidden="true"/>{playTime(game.totalMinutes)}</p>
+            <small>최근 2주 {game.recentMinutes===null?'정보 없음':playTime(game.recentMinutes)}</small>
+            <small>최근 실행 {stamp(game.lastPlayedAt)||'정보 없음'}</small>
+            <div className="steam-owned-actions">
+              <button className="button secondary small" disabled={saved} onClick={()=>onEdit(gameDraft(selected,game))}><Plus size={12} aria-hidden="true"/>{saved?'HUB에 연결됨':'HUB 게임으로 추가'}</button>
+              <button className="text-button muted" disabled={saved||!entries.length} onClick={()=>{setLinkGame(game);setLinkEntry('');}}>기존 기록에 연결</button>
+            </div>
+          </div>
+        </article>;
+      })}</div>
+      {!library.items.length&&!loading&&<div className="steam-library-empty">
+        <Gamepad2 size={32} aria-hidden="true"/>
+        <p>{library.account.ownedAt?'조건에 맞는 보유 게임이 없어요.':status?.hasKey?'새로고침을 눌러 보유 게임을 불러오세요.':'API 키를 등록한 뒤 라이브러리를 새로고침해주세요.'}</p>
+      </div>}
+      {(library.hasMore||offset>0)&&<div className="steam-pagination">
+        <button className="button secondary" disabled={loading||offset===0} onClick={()=>setOffset(Math.max(0,offset-30))}><ChevronLeft size={13} aria-hidden="true"/>이전</button>
+        <span>{Math.floor(offset/30)+1}페이지</span>
+        <button className="button secondary" disabled={loading||!library.hasMore} onClick={()=>setOffset(library.nextOffset)}>다음<ChevronRight size={13} aria-hidden="true"/></button>
+      </div>}
+    </>}
+    {loading&&status&&<p className="steam-feedback" role="status">저장된 라이브러리를 읽고 있어요.</p>}
     {confirm&&<Dialog title={confirm==='key'?'Steam API 키 제거':'Steam 계정 연결 해제'} onClose={()=>setConfirm(null)}><p className="dialog-description">{confirm==='key'?'이 HUB 계정에 보관한 API 키를 삭제합니다. Steam 자체의 키를 폐기하지는 않습니다.':'선택한 Steam 계정과 이 사이트에 저장한 조회 내역을 삭제합니다. 기존 HUB 게임·수동 플레이 시간·감상은 유지됩니다.'}</p><div className="dialog-actions button-row"><button className="button secondary" onClick={()=>setConfirm(null)}>취소</button><button className="button danger" disabled={busy} onClick={()=>void perform(async()=>{await steamFetch(confirm==='key'?'key/remove':'disconnect',confirm==='key'?{}:{steamId:selected});setConfirm(null);setLibrary(null);setRevision(v=>v+1);await refresh();})}>{confirm==='key'?'보관한 키 제거':'연결 해제'}</button></div></Dialog>}
     {linkGame&&<Dialog title="기존 게임에 Steam 계정 시간 연결" onClose={()=>setLinkGame(null)}><div className="steam-link-dialog"><p>‘{linkGame.name}’의 Steam 시간을 표시할 기존 기록을 선택하세요. 제목·직접 기록한 시간·별점·감상은 유지합니다.</p><label>HUB 게임<select aria-label="Steam 시간을 연결할 HUB 게임" value={linkEntry} onChange={e=>setLinkEntry(e.target.value)}><option value="">기존 기록을 선택해주세요</option>{candidates.map(e=><option key={e.id} value={e.id}>{e.title}</option>)}</select></label>{!candidates.length&&<p>App ID가 일치하는 기존 기록이 없어요. 새 게임으로 추가하거나 상점 연결을 확인해주세요.</p>}</div><div className="dialog-footer"><button className="button secondary" onClick={()=>setLinkGame(null)}>취소</button><button className="button primary" disabled={!linkEntry} onClick={()=>{const entry=entries.find(e=>e.id===linkEntry);if(entry&&onSave?.({...entry,game:{...(entry.game??emptyGame()),steamAccount:{steamId:selected,appId:linkGame.appId}}}))setLinkGame(null);}}><Link2 size={14}/>이 기록에 연결</button></div></Dialog>}
   </section>;

@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
 import {ArrowUpRight,Check,Pencil,Pin,PinOff,Trash2} from 'lucide-react';
-import {safeUrl,type Entry} from '@/lib/store';
+import {safeUrl,todayKST,type Entry} from '@/lib/store';
 import {captureEntry,captureLabel,convertEntry,detectCapture,dueLabel,dueThisWeek,sortTodos} from '@/lib/capture';
 
 type Filter='all'|'note'|'todo'|'bookmark';
@@ -19,7 +19,7 @@ export default function LibraryHub({entries,today,pinnedId,onPin,onAdd,onChange,
   onAdd:(entry:Entry,message:string)=>void;onChange:(entry:Entry,message:string)=>void;onOpen:(entry:Entry)=>void;onToggle:(entry:Entry)=>void;onDelete:(entry:Entry)=>void}){
   const [text,setText]=useState(''),[filter,setFilter]=useState<Filter>('all'),[tag,setTag]=useState(''),[lastId,setLastId]=useState<string|null>(null),[showDone,setShowDone]=useState(false);
   useEffect(()=>{const tab=new URLSearchParams(window.location.search).get('tab');if(tab==='note'||tab==='todo'||tab==='bookmark')setFilter(tab);},[]);
-  const capture=detectCapture(text,today||new Date().toISOString().slice(0,10));
+  const capture=detectCapture(text,today||todayKST());
   const byTag=(e:Entry)=>!tag||e.category===tag;
   const notes=entries.filter(e=>e.kind==='note'),todos=entries.filter(e=>e.kind==='todo'),bookmarks=entries.filter(e=>e.kind==='bookmark');
   const counts:Record<Filter,number>={all:notes.length+todos.length+bookmarks.length,note:notes.length,todo:todos.length,bookmark:bookmarks.length};

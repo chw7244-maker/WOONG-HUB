@@ -21,7 +21,7 @@ test('Xbox history merges paged titles and keeps zero and missing minutes distin
   const remote = data => Response.json({code:200,content:data});
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     assert.equal(options.headers['X-Authorization'], env.XBOX_OPENXBL_API_KEY);
-    assert.equal(options.redirect, 'error');
+    assert.equal(options.redirect, 'manual');
     const target = new URL(url);
     assert.equal(target.origin, 'https://api.xbl.io');
     switch (target.pathname) {
@@ -65,6 +65,7 @@ test('Xbox history merges paged titles and keeps zero and missing minutes distin
 });
 
 test('Xbox history keeps available games when one provider source and the playtime lookup fail', async t => {
+  const warn = t.mock.method(console, 'warn', () => {});
   t.mock.method(globalThis, 'fetch', async url => {
     if (url.endsWith('/account')) return Response.json({profileUsers:[{id:xuid}]});
     if (url.includes('/titleHistory/')) return Response.json({titles:[{titleId:1,name:'Game'}]});
@@ -76,4 +77,24 @@ test('Xbox history keeps available games when one provider source and the playti
   assert.equal(result.historyIncomplete, true);
   assert.equal(result.playtimeIncomplete, true);
   assert.equal(result.games[0].minutes, null);
+  assert.deepEqual(warn.mock.calls.map(call => call.arguments), [
+    ['xbox_provider_failure', {stage:'achievements', reason:'api_error', status:429}],
+    ['xbox_provider_failure', {stage:'playtime', reason:'api_error', status:429}],
+  ]);
+});
+
+test('Xbox history rejects redirects without following or logging the destination', async t => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  const fetch = t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, 'https://api.xbl.io/v2/account');
+    assert.equal(options.redirect, 'manual');
+    return Response.redirect('https://example.com/account/' + xuid, 302);
+  });
+  const response = await handleApi(new Request(endpoint, {headers:owner}), env);
+  assert.equal(response.status, 502);
+  assert.deepEqual(await response.json(), {error:'xbox_unavailable'});
+  assert.equal(fetch.mock.callCount(), 1);
+  assert.deepEqual(warn.mock.calls.map(call => call.arguments), [
+    ['xbox_provider_failure', {stage:'account', reason:'http_status', status:302}],
+  ]);
 });

@@ -24,18 +24,48 @@ function providerError(status) {
   return new XboxError('xbox_unavailable', 502);
 }
 
-async function openXbl(key, path, body) {
+function logProviderFailure(stage, reason, status) {
+  console.warn('xbox_provider_failure', {stage, reason, status});
+}
+
+function invalidProviderShape(stage) {
+  logProviderFailure(stage, 'invalid_response_shape');
+  return providerError(502);
+}
+
+async function openXbl(key, stage, path, body) {
   const headers = {Accept:'application/json', 'X-Authorization':key};
   if (body) headers['Content-Type'] = 'application/json';
-  const response = await fetch(BASE + path, {
-    headers,
-    redirect:'error',
-    signal:AbortSignal.timeout(8000),
-    ...(body && {method:'POST',body:JSON.stringify(body)})
-  });
-  if (!response.ok) throw providerError(response.status);
-  const data = await response.json();
-  if (Number(data?.code) >= 400) throw providerError(Number(data.code));
+  const signal = AbortSignal.timeout(8000);
+  let response;
+  try {
+    response = await fetch(BASE + path, {
+      headers,
+      // Workers supports manual mode. Reject the response below without forwarding the API key.
+      redirect:'manual',
+      signal,
+      ...(body && {method:'POST',body:JSON.stringify(body)})
+    });
+  } catch {
+    logProviderFailure(stage, signal.aborted ? 'timeout' : 'fetch_failed');
+    throw providerError(502);
+  }
+  if (!response.ok) {
+    logProviderFailure(stage, 'http_status', response.status);
+    throw providerError(response.status);
+  }
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    logProviderFailure(stage, signal.aborted ? 'timeout' : 'invalid_json', response.status);
+    throw providerError(502);
+  }
+  const code = Number(data?.code);
+  if (code >= 400) {
+    logProviderFailure(stage, 'api_error', Number.isInteger(code) && code <= 599 ? code : undefined);
+    throw providerError(code);
+  }
   return data?.content ?? data;
 }
 
@@ -45,14 +75,14 @@ function dateString(value) {
   return Number.isFinite(date.getTime()) && date.getUTCFullYear() >= 2000 ? date.toISOString() : null;
 }
 
-async function readHistory(key, path) {
+async function readHistory(key, stage, path) {
   const titles = [];
   let token = '';
   try {
     for (let page = 0; page < MAX_HISTORY_PAGES; page++) {
       const query = token ? '?' + new URLSearchParams({continuationToken:token}) : '';
-      const data = await openXbl(key, path + query);
-      if (!Array.isArray(data?.titles)) throw providerError(502);
+      const data = await openXbl(key, stage, path + query);
+      if (!Array.isArray(data?.titles)) throw invalidProviderShape(stage);
       titles.push(...data.titles);
       const next = data.pagingInfo?.continuationToken;
       if (!next) return {titles, limited:false};
@@ -81,7 +111,7 @@ function playedGames(results) {
 }
 
 function applyPlaytime(games, data) {
-  if (!Array.isArray(data?.statlistscollection)) throw providerError(502);
+  if (!Array.isArray(data?.statlistscollection)) throw invalidProviderShape('playtime');
   const byId = new Map(games.map(game=>[game.id, game]));
   for (const list of data.statlistscollection) {
     if (!Array.isArray(list?.stats)) continue;
@@ -102,13 +132,14 @@ export async function handleXboxHistory(request, env) {
   const key = env.XBOX_OPENXBL_API_KEY?.trim();
   if (!key) return json({error:'xbox_not_configured'}, 503);
   try {
-    const account = await openXbl(key, '/account');
+    const account = await openXbl(key, 'account', '/account');
     const xuid = account?.profileUsers?.[0]?.id;
-    if (typeof xuid !== 'string' || !/^\d{1,20}$/.test(xuid)) throw providerError(502);
+    if (typeof xuid !== 'string' || !/^\d{1,20}$/.test(xuid)) throw invalidProviderShape('account');
 
     const sources = await Promise.allSettled([
-      '/achievements/player/', '/player/titleHistory/'
-    ].map(path => readHistory(key, path + xuid)));
+      readHistory(key, 'achievements', '/achievements/player/' + xuid),
+      readHistory(key, 'title_history', '/player/titleHistory/' + xuid)
+    ]);
     const history = sources.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
     if (!history.length) throw sources[0].reason;
     const allGames = playedGames(history.map(page=>page.titles));
@@ -119,7 +150,7 @@ export async function handleXboxHistory(request, env) {
       batches.push(batch);
     }
     const stats = await Promise.allSettled(batches.map(async batch => {
-      const data = await openXbl(key, '/player/stats', {
+      const data = await openXbl(key, 'playtime', '/player/stats', {
         xuids:[xuid],
         stats:batch.map(game=>({titleId:game.id,name:MINUTES_PLAYED}))
       });

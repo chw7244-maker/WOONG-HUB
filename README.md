@@ -238,6 +238,7 @@ pnpm preview    # http://127.0.0.1:3000
 HUB 서버는 버튼을 누르면 OpenXBL의 타이틀 기록과 업적 기록을 읽고 게임별 `MinutesPlayed`를 조회합니다. OpenXBL은 비공식 Xbox API이며, 서버는 API 키와 Xbox 사용자 ID를 조회에 사용합니다. 결과는 열린 화면에만 표시됩니다. 게임 탭의 플레이 시간 합계는 Steam 연결 시간과 직접 기록한 시간을 기준으로 계산합니다. [OpenXBL API 문서](https://api.xbl.io/docs)
 
 조회가 거부되면 OpenXBL 키와 Xbox 계정의 공개 설정을 확인합니다. 요청 한도에 도달했다는 메시지가 나오면 잠시 후 **새로고침**으로 다시 조회합니다.
+계속 실패하면 운영 Worker 로그에서 `xbox_provider_failure`를 확인합니다. 계정, 업적, 타이틀 기록, 플레이 시간 중 실패한 단계와 오류 유형, 확인 가능한 상태 코드가 표시됩니다.
 
 ### TMDB 연동
 

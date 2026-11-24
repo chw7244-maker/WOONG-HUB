@@ -18,7 +18,7 @@ const hobbyPages = [
 
 /* Service pages keep the corresponding hobby selected. */
 export function hobbyOf(section: string) {
-  if (section === 'spotify') return 'music';
+  if (section === 'spotify' || section === 'fiio') return 'music';
   if (section === 'steam' || section === 'xbox') return 'games';
   return hobbyPages.some(page => page.id === section) ? section : null;
 }

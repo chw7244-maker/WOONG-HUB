@@ -7,6 +7,7 @@ import '../components/calendar.css';
 import '../components/games.css';
 import '../components/quick-add.css';
 import '../components/library.css';
+import '../components/fiio-playlists.css';
 import '../components/music.css';
 import '../components/spotify-account.css';
 import '../components/steam-account.css';

@@ -69,3 +69,13 @@ export const steamOpenidStates=sqliteTable('steam_openid_states',{
 export const steamOpenidNonces=sqliteTable('steam_openid_nonces',{
   nonceHash:text('nonce_hash').primaryKey(),expiresAt:integer('expires_at').notNull(),
 });
+
+/** The track list of a portable player (paths only, read from a playlist the player exported), one per HUB user. */
+export const musicDeviceLibraries=sqliteTable('music_device_libraries',{
+  userId:text('user_id').primaryKey(),
+  name:text('name').notNull(),
+  suffix:text('suffix').notNull(),
+  tracks:text('tracks').notNull(),
+  trackCount:integer('track_count').notNull(),
+  importedAt:text('imported_at').notNull(),
+});

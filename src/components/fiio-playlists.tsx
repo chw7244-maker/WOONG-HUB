@@ -28,6 +28,8 @@ export default function FiioPlaylists(){
   const [library,setLibrary]=useState<DeviceLibrary|null>(null),[loading,setLoading]=useState(true),[status,setStatus]=useState(''),[error,setError]=useState('');
   const [rules,setRules]=useState<PlaylistRules>(defaultRules),[excluded,setExcluded]=useState<Set<string>>(()=>new Set()),[name,setName]=useState(''),[downloaded,setDownloaded]=useState('');
   const input=useRef<HTMLInputElement>(null);
+  // A search handed over from 내 음원 라이브러리 (?q=album) starts the rules with it.
+  useEffect(()=>{const q=new URLSearchParams(window.location.search).get('q');if(q)setRules(current=>({...current,query:q.slice(0,100)}));},[]);
   useEffect(()=>{void (async()=>{try{const response=await fetch('/api/music/device',{credentials:'same-origin',cache:'no-store'});if(!response.ok)throw new Error();const body=await response.json();setLibrary(body.library?validateDeviceLibrary(body.library):null);}catch{setError('곡 목록을 불러오지 못했어요. 잠시 후 다시 열어 주세요.');}finally{setLoading(false);}})();},[]);
   const tracks=useMemo(()=>library?library.tracks.map(trackFromPath):[],[library]);
   const artists=useMemo(()=>counts(tracks.map(t=>t.artist)),[tracks]),albums=useMemo(()=>counts(tracks.filter(t=>!rules.artists.length||rules.artists.includes(t.artist)).map(albumKey)),[tracks,rules.artists]);

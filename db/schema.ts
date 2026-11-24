@@ -79,3 +79,19 @@ export const musicDeviceLibraries=sqliteTable('music_device_libraries',{
   trackCount:integer('track_count').notNull(),
   importedAt:text('imported_at').notNull(),
 });
+
+/** 내 음원 라이브러리: tags read from a PC music folder (gzip JSON), one per HUB user. */
+export const musicLocalLibraries=sqliteTable('music_local_libraries',{
+  userId:text('user_id').primaryKey(),
+  folder:text('folder').notNull(),
+  data:text('data').notNull(),
+  trackCount:integer('track_count').notNull(),
+  scannedAt:text('scanned_at').notNull(),
+});
+/** Album cover thumbnails (JPEG, base64), addressed by a hash of their bytes so a cover is stored once. */
+export const musicLocalCovers=sqliteTable('music_local_covers',{
+  userId:text('user_id').notNull(),
+  id:text('id').notNull(),
+  data:text('data').notNull(),
+  createdAt:text('created_at').notNull(),
+},table=>[primaryKey({columns:[table.userId,table.id]})]);

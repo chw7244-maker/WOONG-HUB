@@ -61,3 +61,18 @@ test('more than 100 stale covers are cleaned up despite the D1 bound-value limit
   await call('PUT', '/api/music/local', { body: JSON.stringify(library({})), type: 'application/json' });
   assert.deepEqual((await (await call('GET', '/api/music/local/covers')).json()).ids, []);
 });
+
+test('the library can be sent gzip-compressed, and a rejected track is named in the reply', async t => {
+  await setup(t);
+  const gz = async text => new Uint8Array(await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+  const lib = library({});
+  const saved = await call('PUT', '/api/music/local', { body: await gz(JSON.stringify(lib)), type: 'application/gzip' });
+  assert.equal(saved.status, 200); assert.deepEqual(await saved.json(), { saved: true, tracks: 3 });
+  assert.deepEqual((await (await call('GET', '/api/music/local')).json()).library, lib);
+  const bad = await call('PUT', '/api/music/local', { body: await gz(JSON.stringify({ ...lib, tracks: [{ ...lib.tracks[0], path: 'Flac/../x.flac' }] })), type: 'application/gzip' });
+  assert.equal(bad.status, 400); assert.match((await bad.json()).detail, /Flac\/\.\.\/x\.flac/);
+  const broken = await call('PUT', '/api/music/local', { body: new Uint8Array([1, 2, 3]), type: 'application/gzip' });
+  assert.equal(broken.status, 400);
+  const bomb = await gz('x'.repeat(13 * 1024 * 1024));
+  assert.equal((await call('PUT', '/api/music/local', { body: bomb, type: 'application/gzip' })).status, 413);
+});

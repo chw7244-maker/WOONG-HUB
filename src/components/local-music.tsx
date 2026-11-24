@@ -65,6 +65,16 @@ export default function LocalMusic({collection,onCollect}:{collection:Entry[];on
       setResult(scanned);
     }catch(e){setProgress(null);if((e as Error).name!=='AbortError')setError('폴더를 읽지 못했어요. Chrome이나 Edge에서 다시 해 주세요.');}
   }
+  /** Checks the library here first (so a bad track is named before anything is sent), then sends it gzip-compressed. */
+  async function putLibrary(next:LocalLibrary){
+    validateLocalLibrary(next);
+    const body=await new Response(new Blob([JSON.stringify(next)]).stream().pipeThrough(new CompressionStream('gzip'))).blob();
+    const r=await fetch('/api/music/local',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/gzip'},body});
+    if(r.ok)return;
+    const reply=await r.json().catch(()=>({})) as {error?:string;detail?:string};
+    if(r.status===413)throw new Error('곡이 너무 많아요. 2만 곡까지 저장할 수 있어요.');
+    throw new Error(`라이브러리를 저장하지 못했어요. ${reply.detail||`(서버 응답 ${r.status}${reply.error?` · ${reply.error}`:''})`}`);
+  }
   async function save(){
     if(!result)return;
     try{
@@ -81,8 +91,7 @@ export default function LocalMusic({collection,onCollect}:{collection:Entry[];on
       const covers={...Object.fromEntries(Object.entries(library?.covers??{}).filter(([,c])=>c.url&&!c.id).map(([k,c])=>[k,{url:c.url}])),...result.library.covers};
       const next={...result.library,covers};
       setSaving('라이브러리를 저장하는 중…');
-      const r=await fetch('/api/music/local',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(next)});
-      if(!r.ok)throw new Error(r.status===413?'곡이 너무 많아요. 2만 곡까지 저장할 수 있어요.':'라이브러리를 저장하지 못했어요.');
+      await putLibrary(next);
       setLibrary(validateLocalLibrary(next));setResult(null);setProgress(null);setSaving('');
       setNotice(`앨범 ${groupAlbums(next).length}장, ${next.tracks.length.toLocaleString('ko-KR')}곡을 저장했어요.`);
     }catch(e){setSaving('');setError(e instanceof Error?e.message:'라이브러리를 저장하지 못했어요.');}
@@ -100,7 +109,7 @@ export default function LocalMusic({collection,onCollect}:{collection:Entry[];on
       await new Promise(resolve=>setTimeout(resolve,1200));
     }
     const next={...library,covers};
-    const r=await fetch('/api/music/local',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(next)}).catch(()=>null);
+    const r=await putLibrary(next).then(()=>({ok:true}),()=>null);
     if(r?.ok)setLibrary(validateLocalLibrary(next));
     setFinding(null);setNotice(r?.ok?`표지 ${found}장을 찾았어요.${missing.length-found?` ${missing.length-found}장은 찾지 못했어요.`:''}`:'찾은 표지를 저장하지 못했어요.');
   }

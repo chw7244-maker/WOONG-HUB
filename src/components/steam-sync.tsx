@@ -1,6 +1,5 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
-import Link from 'next/link';
 import {Heart,Loader2,RefreshCw,Sparkles} from 'lucide-react';
 import type {Entry} from '@/lib/store';
 import {steamGameEntry,storeInfoMissing,wishlistChanges,withStoreInfo,type WishlistItem} from '@/lib/quick-add';
@@ -70,7 +69,7 @@ export default function SteamSync({entries,onBulkSave,onGone}:{entries:Entry[];o
   }
 
   const missing=storeInfoMissing(entries).length;
-  if(linked===false)return <section className="steam-sync" aria-label="Steam 찜 목록"><div className="steam-sync-row"><span className="steam-sync-icon"><Heart size={18}/></span><span className="steam-sync-copy"><strong>Steam 찜 목록</strong><small>Steam 계정을 연결하면 찜한 게임을 위시리스트로 가져와요.</small></span><Link className="steam-sync-button" href="/games/steam/">계정 연결</Link></div></section>;
+  if(linked===false)return <section className="steam-sync" aria-label="Steam 찜 목록"><div className="steam-sync-row"><span className="steam-sync-icon"><Heart size={18}/></span><span className="steam-sync-copy"><strong>Steam 찜 목록</strong><small>Steam 계정을 연결하면 찜한 게임을 위시리스트로 가져와요.</small></span><a className="steam-sync-button" href="#steam-account">계정 연결</a></div></section>;
   return <section className="steam-sync" aria-label="Steam 찜 목록과 상점 정보">
     <div className="steam-sync-row"><span className="steam-sync-icon"><Heart size={18}/></span>
       <span className="steam-sync-copy"><strong>Steam 찜 목록</strong><small role="status">{checking?'찜 목록을 확인하고 있어요…':message||(state?`${clock(state.checkedAt)} 확인 · ${state.empty?'찜 목록이 비어 있거나 공개되지 않았어요':state.added?`새로 찜한 ${state.added}개를 위시리스트에 담았어요`:'새로 찜한 게임이 없어요'}${state.waiting?` · ${state.waiting}개는 다음 확인 때 담아요`:''}${gone.length&&!state.empty?` · Steam 찜에서 빠진 ${gone.length}개는 그대로 뒀어요`:''}`:'아직 확인하지 않았어요')}</small></span>

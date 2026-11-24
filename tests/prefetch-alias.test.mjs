@@ -5,6 +5,7 @@ import { prefetchAlias } from '../scripts/prefetch-alias.mjs';
 test('exported page segments get the flat name Next prefetches, at one and two levels', () => {
   assert.equal(prefetchAlias('/audio/__next.$d$section/__PAGE__.txt'), '/audio/__next.$d$section.__PAGE__.txt');
   assert.equal(prefetchAlias('/games/steam/__next.games/steam/__PAGE__.txt'), '/games/steam/__next.games.steam.__PAGE__.txt');
+  assert.equal(prefetchAlias('/games/xbox/__next.games/xbox/__PAGE__.txt'), '/games/xbox/__next.games.xbox.__PAGE__.txt');
   assert.equal(prefetchAlias('/music/spotify/__next.music/spotify/__PAGE__.txt'), '/music/spotify/__next.music.spotify.__PAGE__.txt');
 });
 

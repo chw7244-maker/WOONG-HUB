@@ -1,7 +1,7 @@
 'use client';
 
 import {useEffect, useRef, useState} from 'react';
-import {ChevronDown, Gamepad2, RefreshCw} from 'lucide-react';
+import {Gamepad2, RefreshCw} from 'lucide-react';
 import {playTime} from '@/lib/games';
 
 type XboxGame = {id:string; name:string; lastPlayed:string|null; minutes:number|null};
@@ -56,15 +56,14 @@ export default function XboxHistory() {
   }
 
   return (
-    <details className="games-summary">
-      <summary>
+    <section className="games-summary" aria-labelledby="xbox-history-title">
+      <div className="xbox-history-heading">
         <span className="games-summary-icon"><Gamepad2 size={18} aria-hidden="true"/></span>
         <span className="games-summary-copy">
-          <strong>Xbox 플레이 기록</strong>
+          <h2 id="xbox-history-title">Xbox 플레이 기록</h2>
           <small>{snapshot ? `조회된 게임 ${snapshot.games.length}개` : '최근 플레이 날짜 · 게임별 누적 플레이 시간'}</small>
         </span>
-        <ChevronDown size={18} className="section-chevron" aria-hidden="true"/>
-      </summary>
+      </div>
       <div className="xbox-history" aria-busy={loading}>
         <div className="xbox-history-actions">
           <button type="button" className="button secondary" disabled={loading} onClick={()=>void load()}>
@@ -96,6 +95,6 @@ export default function XboxHistory() {
             <button type="button" className="button secondary" onClick={()=>setVisible(count=>count+PAGE_SIZE)}>더 보기</button>}
         </>}
       </div>
-    </details>
+    </section>
   );
 }

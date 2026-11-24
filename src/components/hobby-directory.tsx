@@ -5,14 +5,14 @@ export const hobbyPages = [
   { id: 'watch', title: '영화 · 드라마 · 웹툰', short: '작품', description: '볼 작품을 모으고, 마지막으로 본 회차를 기록해요.', icon: Clapperboard },
   { id: 'football', title: '축구', short: '축구', description: '맨시티 경기 일정과 프리미어리그 순위표', icon: Goal },
   { id: 'music', title: '음악', short: '음악', description: '앨범, 플레이리스트와 감상 기록', icon: Music2 },
-  { id: 'games', title: '게임', short: '게임', description: '내 플레이 기록과 Steam 라이브러리', icon: Gamepad2 },
+  { id: 'games', title: '게임', short: '게임', description: '내 플레이 기록과 플랫폼별 라이브러리', icon: Gamepad2 },
   { id: 'audio', title: '오디오', short: '오디오', description: '장비 컬렉션과 청음 조합', icon: Headphones },
 ];
 
-/* Spotify and Steam account pages belong to music and games. */
+/* Service pages keep the corresponding hobby selected. */
 export function hobbyOf(section: string) {
   if (section === 'spotify') return 'music';
-  if (section === 'steam') return 'games';
+  if (section === 'steam' || section === 'xbox') return 'games';
   return hobbyPages.some(page => page.id === section) ? section : null;
 }
 

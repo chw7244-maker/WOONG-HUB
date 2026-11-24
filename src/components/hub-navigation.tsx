@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Ellipsis, House, Layers3, Newspaper, Settings2, StickyNote, type LucideIcon } from 'lucide-react';
 import Dialog from './dialog';
-import { hobbyOf, hobbyPages, lastHobbyKey } from './hobby-directory';
+import { hobbyOf } from './hobby-library';
 
 const sharedPages = [
   { id: 'home', label: '홈', icon: House },
@@ -34,17 +34,6 @@ export default function HubNavigation({
 }) {
   const [more, setMore] = useState(false);
   const active = hobbyOf(section) ? 'hobbies' : section;
-  // 취미 opens the hobby page used last in this browser; the hobby list stays the first-visit fallback.
-  const [lastHobby, setLastHobby] = useState<string | null>(null);
-  useEffect(() => {
-    const current = hobbyOf(section);
-    try {
-      if (current) localStorage.setItem(lastHobbyKey, current);
-      const saved = current ?? localStorage.getItem(lastHobbyKey);
-      setLastHobby(saved && hobbyPages.some(page => page.id === saved) ? saved : null);
-    } catch { setLastHobby(current); }
-  }, [section]);
-  const href = (id: string) => id === 'hobbies' && lastHobby ? `/${lastHobby}/` : pageHref(id);
   const utilityActive = utilityPages.some(page => page.id === section);
   const moreButton = (mobile: boolean) => {
     const secondaryActive = mobile && section === libraryPage.id;
@@ -58,7 +47,7 @@ export default function HubNavigation({
         <Link href="/" className="hub-wordmark" aria-label="WOONG HUB"><span className="hub-brand-mark"><span className="journal-icon journal-brand-icon" aria-hidden="true"/></span><span className="hub-brand-name">WOONG HUB</span></Link>
         <nav className="hub-desktop-nav" aria-label="주 메뉴">
           {desktopPages.map(({ id, label }) => (
-            <Link key={id} href={href(id)} aria-current={active === id ? section === id ? 'page' : 'location' : undefined}>{label}</Link>
+            <Link key={id} href={pageHref(id)} aria-current={active === id ? section === id ? 'page' : 'location' : undefined}>{label}</Link>
           ))}
           {moreButton(false)}
         </nav>
@@ -71,12 +60,12 @@ export default function HubNavigation({
     </header>
     <nav className="hub-bottom-nav" aria-label="모바일 주 메뉴">
       {mobilePages.map(({ id, label, icon: Icon }) => (
-        <Link key={id} href={href(id)} aria-current={active === id ? section === id ? 'page' : 'location' : undefined}><Icon size={20} aria-hidden="true"/><span>{label}</span></Link>
+        <Link key={id} href={pageHref(id)} aria-current={active === id ? section === id ? 'page' : 'location' : undefined}><Icon size={20} aria-hidden="true"/><span>{label}</span></Link>
       ))}
       {moreButton(true)}
     </nav>
     {more && <Dialog title="더보기" onClose={() => setMore(false)} className="hub-more-dialog" focusField={false}>
-      <nav aria-label="더보기 메뉴">{morePages.map(({ id, label, icon: Icon, layout }) => <Link key={id} href={href(id)} data-layout={layout} aria-current={section === id ? 'page' : undefined} onClick={() => setMore(false)}>
+      <nav aria-label="더보기 메뉴">{morePages.map(({ id, label, icon: Icon, layout }) => <Link key={id} href={pageHref(id)} data-layout={layout} aria-current={section === id ? 'page' : undefined} onClick={() => setMore(false)}>
         <Icon size={19} aria-hidden="true"/><span>{label}</span><ArrowUpRight size={15} aria-hidden="true"/>
       </Link>)}</nav>
     </Dialog>}

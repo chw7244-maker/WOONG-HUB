@@ -9,6 +9,9 @@ import { handleWatchSearch } from '../worker/watch.mjs';
 import { handleWeather } from '../worker/weather.mjs';
 import { fixtureCalendarHref, footballSourceId, saveFixture, savedFixtureEvents } from '../src/lib/football.ts';
 import { dashboardDay, dashboardEvents, nextDashboardEvent } from '../src/lib/home-dashboard.ts';
+import { hobbyCards } from '../src/lib/hobby-library.ts';
+import { emptyGame } from '../src/lib/games.ts';
+import { emptyMusic } from '../src/lib/music.ts';
 
 const request = path => new Request(`https://hub.example${path}`, { headers: { 'oai-authenticated-user-id': 'owner' } });
 const day = Date.parse('2026-11-18T10:00:00Z');
@@ -16,6 +19,36 @@ const feed = `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:game-1\r\nDTSTART:20261121T
 const table = Array.from({ length: 20 }, (_, i) => ({ teamId: i + 1, teamName: i === 4 ? 'Manchester City' : `Team ${i}`, matches: 10, won: 4, draw: 3, lost: 3, points: 15, goalDiff: 0 }));
 const watch = { id: 'watch', kind: 'watch', title: '감상 기록', detail: '', category: '', status: '', url: '', date: '', done: false,
   createdAt: new Date(day).toISOString(), watch: { type: 'tv', status: 'planned', season: 2, progress: 0, rating: 0, updatedAt: new Date(day).toISOString() } };
+
+test('the hobby library sorts recorded activity, filters and keeps platform routes separate', () => {
+  const { watch: details, ...base } = watch;
+  const film = {...watch, watch:{...details,status:'watching',progress:4,updatedAt:'2026-11-24T11:00:00Z',catalog:{id:1,title:'감상 기록',posterPath:'/sample.jpg'}}};
+  const steam = {...base,id:'steam',kind:'games',category:'PC',status:'플레이 중',game:{...emptyGame(),startedAt:'2026-11-22',steamAccount:{steamId:'76561198000000011',appId:620}}};
+  const xbox = {...base,id:'xbox',kind:'games',category:'Xbox',status:'완료'};
+  const album = {...base,id:'album',kind:'music',music:{...emptyMusic(),listenedAt:'2026-11-23'}};
+  const note = {...base,id:'note',kind:'note'};
+  const items = [steam, xbox, album, note, film];
+  const selected = new Set(['album','xbox']);
+  const ids = cards => cards.map(({entry})=>entry.id);
+  const cards = hobbyCards(items,'all',selected);
+  assert.deepEqual(ids(cards), ['watch','album','steam','xbox']);
+  assert.equal(cards[0].poster, 'https://image.tmdb.org/t/p/w342/sample.jpg');
+  assert.equal(cards[2].href, '/games/steam/?steamId=76561198000000011&q=620');
+  assert.equal(cards[3].href, '/games/xbox/');
+  assert.deepEqual(ids(hobbyCards(items,'active',selected)), ['watch','steam']);
+  assert.deepEqual(ids(hobbyCards(items,'favorites',selected)), ['album','xbox']);
+});
+
+test('hobby favorites survive backup and combine independent device updates', () => {
+  const { watch: details, ...record } = watch;
+  const entries = [watch, {...record,id:'game',kind:'games'}, {...record,id:'album',kind:'music'}, {...record,id:'note',kind:'note'}];
+  const snapshot = ids => validateData({...initial,entries,preferences:{...initial.preferences,hobbyFavoriteIds:ids}});
+  const base = snapshot(['watch','deleted','note']);
+  assert.deepEqual(base.preferences.hobbyFavoriteIds, ['watch']);
+  assert.deepEqual(mergeData(base, snapshot(['game']), snapshot(['watch','album'])).data.preferences.hobbyFavoriteIds, ['album','game']);
+  assert.deepEqual(validateData(JSON.parse(JSON.stringify(snapshot(['game','album'])))).preferences.hobbyFavoriteIds, ['game','album']);
+  assert.throws(()=>snapshot([123]), /즐겨찾기/);
+});
 
 test('works survive backup, three-way merge, searching and one-episode progression', () => {
   const saved = advanceWatch(watch, new Date(day + 1));

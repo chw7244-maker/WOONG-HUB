@@ -30,8 +30,8 @@ import { useHubSync } from './sync-provider';
 import { CloudStorageSettings, SyncIndicator, SyncNotice } from './sync-status';
 import { type Entry, type HubData, type Kind, validateData, todayKST, koreanDate, safeUrl, mediaWidgets, mediaWidgetVisible, homeSections, newWidgets } from '@/lib/store';
 import { advanceWatch, isWatchEntry, restoreWatchProgress, watchTypes, type WatchDetails, type WatchEntry, type WatchType } from '@/lib/watch';
-import HobbyDirectory, { HobbyTabs, hobbyOf } from './hobby-directory';
-import FootballHub, { HomeMatch, useFootball } from './football-hub';
+import HobbyLibrary, { HobbyTabs, hobbyOf } from './hobby-library';
+import FootballHub, { HobbyMatch, HomeMatch, useFootball } from './football-hub';
 import { saveFixture, savedFixtureEvents, type Fixture } from '@/lib/football';
 import WatchHub, { HomeWatch, WatchEntryModal } from './watch-hub';
 import HomeWidgetControls from './home-widget-controls';
@@ -41,7 +41,6 @@ const details: Record<string,{title:string;description:string;kind?:Kind}> = {
   audio:{title:'오디오',description:'장비 컬렉션과 청음 조합',kind:'audio'},
   spotify:{title:'Spotify 음악',description:'지금 듣는 음악부터 나의 플레이리스트까지.'},
   music:{title:'음악',description:'앨범, 플레이리스트와 감상 기록',kind:'music'},
-  hobbies:{title:'취미',description:'영화부터 축구, 음악, 게임까지.'},
   watch:{title:'작품 보관함',description:'영화 · 드라마 · 웹툰'},
   football:{title:'축구',description:'맨시티 경기 일정과 프리미어리그 순위표'},
   calendar:{title:'캘린더',description:'노션과 구글 일정, 나의 약속을 한곳에서.',kind:'event'},
@@ -150,6 +149,12 @@ export default function Hub({section}:{section:string}) {
   function toggle(e:Entry){persist({...data,entries:data.entries.map(x=>x.id===e.id?{...x,done:!x.done}:x)});}
   function remove(){if(deleteEntry&&persist({...data,entries:data.entries.filter(e=>e.id!==deleteEntry.id)})){setDeleteEntry(null);notify('기록을 삭제했어요.');}}
   function preference(update:Partial<HubData['preferences']>){persist({...data,preferences:{...data.preferences,...update}});}
+  function toggleHobbyFavorite(id:string){
+    const favoriteIds=new Set(data.preferences.hobbyFavoriteIds);
+    if(favoriteIds.has(id))favoriteIds.delete(id);
+    else favoriteIds.add(id);
+    preference({hobbyFavoriteIds:[...favoriteIds]});
+  }
   const entries=(kind:Kind)=>data.entries.filter(e=>e.kind===kind);
   const today=now?todayKST(now):'',events=entries('event').filter(e=>e.date.slice(0,10)>=today).sort((a,b)=>a.date.localeCompare(b.date));
   const selectedSetup=pinnedSetup(entries('audio'),data.preferences.pinnedAudioSetup);
@@ -167,7 +172,7 @@ export default function Hub({section}:{section:string}) {
   const hasSavedFixtures=savedFixtures.length>0;
   const football=useFootball(hasSavedFixtures?'calendar':'home',ready&&(
     (section==='home'&&(visible('football')||(visible('calendar')&&hasSavedFixtures))) ||
-    (section==='calendar'&&hasSavedFixtures)
+    (section==='calendar'&&hasSavedFixtures) || section==='hobbies'
   ));
   const matchEvents=savedFixtureEvents(savedFixtures,football.data?.fixtures,now?.getTime()??Date.now(),football.error);
   const homeEvents=section==='home'&&visible('calendar')?dashboardEvents(calendarEntries,calendar.data?.snapshot,hiddenCalendars,matchEvents):[];
@@ -248,8 +253,8 @@ export default function Hub({section}:{section:string}) {
           <div className="hub-home-panels home-bento">{homeOrder.map(id=><Fragment key={id}>{homePanels[id]}</Fragment>)}</div>
         </>:<>
           {hobbyOf(section)&&<HobbyTabs section={section}/>}
-          {section!=='news'&&!gameSection&&<div className="page-heading section-heading"><div><h1>{currentInfo?.title}</h1><p>{currentInfo?.description}</p></div>{section==='watch'?<WatchQuickAdd entries={entries('watch')} onAdd={quickAdd}/>:section==='music'?<AlbumQuickAdd entries={entries('music')} onAdd={quickAdd}/>:null}{currentInfo?.kind&&!['audio','music','calendar','library'].includes(section)&&<button className="button primary" onClick={()=>setModal({kind:activeKind})}><Plus size={15}/>{kindLabels[activeKind]} 추가</button>}</div>}
-          {section==='hobbies'?<HobbyDirectory/>:section==='football'?<FootballHub saved={savedFixtureIds} onSave={addFixture}/>:section==='watch'?<WatchHub entries={entries('watch')} today={today} onProgress={recordWatchProgress} onAdd={watchType=>setModal({kind:'watch',watchType})} onEdit={openEntry} onDelete={setDeleteEntry} onSave={save}/>:section==='settings'?<div className="settings-grid settings-sections">
+          {section!=='news'&&section!=='hobbies'&&!gameSection&&<div className="page-heading section-heading"><div><h1>{currentInfo?.title}</h1><p>{currentInfo?.description}</p></div>{section==='watch'?<WatchQuickAdd entries={entries('watch')} onAdd={quickAdd}/>:section==='music'?<AlbumQuickAdd entries={entries('music')} onAdd={quickAdd}/>:null}{currentInfo?.kind&&!['audio','music','calendar','library'].includes(section)&&<button className="button primary" onClick={()=>setModal({kind:activeKind})}><Plus size={15}/>{kindLabels[activeKind]} 추가</button>}</div>}
+          {section==='hobbies'?<HobbyLibrary entries={data.entries} favoriteIds={data.preferences.hobbyFavoriteIds} onFavorite={toggleHobbyFavorite} onOpen={openEntry} match={<HobbyMatch now={now} football={football}/>} setup={selectedSetup}/>:section==='football'?<FootballHub saved={savedFixtureIds} onSave={addFixture}/>:section==='watch'?<WatchHub entries={entries('watch')} today={today} onProgress={recordWatchProgress} onAdd={watchType=>setModal({kind:'watch',watchType})} onEdit={openEntry} onDelete={setDeleteEntry} onSave={save}/>:section==='settings'?<div className="settings-grid settings-sections">
             <nav className="settings-jump" aria-label="설정 항목">
               <a href="#connections">서비스 연결</a><a href="#appearance">표시와 테마</a><a href="#widgets">홈 위젯</a><a href="#sync">데이터와 백업</a>
             </nav>

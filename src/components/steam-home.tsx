@@ -2,12 +2,11 @@
 import Link from 'next/link';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {ArrowUpRight,Gamepad2,RefreshCw} from 'lucide-react';
-import type {SteamSummary} from '@/lib/steam-account';
+import {steamLibraryHref,type SteamSummary} from '@/lib/steam-account';
 import {playTime} from '@/lib/games';
 import {useHubSync} from './sync-provider';
 import {steamFetch,steamMessage} from './steam-account';
 
-export const steamLibraryHref=(steamId:string,appId?:number)=>'/games/steam/?'+new URLSearchParams({steamId,...(appId?{q:String(appId)}:{})});
 export const steamStamp=(value:string)=>value?new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(value)):'';
 export default function SteamHome({compact=false}:{compact?:boolean}){
   const {userId}=useHubSync(),[data,setData]=useState<SteamSummary|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[selecting,setSelecting]=useState(false);

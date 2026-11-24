@@ -1,4 +1,5 @@
 export type SteamAccountRef={steamId:string;appId:number};
+export const steamLibraryHref=(steamId:string,appId?:number)=>'/games/steam/?'+new URLSearchParams({steamId,...(appId?{q:String(appId)}:{})});
 export type SteamOwnedGame={appId:number;name:string;totalMinutes:number|null;recentMinutes:number|null;lastPlayedAt:string;imageUrl:string;storeUrl:string};
 export type SteamLinkedAccount={steamId:string;name:string;avatarUrl:string;profileUrl:string;connectedAt:string;ownedAt:string;recentAt:string;error:string;recentError:string;retryAt:number;count:number|null};
 export type SteamAccountStatus={configured:boolean;hasKey:boolean;keySource:'user'|'server'|'none';accounts:SteamLinkedAccount[];activeSteamId:string};

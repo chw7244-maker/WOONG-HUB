@@ -84,6 +84,8 @@ export function useFootball(view: 'home' | 'calendar' | 'full', enabled = true) 
 }
 
 const kickOffLabel = (match: Fixture) => matchStatusLabel(match.postponed);
+const nextMatch = (fixtures: FixtureSource | null | undefined, now: Date | null) =>
+  fixtures?.items.find(item => item.postponed !== 'cancelled' && Date.parse(item.kickOff) >= (now?.getTime() ?? Date.now()));
 
 function FixtureAction({ match, saved, onSave }: FixtureActions & { match: Fixture }) {
   const title = matchup(match);
@@ -110,7 +112,7 @@ function MatchTeam({ name, city }: { name: string; city: boolean }) {
 
 export function HomeMatch({ now, football, saved, onSave }: FixtureActions & { now: Date | null; football: ReturnType<typeof useFootball> }) {
   const { data, busy, error } = football;
-  const match = data?.fixtures?.items.find(item => item.postponed !== 'cancelled' && Date.parse(item.kickOff) >= (now?.getTime() ?? Date.now()));
+  const match = nextMatch(data?.fixtures, now);
   const city = (team: string) => clubName(team) === '맨시티';
   return <section className="hub-summary-card hub-summary-stack home-match" aria-labelledby="home-match-title">
     <div className="hub-summary-heading"><h2 id="home-match-title"><Goal size={18} aria-hidden="true"/>맨시티 다음 경기</h2>{match && <small>{match.competition}</small>}</div>
@@ -127,6 +129,18 @@ export function HomeMatch({ now, football, saved, onSave }: FixtureActions & { n
       <Link href="/football/" className="hub-summary-action">경기 일정 · EPL 순위표</Link>
     </div>
   </section>;
+}
+
+export function HobbyMatch({ now, football }: { now: Date | null; football: ReturnType<typeof useFootball> }) {
+  const { data, busy, error } = football;
+  const match = nextMatch(data?.fixtures, now);
+  return <Link href="/football/#fixtures" className="hobby-library-note">
+    <span>다음 경기</span>
+    <strong>{match ? matchup(match) : '맨시티 경기 일정'}</strong>
+    {match ? <small><time dateTime={match.kickOff}>{kst.format(new Date(match.kickOff))}</time> · {match.competition}</small>
+      : <small>{busy && !data ? '일정 확인 중' : data?.fixtures ? '예정된 경기가 없어요.' : '경기 일정 열기'}</small>}
+    {match && (data?.fixtures?.stale || error || kickOffLabel(match)) && <small>{[data?.fixtures?.stale || error ? '마지막 조회 정보' : '', kickOffLabel(match)].filter(Boolean).join(' · ')}</small>}
+  </Link>;
 }
 
 export default function FootballHub({ saved, onSave }: FixtureActions) {

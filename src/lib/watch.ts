@@ -22,6 +22,7 @@ export type WatchDetails = {
   newsEvents?: WebtoonNewsEvent[];
 };
 export type WatchCatalogItem = { id: number; title: string; year?: string; posterPath?: string };
+export const watchPosterUrl = (path?: string) => path ? `https://image.tmdb.org/t/p/w342${path}` : '';
 export type WatchEntry = Entry & { kind: 'watch'; watch: WatchDetails };
 
 export const isWatchEntry = (entry: Entry): entry is WatchEntry => entry.kind === 'watch' && !!entry.watch;

@@ -34,6 +34,14 @@ export function mergeData(base: HubData, local: HubData, remote: HubData): { dat
   for (const key of ['theme','city','widgets','calendarHiddenSources','mediaWidgets','pinnedAudioSetup','pinnedNote','homeOrder','hiddenNewWidgets'] as const) {
     if (!same(local.preferences[key], base.preferences[key])) Object.assign(preferences, { [key]: local.preferences[key] });
   }
+  if (local.preferences.hobbyFavoriteIds || remote.preferences.hobbyFavoriteIds || base.preferences.hobbyFavoriteIds) {
+    const before = new Set(base.preferences.hobbyFavoriteIds);
+    const mine = new Set(local.preferences.hobbyFavoriteIds);
+    const merged = new Set(remote.preferences.hobbyFavoriteIds);
+    for (const id of before) if (!mine.has(id)) merged.delete(id);
+    for (const id of mine) if (!before.has(id)) merged.add(id);
+    preferences.hobbyFavoriteIds = [...merged];
+  }
   if (local.preferences.savedFixtures || remote.preferences.savedFixtures || base.preferences.savedFixtures) {
     const before = new Map(base.preferences.savedFixtures?.map(fixture => [fixture.id, fixture]));
     const mine = new Map(local.preferences.savedFixtures?.map(fixture => [fixture.id, fixture]));

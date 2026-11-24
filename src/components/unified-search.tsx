@@ -8,7 +8,8 @@ import type {SteamSearchResult} from '@/lib/steam-account';
 import {playTime} from '@/lib/games';
 import {useHubSync} from './sync-provider';
 import {steamFetch,steamMessage} from './steam-account';
-import {steamLibraryHref,steamStamp} from './steam-home';
+import {steamLibraryHref} from '@/lib/steam-account';
+import {steamStamp} from './steam-home';
 import Dialog from './dialog';
 
 const filters:{id:SearchFilter;label:string}[]=[{id:'all',label:'전체'},{id:'records',label:'HUB 기록'},{id:'watch',label:'영화·드라마·웹툰'},{id:'music',label:'음악'},{id:'games',label:'내 게임 기록'},{id:'steam',label:'Steam 보유 게임'}];

@@ -6,16 +6,15 @@ import { ArrowUpRight, BookOpen, CalendarDays, Check, Clapperboard, Pencil, Plus
 import { isCalendarDay } from '@/lib/calendar';
 import { koreanDate, safeUrl, type Entry } from '@/lib/store';
 import { matchesSearch, searchTerms } from '@/lib/search';
-import { isWatchEntry, progressLabel, watchDays, watchingNow, watchStatuses, watchTypes, webtoonNewsEventKeys, webtoonNewsEvents, weeklyWatchPlan, type WatchCatalogItem, type WatchEntry, type WatchStatus, type WatchType } from '@/lib/watch';
+import { isWatchEntry, progressLabel, watchDays, watchingNow, watchPosterUrl, watchStatuses, watchTypes, webtoonNewsEventKeys, webtoonNewsEvents, weeklyWatchPlan, type WatchCatalogItem, type WatchEntry, type WatchStatus, type WatchType } from '@/lib/watch';
 import Dialog from './dialog';
 
 const icons = { movie: Clapperboard, tv: Tv, webtoon: BookOpen };
 const types = Object.keys(watchTypes) as WatchType[];
 const statuses = Object.keys(watchStatuses) as WatchStatus[];
-const posterUrl = (item: WatchCatalogItem) => `https://image.tmdb.org/t/p/w342${item.posterPath}`;
 const tmdbTitle = (type: WatchType, item: WatchCatalogItem) => `https://www.themoviedb.org/${type}/${item.id}?language=ko-KR`;
 
-function TmdbCredit() {
+export function TmdbCredit() {
   return <section className="watch-source" aria-label="작품 데이터 출처">
     <a href="https://www.themoviedb.org/" target="_blank" rel="noreferrer">
       <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_long_2-9665a76b1ae401a510ec1e0ca40ddcb3b0cfe45f1d51b77a308fea0845885648.svg" alt="TMDB" width={84} height={12}/>
@@ -30,7 +29,7 @@ function Cover({ entry, featured = false }: { entry: WatchEntry; featured?: bool
   const Icon = icons[watch.type];
   return <div className={`watch-cover watch-cover-${watch.type}${featured ? ' watch-cover-feature' : ''}`} aria-hidden="true">
     {watch.catalog?.posterPath && !failed
-      ? <img src={posterUrl(watch.catalog)} alt="" loading={featured ? 'eager' : 'lazy'} referrerPolicy="no-referrer" onError={() => setFailed(true)}/>
+      ? <img src={watchPosterUrl(watch.catalog.posterPath)} alt="" loading={featured ? 'eager' : 'lazy'} referrerPolicy="no-referrer" onError={() => setFailed(true)}/>
       : <Icon strokeWidth={1.25}/>}
   </div>;
 }

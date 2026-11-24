@@ -227,7 +227,7 @@ pnpm preview    # http://127.0.0.1:3000
 ## 배포
 
 - 운영 사이트는 ChatGPT Sites의 기존 프로젝트(`.openai/hosting.json`의 `project_id`)에 소유자 전용으로 배포합니다. `d1: "DB"`로 운영 DB를 연결하며, 운영 마이그레이션은 Sites 배포가 적용합니다.
-- 배포는 ChatGPT의 Sites에서 진행합니다. GitHub `main`에 반영한 뒤 사이트 관리 채팅에서 최신 버전 배포를 요청합니다.
+- 운영 변경을 검증하고 GitHub `main`에 반영한 뒤 ChatGPT Sites에서 배포합니다. 배포에 사용한 커밋과 운영 화면의 주요 동작을 확인합니다.
 - `scripts/verify-deployment.mjs`는 배포된 사이트를 읽기 전용으로 점검합니다(DB 상태, 주요 경로, 로그인 없는 API 접근 차단). 사이트 주소와 서비스 토큰을 숨김 입력으로 받으며, 토큰은 출력하거나 저장하지 않습니다.
 
 ### Xbox 플레이 기록 연동
@@ -357,7 +357,7 @@ pnpm build
 2. 수정한 뒤 `pnpm check`, `pnpm test`, `pnpm build`를 실행합니다. 화면을 바꿨다면 로컬 미리보기에서 PC(1440px)·휴대폰(402px), 다크·라이트를 확인합니다.
 3. 사용법이나 동작이 바뀌었으면 README, [docs/verification.md](docs/verification.md), [docs/next-steps.md](docs/next-steps.md)의 진행 표를 고칩니다. 디자인 기준이 바뀌었으면 [docs/home-design.md](docs/home-design.md)도 고칩니다.
 4. 해당 작업의 파일만 커밋하고 `origin`의 작업 브랜치로 푸시합니다. 로컬 커밋과 원격 브랜치가 같은지 확인합니다.
-5. 확인이 끝나면 `main`에 합쳐 푸시하고, ChatGPT의 사이트 관리 채팅에서 최신 `main` 배포를 요청합니다. 배포 후 운영 사이트에서 다시 확인합니다.
+5. 운영 사이트에 반영할 작업은 검증한 커밋을 `main`에 합쳐 푸시하고, 기존 ChatGPT Sites 프로젝트에 배포합니다. 배포 후 운영 사이트에서 변경한 동작을 확인합니다.
 
 토큰, 실제 캘린더 일정, 개인 계정 ID, 실제 장비·게임 목록 같은 개인 기록은 소스나 문서에 넣지 않습니다(이 저장소는 공개 저장소입니다). 로컬 예시 기록도 지어낸 이름만 씁니다.
 

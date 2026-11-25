@@ -63,7 +63,7 @@
 .local-aside .local-detail { flex: 1; min-height: 0; }
 .local-aside .local-detail > * { flex: none; }
 .local-aside .local-mat.big { width: min(100%, max(160px, 100dvh - 600px)); align-self: center; }
-.local-aside .local-tracks { flex: 1 1 auto; min-height: 120px; max-height: none; }
+.local-aside .local-tracks { flex: 1 1 auto; min-height: 120px; max-height: 420px; }
 .local-detail { display: flex; flex-direction: column; gap: 14px; }
 .local-detail h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .local-detail > div > p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }

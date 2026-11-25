@@ -57,13 +57,13 @@
 .local-caption small { color: var(--muted); font-size: 12px; }
 
 .local-aside { position: sticky; top: 20px; padding: 20px; border-radius: 28px; background: var(--panel); box-shadow: var(--raise); }
-/* The sticky panel never grows past the screen: the cover shrinks on short screens, the track list scrolls inside,
-   and the two buttons stay visible without scrolling the page to the end. */
-.local-aside { display: flex; flex-direction: column; max-height: calc(100dvh - 40px); overflow-y: auto; }
+/* The sticky panel never grows past the screen: it is at most 820px tall (screen-height units alone are not enough when
+   the site is shown inside a frame as tall as the page), the cover shrinks, and only the track list scrolls. */
+.local-aside { display: flex; flex-direction: column; max-height: min(calc(100vh - 40px), 820px); max-height: min(calc(100dvh - 40px), 820px); overflow-y: auto; }
 .local-aside .local-detail { flex: 1; min-height: 0; }
 .local-aside .local-detail > * { flex: none; }
-.local-aside .local-mat.big { width: min(100%, max(160px, 100dvh - 600px)); align-self: center; }
-.local-aside .local-tracks { flex: 1 1 auto; min-height: 120px; max-height: 420px; }
+.local-aside .local-mat.big { width: min(100%, 240px); width: min(100%, 240px, max(160px, 100dvh - 600px)); align-self: center; }
+.local-aside .local-tracks { flex: 1 1 auto; min-height: 120px; max-height: none; }
 .local-detail { display: flex; flex-direction: column; gap: 14px; }
 .local-detail h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .local-detail > div > p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }

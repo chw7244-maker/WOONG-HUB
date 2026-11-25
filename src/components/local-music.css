@@ -77,6 +77,10 @@
 .local-tracks li span:last-child { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .local-source { margin: 0; color: var(--faint); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .local-source code { font-size: 12px; }
+.local-backfill { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding: 14px 14px 14px 20px; border-radius: 22px; background: var(--accent-soft); }
+.local-backfill p { display: grid; gap: 2px; margin: 0; }
+.local-backfill strong { font-size: 15px; }
+.local-backfill span { color: var(--muted); font-size: 13px; }
 .local-owned-info { display: flex; flex-direction: column; gap: 10px; }
 .local-owned-line { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--accent); font-size: 13px; font-weight: 700; }
 .local-detail-actions { display: flex; gap: 8px; }

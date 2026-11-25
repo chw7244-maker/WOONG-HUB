@@ -26,8 +26,7 @@ function AlbumDetail({album,entry,onCollect,onAddCover}:{album:LocalAlbum;entry?
     <div className="local-mat big"><Cover album={album} big/></div>
     <div><h2>{album.title}</h2><p>{album.artist}{album.year?` · ${album.year}`:''}</p></div>
     <div className="local-tags">{album.genre&&<span>{album.genre}</span>}<span className="accent">{album.quality}</span><span>{album.tracks.length}곡{album.seconds?` · ${formatLength(album.seconds)}`:''}</span></div>
-    <ol className="local-tracks">{album.tracks.map((t,i)=><li key={t.path}><span>{t.track??i+1}</span><span>{t.title}</span><span>{trackTime(t.seconds)}</span></li>)}</ol>
-    <p className="local-source">표지: {album.cover.id?'파일·폴더에서 읽음':album.cover.url?'MusicBrainz에서 찾음':'없음'} · 폴더 <code>{album.folder||'(맨 위)'}</code></p>
+    {/* Buttons sit right under the album info, so they show without scrolling however long the track list is. */}
     {entry?<div className="local-owned-info">
       <p className="local-owned-line"><Check size={14} aria-hidden="true"/>컬렉션에 있어요{rating!=null&&<> · ★ {rating}</>}{listens?` · 감상 ${listens}번`:''}</p>
       <div className="local-detail-actions">
@@ -38,6 +37,8 @@ function AlbumDetail({album,entry,onCollect,onAddCover}:{album:LocalAlbum;entry?
       <div className="local-detail-actions"><button type="button" className="button primary" onClick={onCollect}>앨범 컬렉션에 담기</button></div>
       <p className="local-muted">표지 · 아티스트 · 연도 · 장르 · 포맷을 함께 담아요. 음악 첫 화면에 이 표지가 그대로 보여요.</p>
     </div>}
+    <ol className="local-tracks">{album.tracks.map((t,i)=><li key={t.path}><span>{t.track??i+1}</span><span>{t.title}</span><span>{trackTime(t.seconds)}</span></li>)}</ol>
+    <p className="local-source">표지: {album.cover.id?'파일·폴더에서 읽음':album.cover.url?'MusicBrainz에서 찾음':'없음'} · 폴더 <code>{album.folder||'(맨 위)'}</code></p>
   </div>;
 }
 

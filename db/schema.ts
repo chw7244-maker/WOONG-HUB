@@ -70,7 +70,8 @@ export const steamOpenidNonces=sqliteTable('steam_openid_nonces',{
   nonceHash:text('nonce_hash').primaryKey(),expiresAt:integer('expires_at').notNull(),
 });
 
-/** The track list of a portable player (paths only, read from a playlist the player exported), one per HUB user. */
+/** No longer used: the M23 playlist feature was removed (2026-11-25). The table stays so the saved track lists are not
+ * dropped by a migration; remove it with its own migration once that data may go. */
 export const musicDeviceLibraries=sqliteTable('music_device_libraries',{
   userId:text('user_id').primaryKey(),
   name:text('name').notNull(),

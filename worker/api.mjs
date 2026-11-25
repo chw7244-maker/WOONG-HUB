@@ -5,7 +5,6 @@ import { handleSteam, handleSteamSearch } from './steam.mjs';
 import { handleSteamAccounts } from './steam-account.mjs';
 import { handleXboxHistory } from './xbox.mjs';
 import { handleAlbums } from './music.mjs';
-import { handleMusicDevice } from './music-device.mjs';
 import { handleMusicLocal } from './music-local.mjs';
 import { handleSpotify } from './spotify.mjs';
 import { handleSpotifyAuth } from './spotify-auth.mjs';
@@ -69,7 +68,6 @@ export async function handleApi(request, env, ctx) {
   if(path==='/api/games/xbox')return handleXboxHistory(request,env);
   if(path.startsWith('/api/steam/'))return handleSteamAccounts(request,env,ctx);
   if(path==='/api/music/albums')return handleAlbums(request,env,ctx);
-  if(path==='/api/music/device')return handleMusicDevice(request,env);
   if(path==='/api/music/local'||path.startsWith('/api/music/local/'))return handleMusicLocal(request,env);
   if(path==='/api/music/spotify')return handleSpotify(request,env,ctx);
   if(['/api/spotify/status','/api/spotify/connect','/api/spotify/callback','/api/spotify/disconnect','/api/spotify/sdk-token'].includes(path))return handleSpotifyAuth(request,env,ctx);

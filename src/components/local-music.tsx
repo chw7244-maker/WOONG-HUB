@@ -1,6 +1,5 @@
 'use client';
 import {useEffect,useMemo,useRef,useState} from 'react';
-import Link from 'next/link';
 import {Check,FolderOpen,ImageOff,Search,Sparkles,Trash2} from 'lucide-react';
 import Dialog from './dialog';
 import type {Entry} from '@/lib/store';
@@ -28,8 +27,7 @@ function AlbumDetail({album,inCollection,onCollect}:{album:LocalAlbum;inCollecti
     <ol className="local-tracks">{album.tracks.map((t,i)=><li key={t.path}><span>{t.track??i+1}</span><span>{t.title}</span><span>{trackTime(t.seconds)}</span></li>)}</ol>
     <p className="local-source">표지: {album.cover.id?'파일·폴더에서 읽음':album.cover.url?'MusicBrainz에서 찾음':'없음'} · 폴더 <code>{album.folder||'(맨 위)'}</code></p>
     <div className="local-detail-actions">
-      <button type="button" className="button secondary" onClick={onCollect} disabled={inCollection}>{inCollection?<><Check size={15} aria-hidden="true"/>컬렉션에 있어요</>:'앨범 컬렉션에 담기'}</button>
-      <Link className="button primary" href={`/music/fiio/?q=${encodeURIComponent(album.title)}`}>M23 플레이리스트로</Link>
+      <button type="button" className="button primary" onClick={onCollect} disabled={inCollection}>{inCollection?<><Check size={15} aria-hidden="true"/>컬렉션에 있어요</>:'앨범 컬렉션에 담기'}</button>
     </div>
   </div>;
 }

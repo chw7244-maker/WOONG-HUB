@@ -25,6 +25,7 @@
 .quick-add-actions button:focus-visible, .quick-add-manual:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .quick-add-note { padding: 0 10px; color: var(--muted); font-size: 12px; font-weight: 600; }
 .quick-add-manual { justify-content: flex-start; min-height: 44px; margin: 4px 4px 0; padding: 0 16px; background: var(--panel-soft); white-space: normal; text-align: start; }
+.quick-add-toggle { display: none; }
 .quick-add-error { margin: 6px 8px; color: var(--late, #e07a6a); font-size: 13px; }
 
 /* Steam card on the games page: wishlist and store details, one row each. */
@@ -42,6 +43,12 @@
 
 @media (max-width: 760px) {
   .quick-add { order: 3; flex: 1 1 100%; min-width: 0; margin-left: 0; }
+  .page-heading:has(> .quick-add.collapsible:not(.expanded)) { flex-wrap: nowrap; }
+  .page-heading:has(> .quick-add.collapsible:not(.expanded)) > div { flex: 1; min-width: 0; }
+  .app-shell .main-content .page-heading > .quick-add.collapsible:not(.expanded) { order: 0; flex: none; margin-left: auto; }
+  .quick-add.collapsible:not(.expanded) .quick-add-field { display: none; }
+  .quick-add.collapsible:not(.expanded) .quick-add-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px; border-radius: 999px; background: var(--accent-strong); color: var(--on-accent); font-size: 14px; font-weight: 700; }
+  .quick-add-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .quick-add-field { height: 50px; padding-left: 16px; }
   .quick-add-field input { font-size: 16px; }
   .quick-add-item { grid-template-columns: 56px minmax(0, 1fr); }

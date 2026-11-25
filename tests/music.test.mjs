@@ -76,3 +76,19 @@ test('실제 DB의 앨범 상세는 계정별로 분리되고 오프라인 재�
   const first=device();await first.refresh();online=false;const data=document(record('a',details()));first.change(data);const restored=device();online=true;await restored.refresh();await restored.flush();const other=device(new MemoryStorage());await other.refresh();assert.deepEqual(other.getSnapshot().data,data);assert.equal((await (await api('bob')).json()).data.entries.length,0);
   const bad=structuredClone(data);bad.entries[0].music.rating=7;assert.equal((await api('alice',{method:'PUT',body:JSON.stringify({data:bad,expectedRevision:1,mutationId:'bad-album'})})).status,400);assert.deepEqual((await (await api('alice')).json()).data,data);
 });
+
+test('albums collected from the local library keep their saved cover, and the heading sums up the music', async () => {
+  const {musicCoverUrl, musicSummary, validateMusic} = await import('../src/lib/music.ts');
+  const id = 'a'.repeat(32);
+  const local = validateMusic({...emptyMusic(), type: 'album', localCover: id});
+  assert.equal(local.localCover, id);
+  assert.equal(musicCoverUrl(local), `/api/music/local/cover?id=${id}`);
+  assert.equal(musicCoverUrl({...local, catalog: {coverUrl: 'https://coverartarchive.org/release-group/x/front-250'}}), 'https://coverartarchive.org/release-group/x/front-250');
+  assert.equal(musicCoverUrl(emptyMusic()), '');
+  for (const bad of ['../x', 'A'.repeat(32), 'a'.repeat(31), 5]) assert.throws(() => validateMusic({...emptyMusic(), localCover: bad}), /표지/);
+  const entry = (music, kind = 'music') => ({id: crypto.randomUUID(), kind, title: 'x', detail: '', category: '', status: '컬렉션', url: '', date: '', done: false, createdAt: '2026-11-01T00:00:00.000Z', music});
+  const listen = date => ({id: crypto.randomUUID(), date, track: '', equipment: '', rating: null, note: '', createdAt: date + 'T00:00:00.000Z'});
+  const entries = [entry({...emptyMusic(), listens: [listen('2026-11-03'), listen('2026-10-30')]}), entry({...emptyMusic(), listens: [listen('2026-11-20')]}), entry({...emptyMusic(), type: 'playlist'}), entry(undefined, 'note')];
+  assert.equal(musicSummary(entries, '2026-11-25'), '앨범 2장 · 플레이리스트 1개 · 이번 달 감상 2번');
+  assert.equal(musicSummary(entries.slice(1, 2), '2026-12-01'), '앨범 1장');
+});

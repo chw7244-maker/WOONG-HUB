@@ -9,6 +9,7 @@ import '../components/quick-add.css';
 import '../components/library.css';
 import '../components/local-music.css';
 import '../components/music.css';
+import '../components/music-wall.css';
 import '../components/spotify-account.css';
 import '../components/steam-account.css';
 import '../components/hub-discovery.css';

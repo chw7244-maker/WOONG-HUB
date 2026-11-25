@@ -1,5 +1,5 @@
 import type { Entry } from './store.ts';
-import { lastListenedAt } from './music.ts';
+import { lastListenedAt, musicCoverUrl } from './music.ts';
 import { steamLibraryHref } from './steam-account.ts';
 import { isWatchEntry, progressLabel, watchPosterUrl, watchTypes } from './watch.ts';
 
@@ -25,7 +25,7 @@ function hobbyCard(entry: Entry) {
     const listened = lastListenedAt(entry.music);
     return { ...common, source: '음악 · ' + (entry.music?.type === 'playlist' ? '플레이리스트' : '앨범'),
       status: listened ? `${Number(listened.slice(5, 7))}. ${Number(listened.slice(8, 10))}. 감상` : entry.status,
-      artwork: entry.music?.spotify?.coverUrl || entry.music?.catalog?.coverUrl || '', activity: onDay(listened) };
+      artwork: musicCoverUrl(entry.music), activity: onDay(listened) };
   }
   if (entry.kind === 'games') {
     const xbox = entry.category === 'Xbox';

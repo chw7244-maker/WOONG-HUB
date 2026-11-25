@@ -45,7 +45,7 @@ function AlbumDetail({album,entry,onCollect,onAddCover}:{album:LocalAlbum;entry?
  * 내 음원 라이브러리: reads a PC music folder in the browser, keeps tags and cover thumbnails on the account and shows
  * albums as framed covers on a wall, with the picked album's details beside it (a sheet on phones).
  */
-export default function LocalMusic({collection,onCollect,onUpdate}:{collection:Entry[];onCollect:(entry:Entry,message:string)=>void;onUpdate:(entry:Entry,message:string)=>void}){
+export default function LocalMusic({collection,onCollect,onUpdate,onUpdateMany}:{collection:Entry[];onCollect:(entry:Entry,message:string)=>void;onUpdate:(entry:Entry,message:string)=>void;onUpdateMany:(entries:Entry[],message:string)=>void}){
   const [library,setLibrary]=useState<LocalLibrary|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [progress,setProgress]=useState<ScanProgress|null>(null),[result,setResult]=useState<ScanResult|null>(null),[saving,setSaving]=useState('');
   const [query,setQuery]=useState(''),[genre,setGenre]=useState(''),[tier,setTier]=useState(''),[sort,setSort]=useState<AlbumSort>('recent'),[selected,setSelected]=useState(''),[sheet,setSheet]=useState(false),[finding,setFinding]=useState<string|null>(null),[scope,setScope]=useState<''|'in'|'out'>('');
@@ -64,6 +64,8 @@ export default function LocalMusic({collection,onCollect,onUpdate}:{collection:E
   },[collection]);
   const entryOf=(a:LocalAlbum)=>(a.cover.id?owned.byCover.get(a.cover.id):undefined)??owned.byName.get(`${(a.artist==='아티스트 미상'?'':a.artist).toLocaleLowerCase()}\u0001${a.title.toLocaleLowerCase()}`);
   const ownedCount=albums.filter(a=>entryOf(a)).length;
+  // Records collected before covers were kept with them: one album cover each, ready to add in one save.
+  const coverless=[...new Map(albums.flatMap(a=>{const e=entryOf(a);return e?.music&&a.cover.id&&!musicCoverUrl(e.music)?[[e.id,{entry:e,cover:a.cover.id}] as const]:[];})).values()];
   const shown=sortAlbums(filterAlbums(albums,{query,genre,tier}),sort).filter(a=>!scope||(scope==='in')===!!entryOf(a));
   const current=shown.find(a=>a.key===selected)??shown[0];
 
@@ -136,6 +138,10 @@ export default function LocalMusic({collection,onCollect,onUpdate}:{collection:E
     onCollect({id:crypto.randomUUID(),kind:'music',title:album.title.slice(0,200),detail:'',category:album.tier==='lossy'?'디지털':'FLAC',status:'컬렉션',url:'',date:'',done:false,createdAt:new Date().toISOString(),
       music:validateMusic({...emptyMusic(),artist:album.artist==='아티스트 미상'?'':album.artist.slice(0,200),genre:album.genre.slice(0,100),releaseDate:year,type:'album',...(album.cover.id?{localCover:album.cover.id}:{})})},`${album.title}을(를) 앨범 컬렉션에 담았어요.`);
   }
+  function addAllCovers(){
+    if(!coverless.length)return;
+    onUpdateMany(coverless.map(({entry,cover})=>({...entry,music:validateMusic({...entry.music!,localCover:cover})})),`컬렉션 앨범 ${coverless.length}장에 표지를 넣었어요.`);
+  }
   /** Gives a record collected before covers were kept (or added by hand) this album's saved cover. */
   function addCover(album:LocalAlbum){
     const entry=entryOf(album);if(!entry?.music||!album.cover.id)return;
@@ -178,6 +184,10 @@ export default function LocalMusic({collection,onCollect,onUpdate}:{collection:E
     </section>}
 
     {library&&<>
+      {coverless.length>0&&<section className="local-backfill" aria-label="컬렉션 표지">
+        <p><strong>표지 없이 담긴 컬렉션 앨범 {coverless.length}장</strong><span>이 라이브러리에 저장된 표지를 넣으면 음악 첫 화면에도 표지가 보여요.</span></p>
+        <button type="button" className="button primary local-pill" onClick={addAllCovers}>표지 한 번에 넣기</button>
+      </section>}
       <div className="local-filters">
         <div className="local-chips" role="group" aria-label="장르"><button type="button" aria-pressed={!genre} onClick={()=>setGenre('')}>전체<span>{albums.length}</span></button>{genres.map(([g,n])=><button key={g} type="button" aria-pressed={genre===g} onClick={()=>setGenre(genre===g?'':g)}>{g}<span>{n}</span></button>)}</div>
         <div className="local-selects">

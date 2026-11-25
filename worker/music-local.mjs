@@ -1,5 +1,5 @@
 import { validateLocalLibrary } from '../src/lib/local-music.ts';
-import { boundedJson, gunzip, gzip } from './music-device.mjs';
+import { boundedJson, gunzip, gzip } from './compress.mjs';
 
 /*
  * 내 음원 라이브러리 API. The library (tags only) is gzip JSON in `music_local_libraries`; covers are small JPEG

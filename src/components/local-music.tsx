@@ -1,10 +1,10 @@
 'use client';
 import {useEffect,useMemo,useRef,useState} from 'react';
+import {ArrowUpRight,Check,FolderOpen,ImageOff,Search,Sparkles,Trash2} from 'lucide-react';
 import Link from 'next/link';
-import {Check,FolderOpen,ImageOff,Search,Sparkles,Trash2} from 'lucide-react';
 import Dialog from './dialog';
 import type {Entry} from '@/lib/store';
-import {emptyMusic,validateMusic} from '@/lib/music';
+import {emptyMusic,musicCoverUrl,validateMusic} from '@/lib/music';
 import {albumMark,albumTone,filterAlbums,formatLength,groupAlbums,libraryDiff,sortAlbums,trackTime,validateLocalLibrary,type AlbumSort,type LocalAlbum,type LocalLibrary} from '@/lib/local-music';
 import {scanFolder,type ScanProgress,type ScanResult} from '@/lib/local-music-scan';
 
@@ -20,17 +20,24 @@ function Cover({album,big=false}:{album:LocalAlbum;big?:boolean}){
     :<span className={big?'local-cover-tile big':'local-cover-tile'} style={{background:albumTone(album.key)}} aria-hidden="true">{albumMark(album.title)}</span>;
 }
 
-function AlbumDetail({album,inCollection,onCollect}:{album:LocalAlbum;inCollection:boolean;onCollect:()=>void}){
+function AlbumDetail({album,entry,onCollect,onAddCover}:{album:LocalAlbum;entry?:Entry;onCollect:()=>void;onAddCover:()=>void}){
+  const listens=entry?.music?.listens?.length??0,rating=entry?.music?.rating,needsCover=!!entry&&!musicCoverUrl(entry.music)&&!!album.cover.id;
   return <div className="local-detail">
     <div className="local-mat big"><Cover album={album} big/></div>
     <div><h2>{album.title}</h2><p>{album.artist}{album.year?` · ${album.year}`:''}</p></div>
     <div className="local-tags">{album.genre&&<span>{album.genre}</span>}<span className="accent">{album.quality}</span><span>{album.tracks.length}곡{album.seconds?` · ${formatLength(album.seconds)}`:''}</span></div>
     <ol className="local-tracks">{album.tracks.map((t,i)=><li key={t.path}><span>{t.track??i+1}</span><span>{t.title}</span><span>{trackTime(t.seconds)}</span></li>)}</ol>
     <p className="local-source">표지: {album.cover.id?'파일·폴더에서 읽음':album.cover.url?'MusicBrainz에서 찾음':'없음'} · 폴더 <code>{album.folder||'(맨 위)'}</code></p>
-    <div className="local-detail-actions">
-      <button type="button" className="button secondary" onClick={onCollect} disabled={inCollection}>{inCollection?<><Check size={15} aria-hidden="true"/>컬렉션에 있어요</>:'앨범 컬렉션에 담기'}</button>
-      <Link className="button primary" href={`/music/fiio/?q=${encodeURIComponent(album.title)}`}>M23 플레이리스트로</Link>
-    </div>
+    {entry?<div className="local-owned-info">
+      <p className="local-owned-line"><Check size={14} aria-hidden="true"/>컬렉션에 있어요{rating!=null&&<> · ★ {rating}</>}{listens?` · 감상 ${listens}번`:''}</p>
+      <div className="local-detail-actions">
+        {needsCover&&<button type="button" className="button secondary" onClick={onAddCover}>표지 넣기</button>}
+        <Link className="button secondary" href={`/music/?album=${entry.id}`}>음악 탭에서 감상 기록 열기<ArrowUpRight size={14} aria-hidden="true"/></Link>
+      </div>
+    </div>:<div className="local-owned-info">
+      <div className="local-detail-actions"><button type="button" className="button primary" onClick={onCollect}>앨범 컬렉션에 담기</button></div>
+      <p className="local-muted">표지 · 아티스트 · 연도 · 장르 · 포맷을 함께 담아요. 음악 첫 화면에 이 표지가 그대로 보여요.</p>
+    </div>}
   </div>;
 }
 
@@ -38,21 +45,27 @@ function AlbumDetail({album,inCollection,onCollect}:{album:LocalAlbum;inCollecti
  * 내 음원 라이브러리: reads a PC music folder in the browser, keeps tags and cover thumbnails on the account and shows
  * albums as framed covers on a wall, with the picked album's details beside it (a sheet on phones).
  */
-export default function LocalMusic({collection,onCollect}:{collection:Entry[];onCollect:(entry:Entry,message:string)=>void}){
+export default function LocalMusic({collection,onCollect,onUpdate}:{collection:Entry[];onCollect:(entry:Entry,message:string)=>void;onUpdate:(entry:Entry,message:string)=>void}){
   const [library,setLibrary]=useState<LocalLibrary|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [progress,setProgress]=useState<ScanProgress|null>(null),[result,setResult]=useState<ScanResult|null>(null),[saving,setSaving]=useState('');
-  const [query,setQuery]=useState(''),[genre,setGenre]=useState(''),[tier,setTier]=useState(''),[sort,setSort]=useState<AlbumSort>('recent'),[selected,setSelected]=useState(''),[sheet,setSheet]=useState(false),[finding,setFinding]=useState<string|null>(null);
+  const [query,setQuery]=useState(''),[genre,setGenre]=useState(''),[tier,setTier]=useState(''),[sort,setSort]=useState<AlbumSort>('recent'),[selected,setSelected]=useState(''),[sheet,setSheet]=useState(false),[finding,setFinding]=useState<string|null>(null),[scope,setScope]=useState<''|'in'|'out'>('');
   const input=useRef<HTMLInputElement>(null),abort=useRef<AbortController|null>(null),stopFind=useRef(false);
   useEffect(()=>{input.current?.setAttribute('webkitdirectory','');input.current?.setAttribute('directory','');},[]);
   useEffect(()=>{void (async()=>{try{const r=await fetch('/api/music/local',{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw new Error();const body=await r.json();setLibrary(body.library?validateLocalLibrary(body.library):null);}catch{setError('라이브러리를 불러오지 못했어요. 잠시 후 다시 열어 주세요.');}finally{setLoading(false);}})();return()=>{abort.current?.abort();stopFind.current=true;};},[]);
 
   const albums=useMemo(()=>library?groupAlbums(library):[],[library]);
   const genres=useMemo(()=>[...albums.reduce((m,a)=>a.genre?m.set(a.genre,(m.get(a.genre)??0)+1):m,new Map<string,number>())].sort((a,b)=>b[1]-a[1]).slice(0,6),[albums]);
-  const shown=useMemo(()=>sortAlbums(filterAlbums(albums,{query,genre,tier}),sort),[albums,query,genre,tier,sort]);
-  const current=shown.find(a=>a.key===selected)??shown[0];
   const missing=albums.filter(a=>!a.cover.id&&!a.cover.url);
-  const owned=new Set(collection.map(e=>`${e.music?.artist.toLocaleLowerCase()}\u0001${e.title.toLocaleLowerCase()}`));
-  const inCollection=(a:LocalAlbum)=>owned.has(`${a.artist.toLocaleLowerCase()}\u0001${a.title.toLocaleLowerCase()}`);
+  // An album is in the collection when a music record has its cover, or the same title and artist.
+  const owned=useMemo(()=>{
+    const byName=new Map<string,Entry>(),byCover=new Map<string,Entry>();
+    for(const e of collection){if(e.music?.type==='playlist')continue;byName.set(`${(e.music?.artist??'').toLocaleLowerCase()}\u0001${e.title.toLocaleLowerCase()}`,e);if(e.music?.localCover)byCover.set(e.music.localCover,e);}
+    return {byName,byCover};
+  },[collection]);
+  const entryOf=(a:LocalAlbum)=>(a.cover.id?owned.byCover.get(a.cover.id):undefined)??owned.byName.get(`${(a.artist==='아티스트 미상'?'':a.artist).toLocaleLowerCase()}\u0001${a.title.toLocaleLowerCase()}`);
+  const ownedCount=albums.filter(a=>entryOf(a)).length;
+  const shown=sortAlbums(filterAlbums(albums,{query,genre,tier}),sort).filter(a=>!scope||(scope==='in')===!!entryOf(a));
+  const current=shown.find(a=>a.key===selected)??shown[0];
 
   async function read(files:File[]){
     setError('');setNotice('');setResult(null);
@@ -121,7 +134,12 @@ export default function LocalMusic({collection,onCollect}:{collection:Entry[];on
   function collect(album:LocalAlbum){
     const year=album.year?String(album.year):'';
     onCollect({id:crypto.randomUUID(),kind:'music',title:album.title.slice(0,200),detail:'',category:album.tier==='lossy'?'디지털':'FLAC',status:'컬렉션',url:'',date:'',done:false,createdAt:new Date().toISOString(),
-      music:validateMusic({...emptyMusic(),artist:album.artist==='아티스트 미상'?'':album.artist.slice(0,200),genre:album.genre.slice(0,100),releaseDate:year,type:'album'})},`${album.title}을(를) 앨범 컬렉션에 담았어요.`);
+      music:validateMusic({...emptyMusic(),artist:album.artist==='아티스트 미상'?'':album.artist.slice(0,200),genre:album.genre.slice(0,100),releaseDate:year,type:'album',...(album.cover.id?{localCover:album.cover.id}:{})})},`${album.title}을(를) 앨범 컬렉션에 담았어요.`);
+  }
+  /** Gives a record collected before covers were kept (or added by hand) this album's saved cover. */
+  function addCover(album:LocalAlbum){
+    const entry=entryOf(album);if(!entry?.music||!album.cover.id)return;
+    onUpdate({...entry,music:validateMusic({...entry.music,localCover:album.cover.id})},`${entry.title}에 표지를 넣었어요.`);
   }
   const diff=result&&library?libraryDiff(library.tracks,result.library.tracks):result?{newAlbums:groupAlbums(result.library).length,newTracks:result.library.tracks.length,changedTracks:0,removedTracks:0}:null;
   const resultMissing=result?groupAlbums(result.library).filter(a=>!a.cover.id).length:0;
@@ -129,7 +147,8 @@ export default function LocalMusic({collection,onCollect}:{collection:Entry[];on
   return <div className="local-music">
     <input ref={input} type="file" multiple hidden onChange={e=>{const files=[...(e.target.files??[])];e.target.value='';void read(files);}}/>
     <div className="local-head">
-      <p>{loading?'불러오는 중…':library?`${library.folder}에서 읽은 앨범 ${albums.length}장 · ${library.tracks.length.toLocaleString('ko-KR')}곡 · ${when(library.scannedAt)} 읽음`:'PC의 음악 폴더를 고르면 곡 정보와 표지를 읽어 앨범 표지 벽을 만들어요.'}</p>
+      <div className="local-head-text"><p>{loading?'불러오는 중…':library?`${library.folder}에서 읽은 앨범 ${albums.length}장 · ${library.tracks.length.toLocaleString('ko-KR')}곡 · ${when(library.scannedAt)} 읽음`:'PC의 음악 폴더를 고르면 곡 정보와 표지를 읽어 앨범 표지 벽을 만들어요.'}</p>
+        {library&&<div className="local-chips local-scope" role="group" aria-label="컬렉션">{([['','전체',albums.length],['in','컬렉션에 있는 앨범',ownedCount],['out','컬렉션에 없는 앨범',albums.length-ownedCount]] as const).map(([v,l,n])=><button key={v} type="button" aria-pressed={scope===v} onClick={()=>setScope(v)}>{l}<span>{n}</span></button>)}</div>}</div>
       <div className="local-head-actions">
         {library&&<label className="local-search"><Search size={16} aria-hidden="true"/><input aria-label="앨범 검색" placeholder="앨범, 아티스트, 곡 검색" value={query} onChange={e=>setQuery(e.target.value)}/></label>}
         <button type="button" className="button secondary local-pill" onClick={()=>input.current?.click()} disabled={!!progress}><FolderOpen size={16} aria-hidden="true"/>{library?'폴더 다시 읽기':'음악 폴더 고르기'}</button>
@@ -169,14 +188,14 @@ export default function LocalMusic({collection,onCollect}:{collection:Entry[];on
       </div>
       {shown.length?<div className="local-layout">
         <section className="local-wall" aria-label="앨범 표지 벽"><ul>{shown.map(album=><li key={album.key}>
-          <button type="button" className="local-frame" aria-pressed={current?.key===album.key} aria-label={`${album.title} · ${album.artist} 열기`} onClick={()=>{setSelected(album.key);if(window.matchMedia('(max-width: 760px)').matches)setSheet(true);}}>
-            <span className="local-mat"><Cover album={album}/></span>
+          <button type="button" className="local-frame" aria-pressed={current?.key===album.key} aria-label={`${album.title} · ${album.artist}${entryOf(album)?' · 컬렉션에 있음':''} 열기`} onClick={()=>{setSelected(album.key);if(window.matchMedia('(max-width: 760px)').matches)setSheet(true);}}>
+            <span className="local-mat"><Cover album={album}/>{entryOf(album)&&<span className="local-owned"><Check size={11} strokeWidth={3} aria-hidden="true"/>컬렉션</span>}</span>
             <span className="local-caption"><strong>{album.title}</strong><small>{album.artist}{album.year?` · ${album.year}`:''}</small></span>
           </button></li>)}</ul></section>
-        {current&&<aside className="local-aside" aria-label="앨범 정보"><AlbumDetail album={current} inCollection={inCollection(current)} onCollect={()=>collect(current)}/></aside>}
-      </div>:<p className="local-empty">{query||genre||tier?'조건에 맞는 앨범이 없어요.':'앨범이 없어요.'}</p>}
+        {current&&<aside className="local-aside" aria-label="앨범 정보"><AlbumDetail album={current} entry={entryOf(current)} onCollect={()=>collect(current)} onAddCover={()=>addCover(current)}/></aside>}
+      </div>:<p className="local-empty">{query||genre||tier||scope?'조건에 맞는 앨범이 없어요.':'앨범이 없어요.'}</p>}
       <button type="button" className="text-button local-remove" onClick={()=>void remove()}><Trash2 size={14} aria-hidden="true"/>저장한 라이브러리 지우기</button>
-      {sheet&&current&&<Dialog title={current.title} onClose={()=>setSheet(false)} className="section-detail local-sheet"><AlbumDetail album={current} inCollection={inCollection(current)} onCollect={()=>collect(current)}/></Dialog>}
+      {sheet&&current&&<Dialog title={current.title} onClose={()=>setSheet(false)} className="section-detail local-sheet"><AlbumDetail album={current} entry={entryOf(current)} onCollect={()=>collect(current)} onAddCover={()=>addCover(current)}/></Dialog>}
     </>}
     {!library&&!loading&&!progress&&<section className="local-start"><ImageOff size={36} strokeWidth={1.3} aria-hidden="true"/><h2>아직 읽은 음악 폴더가 없어요</h2><p>PC의 Chrome이나 Edge에서 ‘음악 폴더 고르기’를 눌러 음악이 든 폴더(또는 카드 리더에 꽂은 microSD)를 고르세요. 휴대폰에서는 만든 라이브러리를 볼 수만 있어요.</p></section>}
   </div>;

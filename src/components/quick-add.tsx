@@ -15,10 +15,12 @@ type Candidate<T>={key:string;item:T;title:string;meta:string;image?:string;note
  * One input that searches as you type and adds a pick straight away. Enter takes the first result with the primary
  * action; with no result it adds by name. Results stay above the page; Esc or a click outside closes them.
  */
-function QuickAdd<T>({label,placeholder,source,icon,search,actions,manual}:{label:string;placeholder:string;source:string;icon:ReactNode;
-  search:(query:string,signal:AbortSignal)=>Promise<Candidate<T>[]>;actions:Action<T>[];manual?:{label:(query:string)=>string;run:(query:string)=>void}}){
+function QuickAdd<T>({label,placeholder,source,icon,search,actions,manual,collapsible=false}:{label:string;placeholder:string;source:string;icon:ReactNode;
+  search:(query:string,signal:AbortSignal)=>Promise<Candidate<T>[]>;actions:Action<T>[];manual?:{label:(query:string)=>string;run:(query:string)=>void};collapsible?:boolean}){
   const [query,setQuery]=useState(''),[results,setResults]=useState<Candidate<T>[]|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState<string|null>(null),[open,setOpen]=useState(false);
-  const ref=useRef<HTMLDivElement>(null),listId=useId();
+  const ref=useRef<HTMLDivElement>(null),field=useRef<HTMLInputElement>(null),listId=useId(),[expanded,setExpanded]=useState(false);
+  // On phones a collapsible box starts as a small "바로 추가" button next to the title and opens into the full field.
+  useEffect(()=>{if(expanded)field.current?.focus();},[expanded]);
   const trimmed=query.trim();
   useEffect(()=>{
     setError('');if(trimmed.length<2){setResults(null);setLoading(false);return;}
@@ -31,8 +33,9 @@ function QuickAdd<T>({label,placeholder,source,icon,search,actions,manual}:{labe
   function addByName(){if(!manual||!trimmed)return;manual.run(trimmed);setQuery('');setResults(null);setOpen(false);}
   const primary=actions.find(a=>a.primary)??actions[0];
   const showList=open&&trimmed.length>=2;
-  return <div className="quick-add" ref={ref}>
-    <label className="quick-add-field"><Plus size={18} aria-hidden="true"/><input value={query} aria-label={label} placeholder={placeholder} role="combobox" aria-expanded={showList} aria-controls={listId} aria-autocomplete="list"
+  return <div className={`quick-add${collapsible?' collapsible':''}${expanded?' expanded':''}`} ref={ref}>
+    {collapsible&&<button type="button" className="quick-add-toggle" aria-expanded={expanded} onClick={()=>setExpanded(true)}><Plus size={16} aria-hidden="true"/>바로 추가</button>}
+    <label className="quick-add-field"><Plus size={18} aria-hidden="true"/><input ref={field} value={query} aria-label={label} placeholder={placeholder} role="combobox" aria-expanded={showList} aria-controls={listId} aria-autocomplete="list"
       onChange={event=>{setQuery(event.target.value);setOpen(true);}} onFocus={()=>setOpen(true)}
       onKeyDown={event=>{if(event.key==='Escape'){setOpen(false);return;}if(event.key!=='Enter'||event.nativeEvent.isComposing)return;event.preventDefault();const first=results?.find(r=>!r.note);if(first&&!loading)void run(first,primary);else if(results&&!loading)addByName();}}/>
       <span className="quick-add-source">{loading?<Loader2 size={14} className="quick-add-spin" aria-label="찾는 중"/>:source}</span></label>
@@ -98,7 +101,7 @@ export function WatchQuickAdd({entries,onAdd}:{entries:Entry[];onAdd:(entry:Entr
 export function AlbumQuickAdd({entries,onAdd}:{entries:Entry[];onAdd:(entry:Entry,message:string)=>void}){
   const known=new Set(entries.flatMap(e=>e.music?.catalog?[e.music.catalog.id]:[]));
   const add=(album:AlbumMetadata,status:string)=>onAdd(albumEntry(album,status),`${album.title}을(를) ${status}에 추가했어요.`);
-  return <QuickAdd<AlbumMetadata> label="앨범 바로 추가" placeholder="앨범 이름으로 바로 추가 (앨범 - 아티스트로 좁히기)" source="MusicBrainz" icon={<Disc3 size={18}/>}
+  return <QuickAdd<AlbumMetadata> collapsible label="앨범 바로 추가" placeholder="앨범 이름으로 바로 추가 (앨범 - 아티스트로 좁히기)" source="MusicBrainz" icon={<Disc3 size={18}/>}
     search={async(query,signal)=>{
       const [album,artist='']=query.split(/\s+[-–]\s+/,2);
       const body=await getJson(`/api/music/albums?${new URLSearchParams({album,artist})}`,signal,{429:'조금 천천히 입력해 주세요. 잠시 후 다시 찾아요.'});

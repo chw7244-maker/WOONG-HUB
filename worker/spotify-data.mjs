@@ -67,13 +67,13 @@ async function executeCommand(input,env,user,options){
       throw new SpotifyError('spotify_playlist_already_has_tracks',409);
     }
     if(data.public===true){
-      await apiRequest(env,user,`/playlists/${id}`,{...options,method:'PUT',scopes,body:{public:false}});
+      await apiRequest(env,user,`/playlists/${id}`,{...options,method:'PUT',scopes,body:{public:false},expectJson:false});
     }
-    await apiRequest(env,user,itemsPath,{...options,method:'POST',scopes,body:{uris}});
+    await apiRequest(env,user,itemsPath,{...options,method:'POST',scopes,body:{uris},expectJson:false});
     return {accepted:true,added:uris.length};
   }else if(['playlist-rename','playlist-add','playlist-remove'].includes(action)){
     const id=ID(input.playlistId),{data}=await ownPlaylist(env,user,id,options);const scopes=[data.public===false?'playlist-modify-private':'playlist-modify-public'];
-    if(action==='playlist-rename'){await apiRequest(env,user,`/playlists/${id}`,{...options,method:'PUT',scopes,body:{name:text(input.name,100)}});return {accepted:true};}
+    if(action==='playlist-rename'){await apiRequest(env,user,`/playlists/${id}`,{...options,method:'PUT',scopes,body:{name:text(input.name,100)},expectJson:false});return {accepted:true};}
     if(typeof input.uri!=='string'||!/^spotify:track:[A-Za-z0-9]{22}$/.test(input.uri))throw new SpotifyError('invalid_spotify_uri',400);
     const result=await apiRequest(env,user,`/playlists/${id}/items`,{...options,method:action==='playlist-add'?'POST':'DELETE',scopes,body:action==='playlist-add'?{uris:[input.uri]}:{items:[{uri:input.uri}],...(typeof input.snapshotId==='string'&&input.snapshotId.length<=200?{snapshot_id:input.snapshotId}:{})}});return {accepted:true,snapshotId:plain(result?.snapshot_id)};
   }else throw new SpotifyError('invalid_spotify_operation',400);

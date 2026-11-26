@@ -79,7 +79,7 @@ test('로컬 곡 복사는 순서를 유지하며 재시도에서 이미 추가�
   assert.equal(writes,1);
 });
 
-test('Spotify 공개 상태가 모호하면 같은 계정으로 최근 비공개 생성한 빈 목록만 복구한다',async t=>{
+test('Spotify 공개 상태가 모호하면 같은 계정으로 최근 비공개 생성한 빈 목록만 복구하고 빈 200 응답 뒤에도 곡을 추가한다',async t=>{
   const uris=['spotify:track:'+trackId];
   let visibility=null,own=true,occupied=false;
   const changes=[];
@@ -96,7 +96,7 @@ test('Spotify 공개 상태가 모호하면 같은 계정으로 최근 비공개
       return Response.json({items:occupied?[{item:{uri:'spotify:track:'+id}}]:[],next:null,total:occupied?1:0});
     }
     changes.push({path,method:init.method,body:JSON.parse(init.body)});
-    return init.method==='PUT'?new Response(null,{status:204}):Response.json({snapshot_id:'new-snapshot'});
+    return new Response(null,{status:init.method==='PUT'?200:201});
   });
   const input={action:'playlist-fill',playlistId:id,uris};
   const missing=await h.command(input,'copy-recovery-0001');

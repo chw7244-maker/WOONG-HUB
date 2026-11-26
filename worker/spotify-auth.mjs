@@ -72,7 +72,7 @@ export async function accessToken(env,user,{fetcher=fetch,clock=Date.now,force=f
     throw error;
   }finally{await env.DB.prepare('UPDATE spotify_connections SET refresh_lock_until = 0 WHERE user_id = ? AND version = ? AND refresh_lock_until = ?').bind(user,row.version,lockUntil).run();}
 }
-export async function apiRequest(env,user,path,{fetcher=fetch,clock=Date.now,method='GET',body,scopes=[]}={}){
+export async function apiRequest(env,user,path,{fetcher=fetch,clock=Date.now,method='GET',body,scopes=[],expectJson=true}={}){
   if(!path.startsWith('/')||path.startsWith('//')||/[\r\n]/.test(path))throw new SpotifyError('invalid_spotify_operation',400);
   requireScopes(await connection(env,user),scopes);
   let auth=await accessToken(env,user,{fetcher,clock});
@@ -88,6 +88,7 @@ export async function apiRequest(env,user,path,{fetcher=fetch,clock=Date.now,met
     if(response.status===404)throw new SpotifyError(path.startsWith('/me/player')?'spotify_no_active_device':'spotify_not_found',404);
     throw new SpotifyError('spotify_request_failed',response.status>=500?502:400);
   }
+  if(!expectJson){await response.body?.cancel();return null;}
   return providerJson(response);
 }
 export async function handleSpotifyAuth(request,env,ctx,{fetcher=fetch,clock=Date.now}={}){

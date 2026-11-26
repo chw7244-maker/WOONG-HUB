@@ -23,6 +23,7 @@ Spotify Developer Dashboard에 정확히 같은 Redirect URI와 사용할 API(We
 - 플레이리스트 편집: `playlist-modify-private`, `playlist-modify-public`. 실제 변경은 각 생성·수정·추가·제거 폼의 명시적 제출에서만 실행합니다.
 - 로컬 플레이리스트 복사: `user-read-private`, `playlist-read-private`, `playlist-modify-private`. 곡 검색과 선택을 마친 후 확인 버튼을 누르면 비공개 목록을 만들고 곡 순서를 유지합니다. 곡 추가 응답을 받지 못한 경우에는 Spotify의 같은 목록을 다시 확인합니다.
 - 창을 닫은 뒤에는 본인 소유의 빈 목록 링크를 사용해 복구할 수 있습니다. Spotify가 공개 상태를 생략하거나 다르게 반환하면 동일 계정으로 최근 24시간 안에 HUB에서 비공개로 만든 기록을 확인합니다. Spotify에서 공개로 표시하면 빈 목록인지 확인한 뒤 비공개 상태로 설정하고 곡을 추가합니다.
+- Spotify는 공개 상태를 바꾼 뒤 본문이 없는 HTTP 200을 반환합니다. HUB는 이 성공 응답을 받은 뒤 곡 추가를 계속합니다. 곡 추가가 실패하면 같은 창에서 공유 링크를 바꾸거나 선택한 곡을 조정할 수 있습니다.
 
 `spotify_connections`에 사용자별 Access/Refresh Token을 AES-256-GCM으로 암호화하고 사용자 ID를 추가 인증 데이터로 결합합니다. 만료 60초 전 갱신, DB 갱신 잠금, 변경 버전 비교, Refresh Token 회전과 기존 값 보존을 지원합니다. 인증 코드·토큰·Client Secret을 로그로 출력하지 않습니다. 다른 기기에서 연결을 해제하거나 새 인증을 시작한 경우 늦은 콜백·갱신이 연결을 복구하지 못하도록 검사합니다.
 

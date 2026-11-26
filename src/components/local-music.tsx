@@ -3,6 +3,7 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowUpRight,Check,FolderOpen,ImageOff,Search,Sparkles,Trash2} from 'lucide-react';
 import Link from 'next/link';
 import Dialog from './dialog';
+import LocalPlaylist from './local-playlist';
 import type {Entry} from '@/lib/store';
 import {emptyMusic,musicCoverUrl,validateMusic} from '@/lib/music';
 import {albumMark,albumTone,filterAlbums,formatLength,groupAlbums,libraryDiff,sortAlbums,trackTime,validateLocalLibrary,type AlbumSort,type LocalAlbum,type LocalLibrary} from '@/lib/local-music';
@@ -48,6 +49,7 @@ function AlbumDetail({album,entry,onCollect,onAddCover}:{album:LocalAlbum;entry?
  */
 export default function LocalMusic({collection,onCollect,onUpdate,onUpdateMany}:{collection:Entry[];onCollect:(entry:Entry,message:string)=>void;onUpdate:(entry:Entry,message:string)=>void;onUpdateMany:(entries:Entry[],message:string)=>void}){
   const [library,setLibrary]=useState<LocalLibrary|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
+  const [playlist,setPlaylist]=useState(false);
   const [progress,setProgress]=useState<ScanProgress|null>(null),[result,setResult]=useState<ScanResult|null>(null),[saving,setSaving]=useState('');
   const [query,setQuery]=useState(''),[genre,setGenre]=useState(''),[tier,setTier]=useState(''),[sort,setSort]=useState<AlbumSort>('recent'),[selected,setSelected]=useState(''),[sheet,setSheet]=useState(false),[finding,setFinding]=useState<string|null>(null),[scope,setScope]=useState<''|'in'|'out'>('');
   const input=useRef<HTMLInputElement>(null),abort=useRef<AbortController|null>(null),stopFind=useRef(false);
@@ -158,6 +160,7 @@ export default function LocalMusic({collection,onCollect,onUpdate,onUpdateMany}:
         {library&&<div className="local-chips local-scope" role="group" aria-label="컬렉션">{([['','전체',albums.length],['in','컬렉션에 있는 앨범',ownedCount],['out','컬렉션에 없는 앨범',albums.length-ownedCount]] as const).map(([v,l,n])=><button key={v} type="button" aria-pressed={scope===v} onClick={()=>setScope(v)}>{l}<span>{n}</span></button>)}</div>}</div>
       <div className="local-head-actions">
         {library&&<label className="local-search"><Search size={16} aria-hidden="true"/><input aria-label="앨범 검색" placeholder="앨범, 아티스트, 곡 검색" value={query} onChange={e=>setQuery(e.target.value)}/></label>}
+        {shown.length>0&&<button type="button" className="button secondary local-pill" onClick={()=>setPlaylist(true)}><Sparkles size={16} aria-hidden="true"/>AI 플레이리스트</button>}
         <button type="button" className="button secondary local-pill" onClick={()=>input.current?.click()} disabled={!!progress}><FolderOpen size={16} aria-hidden="true"/>{library?'폴더 다시 읽기':'음악 폴더 고르기'}</button>
       </div>
     </div>
@@ -207,6 +210,7 @@ export default function LocalMusic({collection,onCollect,onUpdate,onUpdateMany}:
       </div>:<p className="local-empty">{query||genre||tier||scope?'조건에 맞는 앨범이 없어요.':'앨범이 없어요.'}</p>}
       <button type="button" className="text-button local-remove" onClick={()=>void remove()}><Trash2 size={14} aria-hidden="true"/>저장한 라이브러리 지우기</button>
       {sheet&&current&&<Dialog title={current.title} onClose={()=>setSheet(false)} className="section-detail local-sheet"><AlbumDetail album={current} entry={entryOf(current)} onCollect={()=>collect(current)} onAddCover={()=>addCover(current)}/></Dialog>}
+      {playlist&&<LocalPlaylist albums={shown} folder={library.folder} onClose={()=>setPlaylist(false)}/>}
     </>}
     {!library&&!loading&&!progress&&<section className="local-start"><ImageOff size={36} strokeWidth={1.3} aria-hidden="true"/><h2>아직 읽은 음악 폴더가 없어요</h2><p>PC의 Chrome이나 Edge에서 ‘음악 폴더 고르기’를 눌러 음악이 든 폴더(또는 카드 리더에 꽂은 microSD)를 고르세요. 휴대폰에서는 만든 라이브러리를 볼 수만 있어요.</p></section>}
   </div>;

@@ -37,8 +37,9 @@ export async function handleMusicPlaylist(request, env, fetcher = fetch) {
     const response = await fetcher(endpoint, {
       method: 'POST',
       headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
-      redirect: 'error',
-      signal: AbortSignal.any([request.signal, AbortSignal.timeout(20_000)]),
+      // Workers supports manual redirects. Any 3xx exits below without forwarding the key.
+      redirect: 'manual',
+      signal: AbortSignal.timeout(20_000),
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: brief }] },
         contents: [{ role: 'user', parts: [{ text: JSON.stringify({ prompt, count, candidates }) }] }],

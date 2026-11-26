@@ -43,7 +43,7 @@ test('calls the free-tier-capable model with bounded metadata and preserves the 
   const response = await handleMusicPlaylist(request(), env, async (url, options) => {
     assert.equal(url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent');
     assert.equal(options.headers['x-goog-api-key'], env.GEMINI_API_KEY);
-    assert.equal(options.redirect, 'error');
+    assert.equal(options.redirect, 'manual');
     const { contents, generationConfig } = JSON.parse(options.body);
     const sent = JSON.parse(contents[0].parts[0].text);
     assert.deepEqual(sent.candidates[0], { id: 0, title: '샘플 곡 1', artist: '샘플 연주자', genre: '재즈' });
@@ -64,6 +64,10 @@ test('missing keys, cross-site requests, quota and hallucinated IDs fail without
   const limited = await handleMusicPlaylist(request(), env, async () => { calls++; return new Response(null, { status: 429 }); });
   assert.deepEqual(await limited.json(), { error: 'gemini_quota' });
   assert.equal(calls, 1);
+  const redirected = await handleMusicPlaylist(request(), env, async () => new Response(null, {
+    status: 302, headers: { Location: 'https://other.test/' },
+  }));
+  assert.equal(redirected.status, 502);
   for (const trackIds of [[2], [1, 1], [0, 1, 2]]) {
     const failed = await handleMusicPlaylist(request(), env, async () => gemini({ title: '추천 곡', trackIds }));
     assert.equal(failed.status, 502);

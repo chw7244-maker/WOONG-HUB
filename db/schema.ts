@@ -96,3 +96,9 @@ export const musicLocalCovers=sqliteTable('music_local_covers',{
   data:text('data').notNull(),
   createdAt:text('created_at').notNull(),
 },table=>[primaryKey({columns:[table.userId,table.id]})]);
+
+export const xboxHistorySnapshots = sqliteTable('xbox_history_snapshots', {
+  userId:text('user_id').primaryKey(),
+  snapshot:text('snapshot').notNull(),
+  checkedAt:text('checked_at').notNull(),
+});

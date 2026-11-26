@@ -71,6 +71,13 @@
       "when": 1795518595430,
       "tag": "0009_misty_nekra",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1795692228023,
+      "tag": "0010_xbox_history_snapshots",
+      "breakpoints": true
     }
   ]
 }

@@ -91,6 +91,7 @@ async function readHistory(key, stage, path) {
     }
   } catch (error) {
     if (!titles.length) throw error;
+    return {titles, limited:true, incomplete:true};
   }
   return {titles, limited:true};
 }
@@ -128,9 +129,22 @@ export async function handleXboxHistory(request, env) {
   // The deployed Site is owner-only. Service credentials do not supply a visitor identity.
   const userId = request.headers.get('oai-authenticated-user-id');
   if (!userId || userId.length > 200) return json({error:'authentication_required'}, 401);
-  if (request.method !== 'GET') return json({error:'method_not_allowed'}, 405);
+  if (request.method === 'GET') {
+    try {
+      return json({snapshot:await readSnapshot(env.DB, userId)});
+    } catch {
+      return json({error:'xbox_storage_unavailable'}, 503);
+    }
+  }
+  if (request.method !== 'POST') return json({error:'method_not_allowed'}, 405);
+  if (request.headers.get('Origin') !== new URL(request.url).origin || request.headers.get('Sec-Fetch-Site') === 'cross-site') {
+    return json({error:'origin_not_allowed'}, 403);
+  }
   const key = env.XBOX_OPENXBL_API_KEY?.trim();
   if (!key) return json({error:'xbox_not_configured'}, 503);
+  if (!env.DB) return json({error:'xbox_storage_unavailable'}, 503);
+  const checkedAt = new Date().toISOString();
+  let snapshot;
   try {
     const account = await openXbl(key, 'account', '/account');
     const xuid = account?.profileUsers?.[0]?.id;
@@ -156,14 +170,38 @@ export async function handleXboxHistory(request, env) {
       });
       applyPlaytime(batch, data);
     }));
-    return json({
+    snapshot = {
       games,
       limited:allGames.length > MAX_TITLES || history.some(source=>source.limited),
-      historyIncomplete:history.length < sources.length,
+      historyIncomplete:history.length < sources.length || history.some(source=>source.incomplete),
       playtimeIncomplete:stats.some(result=>result.status==='rejected'),
-      checkedAt:new Date().toISOString()
-    });
+      checkedAt
+    };
   } catch (error) {
     return error instanceof XboxError ? json({error:error.message}, error.status) : json({error:'xbox_unavailable'}, 502);
   }
+  try {
+    return json(await saveSnapshot(env.DB, userId, snapshot));
+  } catch {
+    return json({error:'xbox_storage_unavailable'}, 503);
+  }
+}
+
+async function readSnapshot(db, userId) {
+  const row = await db.prepare('SELECT snapshot FROM xbox_history_snapshots WHERE user_id = ?').bind(userId).first();
+  return row ? JSON.parse(row.snapshot) : null;
+}
+
+async function saveSnapshot(db, userId, snapshot) {
+  const incomplete = snapshot.historyIncomplete || snapshot.playtimeIncomplete;
+  const conflict = incomplete ? 'DO NOTHING' : `DO UPDATE SET snapshot = excluded.snapshot, checked_at = excluded.checked_at
+    WHERE excluded.checked_at > xbox_history_snapshots.checked_at`;
+  const result = await db.prepare(`INSERT INTO xbox_history_snapshots (user_id, snapshot, checked_at)
+    VALUES (?, ?, ?) ON CONFLICT(user_id) ${conflict}`)
+    .bind(userId, JSON.stringify(snapshot), snapshot.checkedAt).run();
+  if (result.meta.changes) return {snapshot};
+  return {
+    snapshot:await readSnapshot(db, userId),
+    ...(incomplete && {warning:'xbox_refresh_incomplete'})
+  };
 }

@@ -51,6 +51,7 @@ export async function handleApi(request, env, ctx) {
       await env.DB.prepare('SELECT revision FROM hub_documents LIMIT 1').first();
       await env.DB.prepare('SELECT id FROM news_articles LIMIT 1').first();
       await env.DB.prepare('SELECT revision FROM notion_calendar_snapshots LIMIT 1').first();
+      await env.DB.prepare('SELECT checked_at FROM xbox_history_snapshots LIMIT 1').first();
     } catch {return json({ok:false,error:'database_unavailable'},503);}
     const health={ok:true,storage:'d1',schema:3,news:true,calendar:true};
     if(url.searchParams.get('integrations')!=='1')return json(health);

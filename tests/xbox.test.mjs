@@ -1,23 +1,40 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {handleApi} from '../worker/api.mjs';
+import {applyLocalMigrations, createLocalDatabase} from '../scripts/local-db.mjs';
 
 const endpoint = 'https://hub.example/api/games/xbox';
-const owner = {'oai-authenticated-user-id':'test-owner'};
-const env = {XBOX_OPENXBL_API_KEY:'test-secret'};
+const origin = new URL(endpoint).origin;
+const owner = {'oai-authenticated-user-id':'test-owner',Origin:origin};
+const key = 'test-secret';
 const xuid = '2533274000000000';
 
+async function setup(t) {
+  const DB = createLocalDatabase();
+  t.after(()=>DB.sqlite.close());
+  await applyLocalMigrations(DB);
+  return {DB,XBOX_OPENXBL_API_KEY:key};
+}
+
+const refresh = (env, headers = owner) => handleApi(new Request(endpoint, {headers,method:'POST'}), env);
+const saved = (env, headers = owner) => handleApi(new Request(endpoint, {headers}), env);
+
 test('Xbox history requires a visitor and a configured server key before calling OpenXBL', async t => {
+  const env = await setup(t);
   const fetch = t.mock.method(globalThis, 'fetch');
   assert.equal((await handleApi(new Request(endpoint), env)).status, 401);
-  assert.equal((await handleApi(new Request(endpoint, {headers:owner,method:'POST'}), env)).status, 405);
-  const missing = await handleApi(new Request(endpoint, {headers:owner}), {});
+  assert.equal((await refresh(env, {Origin:origin})).status, 401);
+  assert.equal((await refresh(env, {...owner,Origin:'https://elsewhere.example'})).status, 403);
+  assert.equal((await handleApi(new Request(endpoint, {headers:owner,method:'DELETE'}), env)).status, 405);
+  const missing = await refresh({DB:env.DB});
   assert.equal(missing.status, 503);
   assert.deepEqual(await missing.json(), {error:'xbox_not_configured'});
+  assert.deepEqual(await (await saved({DB:env.DB})).json(), {snapshot:null});
   assert.equal(fetch.mock.callCount(), 0);
 });
 
 test('Xbox history merges paged titles and keeps zero and missing minutes distinct', async t => {
+  const env = await setup(t);
   const remote = data => Response.json({code:200,content:data});
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     assert.equal(options.headers['X-Authorization'], env.XBOX_OPENXBL_API_KEY);
@@ -50,10 +67,10 @@ test('Xbox history merges paged titles and keeps zero and missing minutes distin
         throw new Error('Unexpected provider route');
     }
   });
-  const response = await handleApi(new Request(endpoint, {headers:owner}), env);
+  const response = await refresh(env);
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
-  const result = await response.json();
+  const {snapshot:result} = await response.json();
   assert.deepEqual(result.games.map(({name,minutes})=>[name,minutes]), [
     ['First game',120],['Second game',0],['Older PC game',null],
   ]);
@@ -62,17 +79,22 @@ test('Xbox history merges paged titles and keeps zero and missing minutes distin
   assert.equal(result.playtimeIncomplete, false);
   assert.equal(result.limited, false);
   assert.ok(!JSON.stringify(result).includes(env.XBOX_OPENXBL_API_KEY));
+  const savedResponse = await saved({DB:env.DB});
+  assert.equal(savedResponse.headers.get('Cache-Control'), 'private, no-store');
+  assert.deepEqual(await savedResponse.json(), {snapshot:result});
+  assert.deepEqual(await (await saved(env, {...owner,'oai-authenticated-user-id':'another-user'})).json(), {snapshot:null});
 });
 
 test('Xbox history keeps available games when one provider source and the playtime lookup fail', async t => {
+  const env = await setup(t);
   const warn = t.mock.method(console, 'warn', () => {});
   t.mock.method(globalThis, 'fetch', async url => {
     if (url.endsWith('/account')) return Response.json({profileUsers:[{id:xuid}]});
     if (url.includes('/titleHistory/')) return Response.json({titles:[{titleId:1,name:'Game'}]});
     return Response.json({content:'upstream details',code:429});
   });
-  const response = await handleApi(new Request(endpoint, {headers:owner}), env);
-  const result = await response.json();
+  const response = await refresh(env);
+  const {snapshot:result} = await response.json();
   assert.equal(response.status, 200);
   assert.equal(result.historyIncomplete, true);
   assert.equal(result.playtimeIncomplete, true);
@@ -84,17 +106,43 @@ test('Xbox history keeps available games when one provider source and the playti
 });
 
 test('Xbox history rejects redirects without following or logging the destination', async t => {
+  const env = await setup(t);
   const warn = t.mock.method(console, 'warn', () => {});
   const fetch = t.mock.method(globalThis, 'fetch', async (url, options) => {
     assert.equal(url, 'https://api.xbl.io/v2/account');
     assert.equal(options.redirect, 'manual');
     return Response.redirect('https://example.com/account/' + xuid, 302);
   });
-  const response = await handleApi(new Request(endpoint, {headers:owner}), env);
+  const response = await refresh(env);
   assert.equal(response.status, 502);
   assert.deepEqual(await response.json(), {error:'xbox_unavailable'});
   assert.equal(fetch.mock.callCount(), 1);
   assert.deepEqual(warn.mock.calls.map(call => call.arguments), [
     ['xbox_provider_failure', {stage:'account', reason:'http_status', status:302}],
   ]);
+});
+
+test('Xbox history keeps the saved playtime and date after a partial or failed refresh', async t => {
+  const env = await setup(t);
+  t.mock.method(console, 'warn', () => {});
+  let failure;
+  const provider = t.mock.method(globalThis, 'fetch', async url => {
+    if (url.endsWith('/account')) {
+      return failure === 'all' ? new Response(null, {status:429}) : Response.json({profileUsers:[{id:xuid}]});
+    }
+    if (url.endsWith('/player/stats')) {
+      return failure ? new Response(null, {status:429})
+        : Response.json({statlistscollection:[{stats:[{titleid:1,name:'MinutesPlayed',value:'40'}]}]});
+    }
+    return Response.json({titles:[{titleId:1,name:'Game'}]});
+  });
+  const {snapshot} = await (await refresh(env)).json();
+  assert.equal(snapshot.games[0].minutes, 40);
+  failure = 'stats';
+  assert.deepEqual(await (await refresh(env)).json(), {snapshot,warning:'xbox_refresh_incomplete'});
+  failure = 'all';
+  assert.equal((await refresh(env)).status, 429);
+  const calls = provider.mock.callCount();
+  assert.deepEqual(await (await saved({DB:env.DB})).json(), {snapshot});
+  assert.equal(provider.mock.callCount(), calls);
 });

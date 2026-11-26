@@ -11,6 +11,7 @@ import { handleSpotifyAuth } from './spotify-auth.mjs';
 import { handleSpotifyData } from './spotify-data.mjs';
 import { footballSnapshot, handleCrest, handleFootball } from './football.mjs';
 import { handleWatchSearch } from './watch.mjs';
+import { handleWebtoonSearch } from './webtoon.mjs';
 import { handleWeather, weatherForecast } from './weather.mjs';
 import { defaultWeatherCity } from '../src/lib/weather-cities.ts';
 
@@ -62,6 +63,7 @@ export async function handleApi(request, env, ctx) {
   if(path==='/api/football')return handleFootball(request,ctx);
   if(path==='/api/football/crest')return handleCrest(request,ctx);
   if(path==='/api/watch/search')return handleWatchSearch(request,env);
+  if(path==='/api/watch/webtoons')return handleWebtoonSearch(request,env);
   if(path==='/api/weather')return handleWeather(request,ctx);
   if(path==='/api/games/steam')return handleSteam(request,env,ctx);
   if(path==='/api/games/steam/search')return handleSteamSearch(request,env,ctx);

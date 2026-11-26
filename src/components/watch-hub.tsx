@@ -6,8 +6,9 @@ import { ArrowUpRight, BookOpen, CalendarDays, Check, Clapperboard, Pencil, Plus
 import { isCalendarDay } from '@/lib/calendar';
 import { koreanDate, safeUrl, type Entry } from '@/lib/store';
 import { matchesSearch, searchTerms } from '@/lib/search';
-import { isWatchEntry, progressLabel, watchDays, watchingNow, watchPosterUrl, watchStatuses, watchTypes, webtoonNewsEventKeys, webtoonNewsEvents, weeklyWatchPlan, type WatchCatalogItem, type WatchEntry, type WatchStatus, type WatchType } from '@/lib/watch';
+import { isWatchEntry, progressLabel, watchCoverUrl, watchDays, watchingNow, watchStatuses, watchTypes, webtoonNewsEventKeys, webtoonNewsEvents, weeklyWatchPlan, type WatchCatalogItem, type WatchEntry, type WatchStatus, type WatchType } from '@/lib/watch';
 import Dialog from './dialog';
+import WebtoonCovers from './webtoon-covers';
 
 const icons = { movie: Clapperboard, tv: Tv, webtoon: BookOpen };
 const types = Object.keys(watchTypes) as WatchType[];
@@ -27,10 +28,13 @@ function Cover({ entry, featured = false }: { entry: WatchEntry; featured?: bool
   const { watch } = entry;
   const [failed, setFailed] = useState(false);
   const Icon = icons[watch.type];
+  const image = watchCoverUrl(watch);
   return <div className={`watch-cover watch-cover-${watch.type}${featured ? ' watch-cover-feature' : ''}`} aria-hidden="true">
-    {watch.catalog?.posterPath && !failed
-      ? <img src={watchPosterUrl(watch.catalog.posterPath)} alt="" loading={featured ? 'eager' : 'lazy'} referrerPolicy="no-referrer" onError={() => setFailed(true)}/>
-      : <Icon strokeWidth={1.25}/>}
+    {image && !failed
+      ? <img src={image} alt="" loading={featured ? 'eager' : 'lazy'} referrerPolicy="no-referrer" onError={() => setFailed(true)}/>
+      : watch.type === 'webtoon'
+        ? <span className="webtoon-cover-fallback"><Icon strokeWidth={1.25}/><strong>{entry.title}</strong></span>
+        : <Icon strokeWidth={1.25}/>}
   </div>;
 }
 
@@ -50,7 +54,7 @@ function WatchItem({ entry, onEdit, onDelete, onSave, onProgress, onPlan, highli
   const featured = Boolean(highlight);
   const followingNews = Boolean(watch.newsEvents?.length);
   return <article className={featured ? 'watch-feature' : 'watch-entry'}>
-    <Cover key={watch.catalog?.posterPath ?? watch.type} entry={entry} featured={featured}/>
+    <Cover key={watchCoverUrl(watch) || watch.type} entry={entry} featured={featured}/>
     <div className="watch-entry-copy">
       <p className="watch-kicker">{highlight === 'news' ? '뉴스에서 연 작품 · ' : featured ? '이어서 보기 · ' : ''}{watchTypes[watch.type]}{watch.catalog?.year && ` · ${watch.catalog.year}`}</p>
       <h2><button type="button" onClick={() => onEdit(entry)}>{entry.title}</button></h2>
@@ -141,15 +145,17 @@ export function HomeWatch({ entries, onEdit }: { entries: Entry[]; onEdit: (entr
   </div>;
 }
 
-export default function WatchHub({ entries, today, onAdd, onEdit, onDelete, onSave, onProgress }: {
+export default function WatchHub({ entries, today, onAdd, onEdit, onDelete, onSave, onSaveCovers, onProgress }: {
   entries: Entry[]; today: string; onAdd: (type: WatchType) => void; onEdit: (entry: Entry) => void; onDelete: (entry: Entry) => void;
-  onSave: (entry: Entry) => boolean; onProgress: (entry: WatchEntry) => void;
+  onSave: (entry: Entry) => boolean; onSaveCovers: (entries: WatchEntry[], message: string) => boolean;
+  onProgress: (entry: WatchEntry) => void;
 }) {
   const [type, setType] = useState<WatchType | 'all'>('all');
   const [status, setStatus] = useState<WatchStatus | 'all'>('all');
   const [query, setQuery] = useState('');
   const [linkedId, setLinkedId] = useState<string | null>(null);
   const [planId, setPlanId] = useState<string | null>(null);
+  const [coverDialog, setCoverDialog] = useState(false);
   useEffect(() => { setLinkedId(new URLSearchParams(window.location.search).get('work')); }, []);
   const collection = entries.filter(isWatchEntry).sort((a, b) => Date.parse(b.watch.updatedAt) - Date.parse(a.watch.updatedAt));
   const browsing = type === 'all' && status === 'all' && !query.trim();
@@ -160,6 +166,7 @@ export default function WatchHub({ entries, today, onAdd, onEdit, onDelete, onSa
   const matches = collection.filter(item => (type === 'all' || item.watch.type === type) && (status === 'all' || item.watch.status === status) &&
     matchesSearch([item.title, item.detail, watchTypes[item.watch.type]], searchTerms(query)));
   const lists = status === 'all' ? ['watching', 'planned', 'completed'] as const : [status];
+  const needsCover = type === 'webtoon' && collection.some(entry => entry.watch.type === 'webtoon' && !entry.watch.webtoonCover);
 
   return <div className="watch-hub">
     {linkedId && !linked && <p className="watch-feedback" role="status">연결된 작품 기록을 찾을 수 없어요.</p>}
@@ -174,6 +181,7 @@ export default function WatchHub({ entries, today, onAdd, onEdit, onDelete, onSa
         <option value="all">모든 상태</option>{statuses.map(value => <option key={value} value={value}>{watchStatuses[value]}</option>)}
       </select>
       <button type="button" className="button primary" onClick={() => onAdd(type === 'all' ? 'movie' : type)}><Plus size={16}/>작품 추가</button>
+      {needsCover && <button type="button" className="button secondary" onClick={() => setCoverDialog(true)}>빈 표지 채우기</button>}
     </div>
     {status === 'all' && !query.trim() && <WatchWeek entries={matches} today={today} type={type} onEdit={onEdit} onProgress={onProgress}/>}
     {featured && !linked && <WatchItem entry={featured} onEdit={onEdit} onSave={onSave} onDelete={onDelete} onProgress={onProgress} onPlan={onPlan} highlight="continue"/>}
@@ -190,7 +198,9 @@ export default function WatchHub({ entries, today, onAdd, onEdit, onDelete, onSa
       </section>;
     })}
     {collection.some(item => item.watch.catalog) && <TmdbCredit/>}
+    {collection.some(item => item.watch.webtoonCover) && <p className="watch-feedback">웹툰 표지 데이터 <a href="https://www.kmas.or.kr/" target="_blank" rel="noreferrer">한국만화영상진흥원 만화규장각</a></p>}
     {planEntry && <WatchPlanDialog key={planEntry.id} entry={planEntry} today={today} onClose={() => setPlanId(null)} onSave={onSave}/>}
+    {coverDialog && <WebtoonCovers entries={collection} onClose={() => setCoverDialog(false)} onSave={onSaveCovers}/>}
   </div>;
 }
 
@@ -264,7 +274,8 @@ export function WatchEntryModal({ entry, defaultType = 'movie', onClose, onSave 
       category: '', status: '', url: link, date: '', done: false, createdAt: entry?.createdAt ?? updatedAt,
       watch: { type, status, catalog, updatedAt, progress: optionalNumber('progress'), season: optionalNumber('season'), rating: optionalNumber('rating'), weekday: optionalNumber('weekday'),
         ...(type !== 'webtoon' && plannedDate && { plannedDate }),
-        ...(type === 'webtoon' && newsEvents.length > 0 && { newsEvents }) } });
+        ...(type === 'webtoon' && newsEvents.length > 0 && { newsEvents }),
+        ...(type === 'webtoon' && old?.webtoonCover && { webtoonCover: old.webtoonCover }) } });
   }
 
   return <Dialog title={entry ? '작품 수정' : '작품 추가'} onClose={onClose} className="watch-dialog">

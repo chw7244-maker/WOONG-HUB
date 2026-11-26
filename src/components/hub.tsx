@@ -127,10 +127,11 @@ export default function Hub({section}:{section:string}) {
   /** A record added from a quick add box, with an undo that removes it again while nothing else changed it. */
   /** Several records at once (Steam wishlist import, store details): updates by id, adds the rest, one save. */
   function bulkSave(list:Entry[],message:string|null,undoable=false){
-    if(!list.length){if(message)notify(message);return;}
+    if(!list.length){if(message)notify(message);return false;}
     const byId=new Map(list.map(e=>[e.id,e])),current=new Map(data.entries.map(e=>[e.id,e]));
-    if(!persist({...data,entries:[...list.filter(e=>!current.has(e.id)),...data.entries.map(e=>byId.get(e.id)??e)]})||!message)return;
-    setToast(undoable?{message,revertMany:list.map(after=>({before:current.get(after.id)??null,after}))}:{message});
+    if(!persist({...data,entries:[...list.filter(e=>!current.has(e.id)),...data.entries.map(e=>byId.get(e.id)??e)]}))return false;
+    if(message)setToast(undoable?{message,revertMany:list.map(after=>({before:current.get(after.id)??null,after}))}:{message});
+    return true;
   }
   /** Undoes a bulk save record by record: a record changed again since is left as it is. */
   function revertBulk(){
@@ -256,7 +257,11 @@ export default function Hub({section}:{section:string}) {
         </>:<>
           {hobbyOf(section)&&<HobbyTabs section={section}/>}
           {section!=='news'&&section!=='hobbies'&&!gameSection&&<div className="page-heading section-heading"><div><h1>{currentInfo?.title}</h1><p>{section==='music'&&entries('music').length&&today?musicSummary(entries('music'),today):currentInfo?.description}</p></div>{section==='watch'?<WatchQuickAdd entries={entries('watch')} onAdd={quickAdd}/>:section==='music'?<AlbumQuickAdd entries={entries('music')} onAdd={quickAdd}/>:null}{currentInfo?.kind&&!['audio','music','calendar','library'].includes(section)&&<button className="button primary" onClick={()=>setModal({kind:activeKind})}><Plus size={15}/>{kindLabels[activeKind]} 추가</button>}</div>}
-          {section==='hobbies'?<HobbyLibrary entries={data.entries} favoriteIds={data.preferences.hobbyFavoriteIds} onFavorite={toggleHobbyFavorite} onOpen={openEntry} match={<HobbyMatch now={now} football={football}/>} setup={selectedSetup}/>:section==='football'?<FootballHub saved={savedFixtureIds} onSave={addFixture}/>:section==='watch'?<WatchHub entries={entries('watch')} today={today} onProgress={recordWatchProgress} onAdd={watchType=>setModal({kind:'watch',watchType})} onEdit={openEntry} onDelete={setDeleteEntry} onSave={save}/>:section==='settings'?<div className="settings-grid settings-sections">
+          {section==='hobbies'?<HobbyLibrary entries={data.entries} favoriteIds={data.preferences.hobbyFavoriteIds} onFavorite={toggleHobbyFavorite} onOpen={openEntry} match={<HobbyMatch now={now} football={football}/>} setup={selectedSetup}/>:section==='football'?<FootballHub saved={savedFixtureIds} onSave={addFixture}/>:section==='watch'?
+            <WatchHub key={sync.userId} entries={entries('watch')} today={today} onProgress={recordWatchProgress}
+              onAdd={watchType=>setModal({kind:'watch',watchType})} onEdit={openEntry} onDelete={setDeleteEntry} onSave={save}
+              onSaveCovers={(list,message)=>bulkSave(list,message,true)}/>
+          :section==='settings'?<div className="settings-grid settings-sections">
             <nav className="settings-jump" aria-label="설정 항목">
               <a href="#connections">서비스 연결</a><a href="#appearance">표시와 테마</a><a href="#widgets">홈 위젯</a><a href="#sync">데이터와 백업</a>
             </nav>

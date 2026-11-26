@@ -1,7 +1,7 @@
 import type { Entry } from './store.ts';
 import { lastListenedAt, musicCoverUrl } from './music.ts';
 import { steamLibraryHref } from './steam-account.ts';
-import { isWatchEntry, progressLabel, watchPosterUrl, watchTypes } from './watch.ts';
+import { isWatchEntry, progressLabel, watchCoverUrl, watchTypes } from './watch.ts';
 
 export type HobbyView = 'all' | 'active' | 'favorites';
 
@@ -19,7 +19,7 @@ function hobbyCard(entry: Entry) {
   if (isWatchEntry(entry)) {
     const { watch } = entry;
     return { ...common, source: '작품 · ' + watchTypes[watch.type], status: progressLabel(watch),
-      poster: watchPosterUrl(watch.catalog?.posterPath), active: watch.status === 'watching', activity: Date.parse(watch.updatedAt) };
+      poster: watchCoverUrl(watch), active: watch.status === 'watching', activity: Date.parse(watch.updatedAt) };
   }
   if (entry.kind === 'music') {
     const listened = lastListenedAt(entry.music);

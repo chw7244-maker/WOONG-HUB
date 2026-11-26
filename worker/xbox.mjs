@@ -3,6 +3,8 @@ const MAX_TITLES = 1000;
 const MAX_HISTORY_PAGES = 6;
 const BATCH_SIZE = 100;
 const MINUTES_PLAYED = 'MinutesPlayed';
+const coverHosts = new Set(['store-images.s-microsoft.com','images-eds-ssl.xboxlive.com','images-eds.xboxlive.com','image-ssl.xboxlive.com']);
+const coverTypes = ['TitledHeroArt','SuperHeroArt','BoxArt','Poster'];
 
 class XboxError extends Error {
   constructor(code, status) {
@@ -96,8 +98,23 @@ async function readHistory(key, stage, path) {
   return {titles, limited:true};
 }
 
+function coverUrl(raw) {
+  if (typeof raw !== 'string' || raw.length > 2048) return undefined;
+  try {
+    const url = new URL(raw.startsWith('//') ? 'https:' + raw : raw);
+    if (!coverHosts.has(url.hostname) || url.username || url.password || url.port || !['http:','https:'].includes(url.protocol)) return undefined;
+    url.protocol = 'https:';
+    url.hash = '';
+    if (url.hostname === 'store-images.s-microsoft.com' && !url.search) url.searchParams.set('w','640');
+    return url.href;
+  } catch {
+    return undefined;
+  }
+}
+
 function playedGames(results) {
   const games = new Map();
+  const covers = new Map();
   for (const titles of results) {
     for (const title of titles) {
       const id = String(title?.titleId ?? '');
@@ -106,8 +123,16 @@ function playedGames(results) {
       const lastPlayed = dateString(title.titleHistory?.lastTimePlayed);
       const previous = games.get(id)?.lastPlayed ?? null;
       games.set(id, {id, name, lastPlayed:lastPlayed && (!previous || lastPlayed > previous) ? lastPlayed : previous, minutes:null});
+
+      const images = Array.isArray(title.images) ? title.images : [];
+      const candidates = coverTypes.map(type=>images.find(image=>image?.type===type)?.url).concat(title.displayImage).map(coverUrl);
+      const rank = candidates.findIndex(Boolean);
+      if (rank >= 0 && rank < (covers.get(id)?.rank ?? Infinity)) {
+        covers.set(id, {rank, url:candidates[rank]});
+      }
     }
   }
+  for (const [id,{url}] of covers) games.get(id).imageUrl = url;
   return Array.from(games.values()).sort((a,b)=>(b.lastPlayed??'').localeCompare(a.lastPlayed??'') || a.name.localeCompare(b.name));
 }
 

@@ -7,6 +7,7 @@ import {emptyGame,playTime} from '@/lib/games';
 import type {SteamAccountRef,SteamAccountStatus,SteamEntryStat,SteamLinkedAccount,SteamOwnedGame} from '@/lib/steam-account';
 import {useHubSync} from './sync-provider';
 import Dialog from './dialog';
+import {GameCover, GameViewToggle, useGameView} from './game-view';
 
 export const steamMessage=(code:string)=>({authentication_required:'HUB 로그인 상태를 확인해주세요.',steam_not_configured:'Steam 연결 서비스를 준비 중입니다.',steam_key_required:'Steam Web API 키를 먼저 등록해주세요.',steam_key_format:'Steam Web API 키의 형식을 확인해주세요.',steam_key_invalid:'Steam에서 API 키를 거부했어요. 유효한 사용자 Web API 키인지 확인해주세요.',steam_key_reconnect_required:'저장한 API 키를 읽지 못했어요. 키를 다시 등록해주세요.',steam_account_not_connected:'이 HUB 계정에 연결된 Steam 계정이 아니에요. Steam 로그인으로 연결해주세요.',steam_library_private:'게임 목록을 볼 수 없어요. Steam 프로필의 게임 세부 정보 공개 설정을 확인해주세요.',steam_recent_unavailable:'최근 플레이 정보를 조회하지 못했어요. Steam의 게임·플레이 시간 공개 설정을 확인해주세요.',steam_sync_too_fast:'너무 자주 새로고침했어요. 잠시 후 다시 확인해주세요.',steam_sync_in_progress:'이 계정의 Steam 정보를 이미 갱신하고 있어요.',steam_rate_limited:'Steam 요청이 많아 잠시 기다려야 합니다.',steam_connection_changed:'계정이나 API 키 연결이 바뀌었어요. 다시 확인해주세요.',steam_account_limit:'Steam 계정은 최대 10개까지 연결할 수 있어요.',steam_profile_unavailable:'Steam 프로필을 조회하지 못했어요.',steam_library_too_large:'Steam이 제공한 라이브러리가 처리 범위를 초과했어요.'} as Record<string,string>)[code]??'Steam 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.';
 class SteamClientError extends Error{constructor(public code:string,public status:number,public retryAfter=0){super(steamMessage(code));}}
@@ -31,6 +32,7 @@ export function SteamAccountField({appId,value,onChange}:{appId?:number;value?:S
 }
 type Library={account:SteamLinkedAccount;items:SteamOwnedGame[];count:number;offset:number;nextOffset:number;hasMore:boolean;stats:{owned:number|null;totalMinutes:number;recorded:number;recentCount:number|null;recentMinutes:number}};
 export default function SteamAccount({entries,onEdit,onSave}:{entries:Entry[];onEdit:(entry:Entry)=>void;onSave:(entry:Entry)=>boolean}){
+  const [view, setView] = useGameView('steam');
   const {userId}=useHubSync(),[status,setStatus]=useState<SteamAccountStatus|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[busy,setBusy]=useState(false),[selected,setSelected]=useState(''),[library,setLibrary]=useState<Library|null>(null),[query,setQuery]=useState(''),[draft,setDraft]=useState(''),[sort,setSort]=useState('time'),[filter,setFilter]=useState('all'),[offset,setOffset]=useState(0),[revision,setRevision]=useState(0),[keyValue,setKeyValue]=useState(''),[keyOpen,setKeyOpen]=useState(false),[confirm,setConfirm]=useState<'disconnect'|'key'|null>(null),[linkGame,setLinkGame]=useState<SteamOwnedGame|null>(null),[linkEntry,setLinkEntry]=useState(''),[callback,setCallback]=useState(''),[clock,setClock]=useState(Date.now()),[waitUntil,setWaitUntil]=useState(0);
   const action=useRef(false),generation=useRef(0),statusAbort=useRef<AbortController|null>(null),requestedAccount=useRef('');
   useEffect(()=>{const params=new URL(window.location.href).searchParams,id=params.get('steamId')??'',q=(params.get('q')??'').slice(0,120);requestedAccount.current=/^\d{17}$/.test(id)?id:'';if(q){setDraft(q);setQuery(q);setOffset(0);}},[]);
@@ -129,13 +131,16 @@ export default function SteamAccount({entries,onEdit,onSave}:{entries:Entry[];on
           <div><dt>최근 2주</dt><dd>{library.stats.recentCount===null?'조회 전':`${library.stats.recentCount}개 · ${playTime(library.stats.recentMinutes)}`}</dd></div>
         </dl>
       </div>
-      <div className="steam-owned-grid" aria-busy={loading}>{library.items.map(game=>{
+      {library.items.length>0&&<div className="steam-library-view"><GameViewToggle view={view} onChange={setView} label="Steam 보기 방식"/></div>}
+      <div className={view==='cover'?'game-shelf-grid':'steam-owned-list'} aria-busy={loading}>{library.items.map(game=>{
         const saved=entries.some(e=>e.game?.steamAccount?.steamId===selected&&e.game.steamAccount.appId===game.appId);
-        return <article className="steam-owned-card" key={game.appId}>
-          <SteamCover game={game}/>
-          <div>
+        return <article className={view==='cover'?'game-tile':'steam-owned-row'} key={game.appId}>
+          <a className="game-tile-cover" href={game.storeUrl} target="_blank" rel="noreferrer" aria-label={`${game.name} Steam 상점 열기`}>
+            <GameCover key={game.imageUrl} imageUrl={game.imageUrl} title=""/>
+          </a>
+          <div className="game-tile-copy steam-owned-copy">
             <a href={game.storeUrl} target="_blank" rel="noreferrer"><strong>{game.name}</strong><ArrowUpRight size={12} aria-hidden="true"/></a>
-            <p><Timer size={12} aria-hidden="true"/>{playTime(game.totalMinutes)}</p>
+            <span className="steam-owned-time"><Timer size={12} aria-hidden="true"/>{playTime(game.totalMinutes)}</span>
             <small>최근 2주 {game.recentMinutes===null?'정보 없음':playTime(game.recentMinutes)}</small>
             <small>최근 실행 {stamp(game.lastPlayedAt)||'정보 없음'}</small>
             <div className="steam-owned-actions">
@@ -160,4 +165,3 @@ export default function SteamAccount({entries,onEdit,onSave}:{entries:Entry[];on
     {linkGame&&<Dialog title="기존 게임에 Steam 계정 시간 연결" onClose={()=>setLinkGame(null)}><div className="steam-link-dialog"><p>‘{linkGame.name}’의 Steam 시간을 표시할 기존 기록을 선택하세요. 제목·직접 기록한 시간·별점·감상은 유지합니다.</p><label>HUB 게임<select aria-label="Steam 시간을 연결할 HUB 게임" value={linkEntry} onChange={e=>setLinkEntry(e.target.value)}><option value="">기존 기록을 선택해주세요</option>{candidates.map(e=><option key={e.id} value={e.id}>{e.title}</option>)}</select></label>{!candidates.length&&<p>App ID가 일치하는 기존 기록이 없어요. 새 게임으로 추가하거나 상점 연결을 확인해주세요.</p>}</div><div className="dialog-footer"><button className="button secondary" onClick={()=>setLinkGame(null)}>취소</button><button className="button primary" disabled={!linkEntry} onClick={()=>{const entry=entries.find(e=>e.id===linkEntry);if(entry&&onSave?.({...entry,game:{...(entry.game??emptyGame()),steamAccount:{steamId:selected,appId:linkGame.appId}}}))setLinkGame(null);}}><Link2 size={14}/>이 기록에 연결</button></div></Dialog>}
   </section>;
 }
-function SteamCover({game}:{game:SteamOwnedGame}){const [failed,setFailed]=useState(false);return <a className="steam-owned-cover" href={game.storeUrl} target="_blank" rel="noreferrer">{failed?<span><Gamepad2 size={28}/></span>:<img src={game.imageUrl} alt={`${game.name} 표지`} loading="lazy" referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>}</a>;}

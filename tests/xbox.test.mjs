@@ -46,12 +46,15 @@ test('Xbox history merges paged titles and keeps zero and missing minutes distin
         return remote({profileUsers:[{id:xuid}]});
       case '/v2/achievements/player/' + xuid:
         return target.searchParams.get('continuationToken') === 'next'
-          ? remote({titles:[{titleId:3,name:'Older PC game',devices:['Win32']}]})
-          : remote({titles:[{titleId:1,name:'First game'},{titleId:4,name:'Video app',type:'App'}],pagingInfo:{continuationToken:'next'}});
+          ? remote({titles:[{titleId:3,name:'Older PC game',devices:['Win32'],displayImage:'https://unsafe.example/cover.jpg'}]})
+          : remote({titles:[{titleId:1,name:'First game',displayImage:'http://store-images.s-microsoft.com/image/icon'},{titleId:4,name:'Video app',type:'App'}],pagingInfo:{continuationToken:'next'}});
       case '/v2/player/titleHistory/' + xuid:
         return remote({titles:[
-          {titleId:1,name:'First game',type:'Game',titleHistory:{lastTimePlayed:'2026-11-23T16:00:00Z'}},
-          {titleId:2,name:'Second game',type:'Game',titleHistory:{lastTimePlayed:'2026-11-22T16:00:00Z'}},
+          {titleId:1,name:'First game',type:'Game',titleHistory:{lastTimePlayed:'2026-11-23T16:00:00Z'},images:[
+            {type:'BoxArt',url:'https://store-images.s-microsoft.com/image/box'},
+            {type:'TitledHeroArt',url:'//store-images.s-microsoft.com/image/banner'},
+          ]},
+          {titleId:2,name:'Second game',type:'Game',titleHistory:{lastTimePlayed:'2026-11-22T16:00:00Z'},displayImage:'http://images-eds-ssl.xboxlive.com/image/cover'},
         ]});
       case '/v2/player/stats':
         assert.equal(options.method, 'POST');
@@ -75,6 +78,11 @@ test('Xbox history merges paged titles and keeps zero and missing minutes distin
     ['First game',120],['Second game',0],['Older PC game',null],
   ]);
   assert.equal(result.games[0].lastPlayed, '2026-11-23T16:00:00.000Z');
+  assert.deepEqual(result.games.map(game=>game.imageUrl), [
+    'https://store-images.s-microsoft.com/image/banner?w=640',
+    'https://images-eds-ssl.xboxlive.com/image/cover',
+    undefined,
+  ]);
   assert.equal(result.historyIncomplete, false);
   assert.equal(result.playtimeIncomplete, false);
   assert.equal(result.limited, false);

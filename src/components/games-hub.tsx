@@ -1,25 +1,13 @@
 'use client';
 import {useEffect,useRef,useState,type FormEvent,type KeyboardEvent as ReactKeyboardEvent,type PointerEvent as ReactPointerEvent} from 'react';
-import {ArrowUpRight,Check,ChevronDown,Database,Gamepad2,Image as ImageIcon,List,MoreHorizontal,Plus,Pencil,RefreshCw,Search,Star,Timer,Trash2,Trophy} from 'lucide-react';
+import {ArrowUpRight,Check,ChevronDown,Database,Gamepad2,MoreHorizontal,Plus,Pencil,RefreshCw,Search,Star,Timer,Trash2,Trophy} from 'lucide-react';
 import {type Entry,safeUrl} from '@/lib/store';
 import {averageRating,effectivePlayTime,emptyGame,gameGenre,gameGroupModes,gamePlatforms,gameStatuses,gameStats,groupGames,inlineRating,memoLine,ownPlayTimeShown,plannedGames,playTime,playTimeLabel,ratingFromPosition,ratingLabel,steamAppId,validateGame,validateSteam,withMemoLine,type GameGroupBy,type SteamMetadata} from '@/lib/games';
 import Dialog from './dialog';
 import { SteamAccountField, SteamLinkedTime, useSteamEntryStats } from './steam-account';
 import { SectionFilters, SectionStats } from './section-controls';
 import { GameHighlights } from './hobby-highlights';
-
-function GameCover({imageUrl,title,thumb=false}:{imageUrl?:string;title:string;thumb?:boolean}){
-  const [failed,setFailed]=useState(false);
-  return <div className={thumb?'game-cover game-thumb':'game-cover'}>{imageUrl&&!failed?<img src={imageUrl} alt={thumb?'':title} loading="lazy" referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>:<div className="game-cover-placeholder"><Gamepad2 size={thumb?20:43} strokeWidth={thumb?1.6:1.1}/></div>}</div>;
-}
-
-/* A per-device display choice (list or covers, summary open or closed, grouping), kept in this browser only. */
-function useDeviceChoice<T extends string>(key:string,fallback:T,allowed:readonly T[],legacy:Record<string,T>={}){
-  const [value,setValue]=useState<T>(fallback);
-  useEffect(()=>{try{const saved=localStorage.getItem(key);const known=saved&&(legacy[saved]??((allowed as readonly string[]).includes(saved)?saved as T:null));if(known)setValue(known);}catch{/* storage unavailable: keep the default */}},[key]);// eslint-disable-line react-hooks/exhaustive-deps
-  const update=(next:T)=>{setValue(next);try{localStorage.setItem(key,next);}catch{/* ignore */}};
-  return [value,update] as const;
-}
+import { GameCover, GameViewToggle, useDeviceChoice, useGameView } from './game-view';
 
 const starPath='M12 2.8l2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.36l-5.7 3 1.09-6.35-4.62-4.5 6.38-.93z';
 /** One star filled, half filled or empty for a score; the half fill uses the gradient GamesHub defines once. */
@@ -97,7 +85,7 @@ export default function GamesHub({active,entries,goneIds,onAdd,onEdit,onDelete,o
   useEffect(()=>{if(!active){setSelectedId(null);setRatingId(null);}},[active]);
   const stats=gameStats(entries),selected=active?entries.find(e=>e.id===selectedId):undefined,rating=active?entries.find(e=>e.id===ratingId):undefined;
   const steamStats=useSteamEntryStats(entries);
-  const [view,setView]=useDeviceChoice('woong-hub:games-view','list',['list','cover'] as const,{cards:'cover'});
+  const [view,setView]=useGameView('games');
   const [summary,setSummary]=useDeviceChoice('woong-hub:games-summary','closed',['open','closed'] as const);
   const [groupBy,setGroupBy]=useDeviceChoice<GameGroupBy>('woong-hub:games-group','rating',groupModes);
   const playingCount=entries.filter(e=>e.status==='플레이 중').length;
@@ -132,7 +120,7 @@ export default function GamesHub({active,entries,goneIds,onAdd,onEdit,onDelete,o
     <div className="game-result-bar"><div className="game-result-count">{records.length}개의 게임</div>
       <div className="game-group-controls"><span className="game-group-label" id="game-group-label">묶어 보기</span>
         <div className="game-view-toggle" role="group" aria-labelledby="game-group-label">{gameGroupModes.map(mode=><button key={mode.id} type="button" aria-pressed={groupBy===mode.id} onClick={()=>setGroupBy(mode.id)}>{mode.label}</button>)}</div></div>
-      <div className="game-view-toggle" role="group" aria-label="게임 보기 방식"><button type="button" aria-pressed={view==='list'} onClick={()=>setView('list')}><List size={15}/>목록</button><button type="button" aria-pressed={view==='cover'} onClick={()=>setView('cover')}><ImageIcon size={15}/>표지</button></div></div>
+      <GameViewToggle view={view} onChange={setView} label="게임 보기 방식"/></div>
     {!records.length?<section className="panel games-empty"><Gamepad2 size={42} strokeWidth={1.1}/><h2>{filtered?'조건에 맞는 게임이 없어요':'다음 모험을 기록해보세요.'}</h2><p>{filtered?'검색어나 상태, 플랫폼을 바꿔보세요.':'Steam 상점 정보와 나만의 플레이 기록으로 게임 라이브러리를 채워보세요.'}</p><button className="button primary" onClick={onAdd}><Plus size={15}/>게임 추가하기</button></section>
     :view==='list'?<section className="game-list" aria-label="게임 목록">{groups.map(group=><div className="game-group" key={group.label||'all'}>
       {group.label&&<div className="game-group-heading"><h2>{group.label}</h2><span>{group.entries.length}개</span></div>}

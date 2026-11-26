@@ -3,8 +3,9 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {Gamepad2, RefreshCw} from 'lucide-react';
 import {playTime} from '@/lib/games';
+import {GameCover, GameViewToggle, useGameView} from './game-view';
 
-type XboxGame = {id:string; name:string; lastPlayed:string|null; minutes:number|null};
+type XboxGame = {id:string; name:string; lastPlayed:string|null; minutes:number|null; imageUrl?:string};
 type XboxSnapshot = {
   games:XboxGame[];
   historyIncomplete:boolean;
@@ -27,6 +28,7 @@ const messages:Record<string,string> = {
 };
 
 export default function XboxHistory() {
+  const [view, setView] = useGameView('xbox');
   const [snapshot, setSnapshot] = useState<XboxSnapshot|null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -84,6 +86,7 @@ export default function XboxHistory() {
             {loading ? '불러오는 중' : snapshot ? '새로고침' : 'Xbox 기록 불러오기'}
           </button>
           {snapshot && <small className="muted">최근 조회 {checkedAtFormat.format(new Date(snapshot.checkedAt))}</small>}
+          {!!snapshot?.games.length && <GameViewToggle view={view} onChange={setView} label="Xbox 보기 방식"/>}
         </div>
         {error && <p className="form-error" role="alert">{error}{snapshot && ' 아래에는 마지막으로 저장한 기록이 표시돼요.'}</p>}
         {snapshot && <>
@@ -92,14 +95,18 @@ export default function XboxHistory() {
           {snapshot.playtimeIncomplete &&
             <p className="muted">일부 게임의 플레이 시간을 조회하지 못했어요.</p>}
           {snapshot.games.length ? (
-            <ul className="xbox-history-list" aria-label="Xbox에서 플레이한 게임">
+            <ul className={view==='cover'?'game-shelf-grid xbox-cover-grid':'xbox-history-list'} aria-label="Xbox에서 플레이한 게임">
               {snapshot.games.slice(0, visible).map(game=>(
-                <li key={game.id}>
-                  <div>
+                <li key={game.id} className={view==='cover'?'game-tile':undefined}>
+                  {view==='cover'&&<div className="game-tile-cover">
+                    <GameCover key={game.imageUrl} imageUrl={game.imageUrl} title=""/>
+                  </div>}
+                  <div className={view==='cover'?'game-tile-copy':undefined}>
                     <strong>{game.name}</strong>
                     <small>{game.lastPlayed ? `마지막 플레이 ${kst.format(new Date(game.lastPlayed))}` : '마지막 플레이 날짜 미기록'}</small>
+                    {view==='cover'&&<small className="game-tile-time">{playTime(game.minutes)}</small>}
                   </div>
-                  <span>{playTime(game.minutes)}</span>
+                  {view==='list'&&<span>{playTime(game.minutes)}</span>}
                 </li>
               ))}
             </ul>

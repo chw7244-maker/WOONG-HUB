@@ -51,13 +51,16 @@
 .games-summary .hub-game-highlights > * { box-shadow: none; background: var(--panel-soft); }
 .xbox-history { display: grid; gap: 12px; justify-items: start; padding: 0 18px 16px; }
 .xbox-history p { margin: 0; }
-.xbox-history-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.xbox-history-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; width: 100%; }
+.xbox-history-actions > .game-view-toggle { margin-inline-start: auto; }
 .xbox-history-heading .games-summary-icon { background: var(--panel-soft); color: var(--green); }
 .xbox-history-list { display: grid; gap: 5px; width: 100%; margin: 0; padding: 0; list-style: none; }
 .xbox-history-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 13px; background: var(--panel-soft); }
 .xbox-history-list li div { display: grid; min-width: 0; overflow-wrap: anywhere; }
 .xbox-history-list li small { color: var(--muted); }
 .xbox-history-list li > span { flex: none; font-variant-numeric: tabular-nums; }
+.xbox-cover-grid { width: 100%; margin: 0; padding: 0; list-style: none; }
+.xbox-cover-grid .game-tile-time { color: var(--accent); font-variant-numeric: tabular-nums; }
 
 /* Result count with the grouping and list / cover switches */
 .game-result-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
@@ -149,7 +152,7 @@
 .game-shelf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 20px; }
 .game-tile { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 0; color: var(--text); text-align: start; }
 .game-tile-cover { position: relative; display: block; border-radius: 18px; overflow: hidden; box-shadow: var(--raise); transition: transform .15s; }
-.game-tile:hover .game-tile-cover { transform: translateY(-3px); }
+button.game-tile:hover .game-tile-cover, a.game-tile-cover:hover { transform: translateY(-3px); }
 .game-tile-rating { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 999px; background: rgba(20, 14, 11, .72); color: #f7ece1; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .game-tile-rating svg { fill: #f0c27a; stroke: #f0c27a; }
 .game-tile-copy { display: grid; gap: 2px; min-width: 0; padding: 0 4px; }

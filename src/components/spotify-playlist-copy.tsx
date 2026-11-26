@@ -3,23 +3,26 @@
 import { useEffect, useRef, useState } from 'react';
 import { ExternalLink, Search } from 'lucide-react';
 import type { LocalPlaylistTrack } from '@/lib/local-playlist';
+import { spotifyResource } from '@/lib/spotify';
 import { spotifyTime, type SpotifyEntity, type SpotifyPage } from '@/lib/spotify-account';
 import { spotifyTrackChoices, spotifyTrackQuery } from '@/lib/spotify-playlist-copy';
 import Dialog from './dialog';
 import { spotifyFetch, SpotifyApiError, useSpotify } from './spotify-provider';
 
 type Match = { candidates: SpotifyEntity[]; chosen: string };
-type Copy = { requestId: string; name: string; uris: string[]; playlist?: SpotifyEntity };
+type PlaylistLink = Pick<SpotifyEntity, 'id' | 'url'>;
+type Copy = { requestId: string; name: string; uris: string[]; playlist?: PlaylistLink };
 
 export default function SpotifyPlaylistCopy({ title, tracks, onClose }: {
   title: string; tracks: LocalPlaylistTrack[]; onClose: () => void;
 }) {
   const spotify = useSpotify();
   const [name, setName] = useState(title.slice(0, 100));
+  const [existingLink, setExistingLink] = useState('');
   const [matches, setMatches] = useState<Match[]>([]);
   const [searching, setSearching] = useState(false);
   const [writing, setWriting] = useState(false);
-  const [remote, setRemote] = useState<SpotifyEntity>();
+  const [remote, setRemote] = useState<PlaylistLink>();
   const [complete, setComplete] = useState(false);
   const [error, setError] = useState('');
   const request = useRef<AbortController | null>(null);
@@ -30,6 +33,7 @@ export default function SpotifyPlaylistCopy({ title, tracks, onClose }: {
   const selected = matches.flatMap(row => row.candidates.find(item => item.id === row.chosen)?.uri ?? []);
   const ready = spotify.status?.features.playlistCopy;
   const locked = !!pending.current;
+  const resuming = !!existingLink.trim();
 
   async function search() {
     if (!ready || request.current) return;
@@ -56,11 +60,20 @@ export default function SpotifyPlaylistCopy({ title, tracks, onClose }: {
   }
 
   async function copy() {
-    if (!name.trim() || !selected.length || activeWrite.current || complete) return;
+    if ((!resuming && !name.trim()) || !selected.length || activeWrite.current || complete) return;
+    let operation = pending.current;
+    if (!operation) {
+      try {
+        operation = { requestId: crypto.randomUUID(), name: name.trim(), uris: selected,
+          playlist: resuming ? spotifyResource(existingLink, 'playlist') : undefined };
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Spotify 플레이리스트 링크를 확인해주세요.');
+        return;
+      }
+    }
     activeWrite.current = true;
     setWriting(true);
     setError('');
-    const operation = pending.current ?? { requestId: crypto.randomUUID(), name: name.trim(), uris: selected };
     pending.current = operation;
     try {
       if (!operation.playlist) {
@@ -68,8 +81,8 @@ export default function SpotifyPlaylistCopy({ title, tracks, onClose }: {
           body: { action: 'playlist-create', requestId: operation.requestId, name: operation.name },
         });
         operation.playlist = playlist;
-        setRemote(playlist);
       }
+      setRemote(operation.playlist);
       await spotifyFetch('command', {
         body: { action: 'playlist-fill', requestId: crypto.randomUUID(), playlistId: operation.playlist.id, uris: operation.uris },
       });
@@ -79,13 +92,26 @@ export default function SpotifyPlaylistCopy({ title, tracks, onClose }: {
       if (!operation.playlist && error instanceof SpotifyApiError && error.status < 500 &&
         !['spotify_request_pending','spotify_request_reused'].includes(code)) pending.current = null;
       if (code === 'spotify_playlist_already_has_tracks') {
-        setError('Spotify 목록에 다른 곡이 있어요. Spotify에서 목록을 확인해주세요.');
+        setError('Spotify 목록에 다른 곡이 있어요. 빈 목록을 선택하거나 Spotify에서 곡을 확인해주세요.');
+      } else if (code === 'spotify_playlist_read_only' || code === 'spotify_playlist_visibility_required') {
+        setError('Spotify에서 본인 소유 목록인지와 비공개 설정을 확인한 뒤 다시 시도해주세요.');
+      } else if (code === 'spotify_scope_required' || code === 'spotify_forbidden' || code === 'spotify_reconnect_required') {
+        setError(error instanceof Error ? error.message : 'Spotify 연결 권한을 확인해주세요.');
+      } else if (code === 'spotify_rate_limited' || code === 'spotify_quota_exceeded') {
+        const seconds = (error as SpotifyApiError).retryAfter;
+        setError(seconds > 0 ? `Spotify 요청 한도에 도달했어요. ${seconds}초 뒤 같은 목록에 다시 시도해주세요.` : 'Spotify 요청 한도에 도달했어요. 잠시 뒤 다시 시도해주세요.');
       } else if (operation.playlist) {
         setError('Spotify에 목록을 만들었지만 곡 추가를 확인하지 못했어요. 같은 목록으로 다시 시도할 수 있어요.');
       } else if (pending.current) {
         setError('Spotify가 목록을 만들었는지 확인하지 못했어요. 다시 누르면 같은 요청 상태를 확인합니다.');
       } else {
         setError(error instanceof Error ? error.message : 'Spotify에 추가하지 못했어요.');
+      }
+      if (resuming && ['spotify_playlist_already_has_tracks','spotify_playlist_read_only',
+        'spotify_playlist_visibility_required','spotify_not_found'].includes(code)) {
+        pending.current = null;
+        setRemote(undefined);
+        if (code === 'spotify_not_found') setError('Spotify에서 목록을 찾지 못했어요. 공유 링크를 확인해주세요.');
       }
     } finally {
       activeWrite.current = false;
@@ -103,8 +129,16 @@ export default function SpotifyPlaylistCopy({ title, tracks, onClose }: {
           {spotify.status?.configured && <button type="button" className="button secondary" disabled={spotify.busy}
             onClick={()=>void spotify.connect('playlistCopy')}>{spotify.status.connected ? 'Spotify 권한 연결' : 'Spotify 계정 연결'}</button>}
         </div> : <>
-          <label className="spotify-copy-name">플레이리스트 이름<input value={name} maxLength={100} readOnly={locked}
-            onChange={event=>setName(event.target.value)}/></label>
+          {!resuming && <label className="spotify-copy-name">플레이리스트 이름<input value={name} maxLength={100} readOnly={locked}
+            onChange={event=>setName(event.target.value)}/></label>}
+          {!complete && <details className="spotify-copy-recovery">
+            <summary>이미 만든 Spotify 목록에 이어서 추가</summary>
+            <label className="spotify-copy-name">Spotify 플레이리스트 공유 링크
+              <input value={existingLink} type="text" inputMode="url" maxLength={2000} readOnly={locked}
+                onChange={event=>setExistingLink(event.target.value)}/>
+            </label>
+            <p className="local-muted">내가 만든 빈 목록의 링크를 붙여넣으세요. 최근 HUB에서 만들었거나 비공개인 목록을 사용할 수 있어요.</p>
+          </details>}
           <div className="spotify-copy-intro">
             <p className="local-muted">곡 제목과 아티스트로 Spotify에서 검색합니다. 선택한 곡만 현재 순서대로 비공개 목록에 담아요.</p>
             {matches.length < tracks.length && <button type="button" className="button secondary" onClick={()=>void search()}
@@ -126,7 +160,7 @@ export default function SpotifyPlaylistCopy({ title, tracks, onClose }: {
               </label>
             </li>;
           })}</ol>}
-          {complete && <p role="status">Spotify에 비공개 플레이리스트를 만들고 {selected.length}곡을 담았어요.</p>}
+          {complete && <p role="status">{resuming ? `Spotify 목록에 ${selected.length}곡을 담았어요.` : `Spotify에 비공개 플레이리스트를 만들고 ${selected.length}곡을 담았어요.`}</p>}
           {remote && <a className="button secondary spotify-copy-link" href={remote.url} target="_blank" rel="noreferrer">
             <ExternalLink size={15} aria-hidden="true"/>Spotify에서 목록 열기
           </a>}
@@ -136,8 +170,8 @@ export default function SpotifyPlaylistCopy({ title, tracks, onClose }: {
     <div className="dialog-footer">
       <button type="button" className="button secondary" disabled={writing} onClick={onClose}>닫기</button>
       {ready && !complete && <button type="button" className="button primary" onClick={()=>void copy()}
-        disabled={writing||searching||matches.length!==tracks.length||!selected.length||!name.trim()}>
-        {writing ? 'Spotify에 저장 중…' : locked ? '추가 다시 확인' : `선택한 ${selected.length}곡으로 만들기`}
+        disabled={writing||searching||matches.length!==tracks.length||!selected.length||(!resuming&&!name.trim())}>
+        {writing ? 'Spotify에 저장 중…' : locked ? '추가 다시 확인' : resuming ? `선택한 ${selected.length}곡 추가` : `선택한 ${selected.length}곡으로 만들기`}
       </button>}
     </div>
   </Dialog>;

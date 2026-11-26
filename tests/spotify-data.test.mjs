@@ -78,3 +78,45 @@ test('로컬 곡 복사는 순서를 유지하며 재시도에서 이미 추가�
   assert.equal((await h.command(input,'copy-fixture-0004')).status,403);
   assert.equal(writes,1);
 });
+
+test('Spotify 공개 상태가 모호하면 같은 계정으로 최근 비공개 생성한 빈 목록만 복구한다',async t=>{
+  const uris=['spotify:track:'+trackId];
+  let visibility=null,own=true,occupied=false;
+  const changes=[];
+  const h=await harness(t,async(url,init)=>{
+    const path=new URL(url).pathname;
+    if(path==='/v1/me/playlists'){
+      assert.equal(JSON.parse(init.body).public,false);
+      return Response.json(playlist,{status:201});
+    }
+    if(path==='/v1/playlists/'+id&&init.method==='GET'){
+      return Response.json({...playlist,public:visibility,owner:{id:own?'spotify-alice':'other-owner'}});
+    }
+    if(path.endsWith('/items')&&init.method==='GET'){
+      return Response.json({items:occupied?[{item:{uri:'spotify:track:'+id}}]:[],next:null,total:occupied?1:0});
+    }
+    changes.push({path,method:init.method,body:JSON.parse(init.body)});
+    return init.method==='PUT'?new Response(null,{status:204}):Response.json({snapshot_id:'new-snapshot'});
+  });
+  const input={action:'playlist-fill',playlistId:id,uris};
+  const missing=await h.command(input,'copy-recovery-0001');
+  assert.equal(missing.status,403);
+  assert.equal((await missing.json()).error,'spotify_playlist_visibility_required');
+  assert.deepEqual(changes,[]);
+  assert.equal((await h.command({action:'playlist-create',name:'원래 목록'},'copy-recovery-create')).status,200);
+  assert.equal((await h.command(input,'copy-recovery-0002')).status,200);
+  assert.deepEqual(changes.splice(0),[{path:'/v1/playlists/'+id+'/items',method:'POST',body:{uris}}]);
+  visibility=true;
+  occupied=true;
+  assert.equal((await h.command(input,'copy-recovery-0003')).status,409);
+  assert.deepEqual(changes,[]);
+  occupied=false;
+  assert.equal((await h.command(input,'copy-recovery-0004')).status,200);
+  assert.deepEqual(changes.splice(0),[
+    {path:'/v1/playlists/'+id,method:'PUT',body:{public:false}},
+    {path:'/v1/playlists/'+id+'/items',method:'POST',body:{uris}},
+  ]);
+  own=false;
+  assert.equal((await h.command(input,'copy-recovery-0005')).status,403);
+  assert.deepEqual(changes,[]);
+});

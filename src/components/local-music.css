@@ -122,6 +122,8 @@
 .spotify-copy-content { padding: 4px 20px 20px; }
 .spotify-copy-intro { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 .spotify-copy-intro p { flex: 1 1 220px; margin: 0; font-size: 14px; }
+.spotify-copy-recovery summary { width: fit-content; min-height: 44px; align-content: center; cursor: pointer; }
+.spotify-copy-recovery p { margin-top: 6px; }
 .spotify-copy-content .button { min-height: 44px; }
 .spotify-copy-link { justify-self: start; }
 .spotify-copy-list { display: grid; gap: 10px; padding-inline-start: 24px; margin: 0; min-width: 0; }

@@ -22,6 +22,14 @@ function page(body,offset,userId){if(!body||!Array.isArray(body.items))throw new
 function pageOffset(params){const raw=params.get('offset')??'0';if(!/^\d{1,6}$/.test(raw)||Number(raw)>100000)throw new SpotifyError('invalid_page',400);return Number(raw);}
 async function playlist(env,user,id,options){const data=await apiRequest(env,user,`/playlists/${ID(id)}`,options);if(!data||data.id!==id||data.type!=='playlist')throw new SpotifyError('spotify_invalid_response');return data;}
 async function ownPlaylist(env,user,id,options){const row=await connection(env,user),data=await playlist(env,user,id,options);if(data.owner?.id!==row?.spotify_user_id)throw new SpotifyError('spotify_playlist_read_only',403);return {row,data};}
+async function recentlyCreatedPlaylist(env,user,owner,id,now){
+  // A successful creation response is stored only after our public:false request.
+  return env.DB.prepare(`SELECT 1 FROM spotify_mutations
+    WHERE user_id = ? AND status = 'succeeded' AND expires_at > ?
+    AND json_extract(response, '$.body.playlist.id') = ?
+    AND json_extract(response, '$.body.playlist.ownerId') = ? LIMIT 1`)
+    .bind(user,now,id,owner).first();
+}
 function deviceId(value){if(value===undefined)return '';if(typeof value!=='string'||!value||value.length>200||!/^[-_A-Za-z0-9]+$/.test(value))throw new SpotifyError('invalid_device',400);return value;}
 function text(value,max){if(typeof value!=='string'||!value.trim()||value.trim().length>max)throw new SpotifyError('invalid_playlist_details',400);return value.trim();}
 async function executeCommand(input,env,user,options){
@@ -44,9 +52,11 @@ async function executeCommand(input,env,user,options){
     if(!Array.isArray(uris)||!uris.length||uris.length>playlistTrackLimit||
       uris.some(uri=>typeof uri!=='string'||!trackUriPattern.test(uri)))throw new SpotifyError('invalid_spotify_uri',400);
     const id=ID(input.playlistId),{data,row}=await ownPlaylist(env,user,id,options);
-    if(data.public!==false)throw new SpotifyError('spotify_playlist_read_only',403);
     const scopes=['playlist-read-private','playlist-modify-private'];
     requireScopes(row,scopes);
+    if(data.public!==false&&!(await recentlyCreatedPlaylist(env,user,row.spotify_user_id,id,options.clock()))){
+      throw new SpotifyError('spotify_playlist_visibility_required',403);
+    }
     const itemsPath=`/playlists/${id}/items`;
     const current=await apiRequest(env,user,`${itemsPath}?limit=${playlistTrackLimit}`,{...options,scopes});
     if(!Array.isArray(current?.items))throw new SpotifyError('spotify_invalid_response');
@@ -55,6 +65,9 @@ async function executeCommand(input,env,user,options){
         return {accepted:true,added:uris.length};
       }
       throw new SpotifyError('spotify_playlist_already_has_tracks',409);
+    }
+    if(data.public===true){
+      await apiRequest(env,user,`/playlists/${id}`,{...options,method:'PUT',scopes,body:{public:false}});
     }
     await apiRequest(env,user,itemsPath,{...options,method:'POST',scopes,body:{uris}});
     return {accepted:true,added:uris.length};

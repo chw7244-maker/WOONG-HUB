@@ -109,7 +109,7 @@
   .local-wall ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 18px; }
   .local-mat { border-radius: 10px; }
   .local-cover-tile { font-size: 22px; padding: 10px; }
-  .local-filters { flex-direction: column; align-items: stretch; }
+  .local-filters { flex-flow: column nowrap; align-items: stretch; }
   .local-chips { flex-wrap: nowrap; overflow-x: auto; }
   .local-selects { flex-wrap: wrap; }
   .local-chips button { flex: none; }

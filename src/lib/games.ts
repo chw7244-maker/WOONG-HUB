@@ -68,7 +68,11 @@ export type GameGroupBy='none'|'rating'|'genre'|'status'|'platform';
 export const gameGroupModes:{id:GameGroupBy;label:string}[]=[{id:'rating',label:'별점'},{id:'genre',label:'장르'},{id:'status',label:'상태'},{id:'platform',label:'플랫폼'},{id:'none',label:'없음'}];
 const ratingBuckets:[string,(r:number|null)=>boolean][]=[['★ 4.5 – 5',r=>r!==null&&r>=4.5],['★ 4',r=>r!==null&&r>=4&&r<4.5],['★ 3 – 3.5',r=>r!==null&&r>=3&&r<4],['★ 2.5 이하',r=>r!==null&&r<3],['아직 별점 없음',r=>r===null]];
 const statusOrder=['플레이 중','플레이 예정','위시리스트','완료','보류'];
-export const gameGenre=(entry:Entry)=>entry.game?.steam?.genres[0]?.trim()||'장르 미기록';
+const broadSteamGenres = new Set(['action', 'indie', '액션', '인디']);
+export function gameGenre(entry: Entry) {
+  const genres = entry.game?.steam?.genres.map(genre => genre.trim()).filter(Boolean) ?? [];
+  return genres.find(genre => !broadSteamGenres.has(genre.toLowerCase())) ?? genres[0] ?? '장르 미기록';
+}
 const ratingOf=(entry:Entry)=>entry.game?.rating??null;
 /** Highest rating first, unrated last, then by title. */
 export const byRatingThenTitle=(a:Entry,b:Entry)=>(ratingOf(b)??-1)-(ratingOf(a)??-1)||a.title.localeCompare(b.title,'ko');

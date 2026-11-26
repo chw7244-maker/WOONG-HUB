@@ -56,8 +56,18 @@ test('status and platform groups follow a fixed order, genres go by size with un
   assert.deepEqual(groupGames(list, 'status').map(g => g.label), ['플레이 중', '플레이 예정', '위시리스트', '완료', '나중에']);
   const platforms = [game('Switch', { platform: 'Nintendo' }), game('Pc'), game('Ps', { platform: 'PlayStation' })];
   assert.deepEqual(groupGames(platforms, 'platform').map(g => g.label), ['PC', 'PlayStation', 'Nintendo']);
-  const genres = [game('A', { genres: ['Puzzle'] }), game('B'), game('C', { genres: ['Action', 'Indie'] }), game('D', { genres: ['Action'] })];
-  assert.deepEqual(titles(groupGames(genres, 'genre')), [['Action', ['C', 'D']], ['Puzzle', ['A']], ['장르 미기록', ['B']]]);
+  const genres = [
+    game('A', { genres: ['Puzzle', 'Action'] }),
+    game('B'),
+    game('C', { genres: ['Action', 'Indie'] }),
+    game('D', { rating: 4, genres: ['ACTION', ' indie ', ' Puzzle ', 'RPG'] }),
+    game('E', { genres: ['인디', '액션', '전략', '시뮬레이션'] }),
+    game('F', { genres: ['인디', '액션'] }),
+  ];
+  const genreGroups = titles(groupGames(genres, 'genre'));
+  assert.deepEqual(genreGroups[0], ['Puzzle', ['D', 'A']]);
+  assert.deepEqual(genreGroups.slice(1, -1).sort(), [['Action', ['C']], ['인디', ['F']], ['전략', ['E']]]);
+  assert.deepEqual(genreGroups.at(-1), ['장르 미기록', ['B']]);
 });
 
 test('no grouping keeps the given order as one group, and empty lists give no groups', () => {

@@ -68,10 +68,22 @@ export type GameGroupBy='none'|'rating'|'genre'|'status'|'platform';
 export const gameGroupModes:{id:GameGroupBy;label:string}[]=[{id:'rating',label:'별점'},{id:'genre',label:'장르'},{id:'status',label:'상태'},{id:'platform',label:'플랫폼'},{id:'none',label:'없음'}];
 const ratingBuckets:[string,(r:number|null)=>boolean][]=[['★ 4.5 – 5',r=>r!==null&&r>=4.5],['★ 4',r=>r!==null&&r>=4&&r<4.5],['★ 3 – 3.5',r=>r!==null&&r>=3&&r<4],['★ 2.5 이하',r=>r!==null&&r<3],['아직 별점 없음',r=>r===null]];
 const statusOrder=['플레이 중','플레이 예정','위시리스트','완료','보류'];
-const broadSteamGenres = new Set(['action', 'indie', '액션', '인디']);
+const broadSteamGenres = new Map([
+  ['action', 'action'], ['액션', 'action'],
+  ['adventure', 'adventure'], ['어드벤처', 'adventure'],
+  ['indie', 'indie'], ['인디', 'indie'],
+]);
+const steamStoreLabels = new Set(['free to play', 'early access', '무료 플레이', '앞서 해보기']);
 export function gameGenre(entry: Entry) {
-  const genres = entry.game?.steam?.genres.map(genre => genre.trim()).filter(Boolean) ?? [];
-  return genres.find(genre => !broadSteamGenres.has(genre.toLowerCase())) ?? genres[0] ?? '장르 미기록';
+  const genres = (entry.game?.steam?.genres ?? [])
+    .map(genre => genre.trim())
+    .filter(genre => genre && !steamStoreLabels.has(genre.toLowerCase()));
+  const specific = genres.find(genre => !broadSteamGenres.has(genre.toLowerCase()));
+  if (specific) return specific;
+
+  const broad = new Set(genres.map(genre => broadSteamGenres.get(genre.toLowerCase())));
+  if (broad.has('action') && broad.has('adventure')) return '액션 어드벤처';
+  return genres[0] ?? '장르 미기록';
 }
 const ratingOf=(entry:Entry)=>entry.game?.rating??null;
 /** Highest rating first, unrated last, then by title. */

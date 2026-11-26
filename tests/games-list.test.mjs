@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { averageRating, groupGames, inlineRating, memoLine, plannedGames, ratingFromPosition, ratingLabel, withMemoLine } from '../src/lib/games.ts';
+import { averageRating, gameGenre, groupGames, inlineRating, memoLine, plannedGames, ratingFromPosition, ratingLabel, withMemoLine } from '../src/lib/games.ts';
 
 const game = (title, { rating = null, status = '완료', platform = 'PC', genres, createdAt = '2026-11-01T00:00:00Z' } = {}) => ({
   id: title, kind: 'games', title, detail: '', category: platform, status, url: '', date: '', done: false, createdAt,
@@ -75,6 +75,14 @@ test('no grouping keeps the given order as one group, and empty lists give no gr
   assert.deepEqual(titles(groupGames(list, 'none')), [['', ['Z', 'A']]]);
   assert.deepEqual(groupGames([], 'none'), []);
   assert.deepEqual(groupGames([], 'rating'), []);
+});
+
+test('Steam adventure yields to more specific genres and combines with action when both are the only gameplay genres', () => {
+  assert.equal(gameGenre(game('RPG', { genres: ['액션', '어드벤처', 'RPG', '전략'] })), 'RPG');
+  assert.equal(gameGenre(game('Simulation', { genres: ['Adventure', 'Free to Play', 'Indie', 'Simulation'] })), 'Simulation');
+  assert.equal(gameGenre(game('Hybrid', { genres: ['Adventure', 'Indie', 'ACTION', '앞서 해보기'] })), '액션 어드벤처');
+  assert.equal(gameGenre(game('Adventure', { genres: ['어드벤처'] })), '어드벤처');
+  assert.equal(gameGenre(game('No genre', { genres: ['무료 플레이', 'Early Access'] })), '장르 미기록');
 });
 
 test('the group average leaves unrated games out, and the next game is the latest planned one', () => {

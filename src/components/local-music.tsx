@@ -47,7 +47,7 @@ function AlbumDetail({album,entry,onCollect,onAddCover}:{album:LocalAlbum;entry?
  * 내 음원 라이브러리: reads a PC music folder in the browser, keeps tags and cover thumbnails on the account and shows
  * albums as framed covers on a wall, with the picked album's details beside it (a sheet on phones).
  */
-export default function LocalMusic({collection,onCollect,onUpdate,onUpdateMany}:{collection:Entry[];onCollect:(entry:Entry,message:string)=>void;onUpdate:(entry:Entry,message:string)=>void;onUpdateMany:(entries:Entry[],message:string)=>void}){
+export default function LocalMusic({collection,onCollect,onUpdate,onUpdateMany}:{collection:Entry[];onCollect:(entry:Entry,message:string)=>boolean;onUpdate:(entry:Entry,message:string)=>void;onUpdateMany:(entries:Entry[],message:string)=>void}){
   const [library,setLibrary]=useState<LocalLibrary|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [playlist,setPlaylist]=useState(false);
   const [progress,setProgress]=useState<ScanProgress|null>(null),[result,setResult]=useState<ScanResult|null>(null),[saving,setSaving]=useState('');
@@ -210,7 +210,8 @@ export default function LocalMusic({collection,onCollect,onUpdate,onUpdateMany}:
       </div>:<p className="local-empty">{query||genre||tier||scope?'조건에 맞는 앨범이 없어요.':'앨범이 없어요.'}</p>}
       <button type="button" className="text-button local-remove" onClick={()=>void remove()}><Trash2 size={14} aria-hidden="true"/>저장한 라이브러리 지우기</button>
       {sheet&&current&&<Dialog title={current.title} onClose={()=>setSheet(false)} className="section-detail local-sheet"><AlbumDetail album={current} entry={entryOf(current)} onCollect={()=>collect(current)} onAddCover={()=>addCover(current)}/></Dialog>}
-      {playlist&&<LocalPlaylist albums={shown} folder={library.folder} onClose={()=>setPlaylist(false)}/>}
+      {playlist&&<LocalPlaylist albums={shown} folder={library.folder} onSave={onCollect}
+        isSaved={id=>collection.some(entry=>entry.id===id)} onClose={()=>setPlaylist(false)}/>}
     </>}
     {!library&&!loading&&!progress&&<section className="local-start"><ImageOff size={36} strokeWidth={1.3} aria-hidden="true"/><h2>아직 읽은 음악 폴더가 없어요</h2><p>PC의 Chrome이나 Edge에서 ‘음악 폴더 고르기’를 눌러 음악이 든 폴더(또는 카드 리더에 꽂은 microSD)를 고르세요. 휴대폰에서는 만든 라이브러리를 볼 수만 있어요.</p></section>}
   </div>;

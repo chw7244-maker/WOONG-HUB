@@ -3,6 +3,8 @@ import { safePath, type LocalAlbum, type LocalTrack } from './local-music.ts';
 export const playlistCandidateLimit = 120;
 export const playlistTrackLimit = 25;
 export const playlistPromptLimit = 240;
+export type LocalPlaylistTrack = Pick<LocalTrack, 'path' | 'title' | 'artist' | 'album' | 'seconds'>;
+export type SavedLocalPlaylist = { folder: string; tracks: LocalPlaylistTrack[] };
 const titleLimit = 80;
 const oneLine = (value: string) => value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
 const searchKey = (value: string) => value.normalize('NFC').toLowerCase().replace(/\s+/g, '');
@@ -47,7 +49,26 @@ export function playlistRequest(prompt: string, count: number, tracks: LocalTrac
   };
 }
 
-export function playlistExport(title: string, tracks: LocalTrack[]) {
+export function validateLocalPlaylist(input: unknown): SavedLocalPlaylist {
+  const value = input as SavedLocalPlaylist;
+  const validText = (text: unknown, max: number) => typeof text === 'string' && text.length <= max && !/[\u0000-\u001f\u007f]/.test(text);
+  const invalid = () => new Error('내 음원 플레이리스트의 곡 정보를 확인해주세요.');
+  if (!value || !validText(value.folder, 200) || !Array.isArray(value.tracks) ||
+    !value.tracks.length || value.tracks.length > playlistTrackLimit) throw invalid();
+
+  const paths = new Set<string>();
+  const tracks = value.tracks.map(track => {
+    if (!track || typeof track.path !== 'string' || !safePath(track.path) || paths.has(track.path) ||
+      !validText(track.title, 300) || !track.title.trim() || !validText(track.artist, 300) || !validText(track.album, 300) ||
+      (track.seconds !== null && (!Number.isInteger(track.seconds) || track.seconds < 0 || track.seconds > 1_000_000))) throw invalid();
+    const { path, title, artist, album, seconds } = track;
+    paths.add(path);
+    return { path, title, artist, album, seconds };
+  });
+  return { folder: value.folder, tracks };
+}
+
+export function playlistExport(title: string, tracks: LocalPlaylistTrack[]) {
   const name = oneLine(title).slice(0, titleLimit) || 'AI 플레이리스트';
   const basename = name.replace(/[\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim().replace(/[. ]+$/, '') || 'AI 플레이리스트';
   const lines = ['#EXTM3U', `#PLAYLIST:${name}`];

@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Download, Sparkles, X } from 'lucide-react';
-import { formatLength, type LocalAlbum, type LocalTrack } from '@/lib/local-music';
-import { playlistCandidateLimit, playlistCandidates, playlistExport, playlistPromptLimit, playlistRequest } from '@/lib/local-playlist';
+import { Check, Download, Sparkles, X } from 'lucide-react';
+import Link from 'next/link';
+import { formatLength, type LocalAlbum } from '@/lib/local-music';
+import { playlistCandidateLimit, playlistCandidates, playlistExport, playlistPromptLimit, playlistRequest, type LocalPlaylistTrack } from '@/lib/local-playlist';
+import { emptyMusic, validateMusic } from '@/lib/music';
+import type { Entry } from '@/lib/store';
 import Dialog from './dialog';
 
 const errors: Record<string, string> = {
@@ -12,19 +15,48 @@ const errors: Record<string, string> = {
   gemini_rejected: 'Gemini가 요청을 받아들이지 않았어요. AI Studio의 인증키와 모델 사용 권한을 확인해주세요.',
 };
 
-export default function LocalPlaylist({ albums, folder, onClose }: {
-  albums: LocalAlbum[]; folder: string; onClose: () => void;
+export function downloadLocalPlaylist(title: string, tracks: LocalPlaylistTrack[]) {
+  const file = playlistExport(title, tracks);
+  const url = URL.createObjectURL(new Blob([file.content], { type: 'audio/x-mpegurl;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function LocalPlaylistTracks({ tracks, folder, onRemove }: {
+  tracks: LocalPlaylistTrack[]; folder: string; onRemove?: (path: string) => void;
+}) {
+  const knownSeconds = tracks.reduce((sum, track) => sum + (track.seconds ?? 0), 0);
+  return <div className="local-playlist-tracks">
+    <p className="local-muted">{tracks.length}곡{knownSeconds > 0 && ` · ${formatLength(knownSeconds)}`}{knownSeconds > 0 && tracks.some(track => track.seconds == null) && ' · 길이 정보가 있는 곡 기준'}</p>
+    <ol aria-label="플레이리스트 곡 순서">{tracks.map(track => <li key={track.path}>
+      <div><strong>{track.title}</strong><small>{track.artist} · {track.album}</small></div>
+      {onRemove && <button type="button" className="icon-button" aria-label={`${track.title} 빼기`}
+        onClick={() => onRemove(track.path)}><X size={16} aria-hidden="true"/></button>}
+    </li>)}</ol>
+    <p className="local-muted">M3U8 파일을 PC의 ‘{folder || '음원'}’ 폴더에 넣고 M3U8을 지원하는 플레이어로 여세요.</p>
+  </div>;
+}
+
+export default function LocalPlaylist({ albums, folder, onSave, isSaved, onClose }: {
+  albums: LocalAlbum[]; folder: string; onSave: (entry: Entry, message: string) => boolean;
+  isSaved: (id: string) => boolean; onClose: () => void;
 }) {
   const [prompt, setPrompt] = useState('');
   const [count, setCount] = useState(15);
   const [title, setTitle] = useState('');
-  const [tracks, setTracks] = useState<LocalTrack[]>([]);
+  const [tracks, setTracks] = useState<LocalPlaylistTrack[]>([]);
+  const [draftId, setDraftId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const request = useRef<AbortController | null>(null);
   useEffect(() => () => request.current?.abort(), []);
   const total = albums.reduce((sum, album) => sum + album.tracks.length, 0);
-  const knownSeconds = tracks.reduce((sum, track) => sum + (track.seconds ?? 0), 0);
+  const saved = !!draftId && isSaved(draftId);
 
   async function generate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,6 +79,7 @@ export default function LocalPlaylist({ albums, folder, onClose }: {
         setError(errors[result.error] ?? 'Gemini에서 선곡 결과를 받지 못했어요. 다시 시도해주세요.');
         return;
       }
+      setDraftId(crypto.randomUUID());
       setTitle(result.title);
       setTracks(result.trackIds.map((id: number) => candidates[id]));
     } catch {
@@ -57,16 +90,20 @@ export default function LocalPlaylist({ albums, folder, onClose }: {
     }
   }
 
-  function download() {
-    const file = playlistExport(title, tracks);
-    const url = URL.createObjectURL(new Blob([file.content], { type: 'audio/x-mpegurl;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = file.filename;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  function save() {
+    if (!draftId || saved || !tracks.length || busy) return;
+    setError('');
+    try {
+      const music = validateMusic({ ...emptyMusic(), type: 'playlist', favorite: true, localPlaylist: { folder, tracks } });
+      const entry: Entry = {
+        id: draftId, kind: 'music', title: title.trim() || 'AI 플레이리스트', detail: '', category: '디지털',
+        status: '컬렉션', url: '', date: '', done: false, createdAt: new Date().toISOString(), music,
+      };
+      if (onSave(entry, '음악 탭의 플레이리스트에 저장했어요.')) setTitle(entry.title);
+      else setError('플레이리스트를 저장하지 못했어요. 다시 시도해주세요.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '플레이리스트를 저장하지 못했어요.');
+    }
   }
 
   return <Dialog title="AI 플레이리스트" onClose={onClose} className="local-playlist-dialog">
@@ -84,23 +121,24 @@ export default function LocalPlaylist({ albums, folder, onClose }: {
         </button>
       </div>
       <p className="local-muted">현재 화면의 앨범에서 최대 {Math.min(total, playlistCandidateLimit)}곡의 제목·아티스트·장르와 요청 문장을 Google Gemini에 보냅니다. 무료 계층의 입력은 제품 개선에 사용될 수 있어요. <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noreferrer">이용 조건</a></p>
-      <p className="local-muted" role="status">{busy ? 'Gemini가 곡 순서를 정하고 있어요.' : tracks.length > 0 ? `${tracks.length}곡을 골랐어요.` : ''}</p>
+      <p className="local-muted" role="status">{busy ? 'Gemini가 곡 순서를 정하고 있어요.' : saved ? '플레이리스트에 저장했어요.' : ''}</p>
       {error && <p className="form-error" role="alert">{error}</p>}
     </form>
     {tracks.length > 0 && <>
       <div className="local-playlist-results">
-        <label>플레이리스트 이름<input value={title} maxLength={80} onChange={event => setTitle(event.target.value)}/></label>
-        {knownSeconds > 0 && <p className="local-muted">{formatLength(knownSeconds)}{tracks.some(track => track.seconds == null) && ' · 길이 정보가 있는 곡 기준'}</p>}
-        <ol aria-label="추천 곡 순서">{tracks.map(track => <li key={track.path}>
-          <div><strong>{track.title}</strong><small>{track.artist} · {track.album}</small></div>
-          <button type="button" className="icon-button" aria-label={`${track.title} 빼기`}
-            onClick={() => setTracks(current => current.filter(item => item.path !== track.path))}><X size={16} aria-hidden="true"/></button>
-        </li>)}</ol>
-        <p className="local-muted">내려받은 파일을 PC에서 처음 읽은 ‘{folder || '음원'}’ 폴더에 넣고 M3U8을 지원하는 플레이어로 여세요.</p>
+        <label>플레이리스트 이름<input value={title} maxLength={80} readOnly={saved} onChange={event => setTitle(event.target.value)}/></label>
+        <LocalPlaylistTracks tracks={tracks} folder={folder}
+          onRemove={saved ? undefined : path => setTracks(current => current.filter(item => item.path !== path))}/>
       </div>
-      <div className="dialog-footer"><button type="button" className="button primary" onClick={download}>
-        <Download size={16} aria-hidden="true"/>M3U8 내려받기
-      </button></div>
     </>}
+    <div className="dialog-footer">
+      {tracks.length > 0 && <button type="button" className="button secondary" onClick={()=>downloadLocalPlaylist(title, tracks)}>
+        <Download size={16} aria-hidden="true"/>M3U8 내려받기
+      </button>}
+      {saved ? <Link href={`/music/?playlist=${encodeURIComponent(draftId)}`} className="button primary">저장한 플레이리스트 보기</Link>
+        : <button type="button" className="button primary" onClick={save} disabled={busy || !tracks.length}>
+          <Check size={16} aria-hidden="true"/>플레이리스트에 저장
+        </button>}
+    </div>
   </Dialog>;
 }

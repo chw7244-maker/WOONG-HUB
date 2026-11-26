@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { playlistCandidates, playlistExport, playlistRequest } from '../src/lib/local-playlist.ts';
+import { emptyMusic, validateMusic } from '../src/lib/music.ts';
+import { initial, validateData } from '../src/lib/store.ts';
 import { handleMusicPlaylist } from '../worker/music-playlist.mjs';
 
 const sample = (index, album = '샘플 앨범', artist = '샘플 연주자') => ({
@@ -37,6 +39,24 @@ test('export uses Unicode metadata and relative paths from the scanned folder', 
   assert.match(file.content, /#EXTM3U\n#PLAYLIST:밤: 재즈\n#EXTINF:180,샘플 연주자 - 샘플 곡 1\n\.\/샘플 앨범\/1\.flac/);
   assert.match(file.content, /#EXTINF:-1,샘플 연주자 - 샘플 곡 2\n\.\/#광고가 아닌 곡.flac\n$/);
   assert.throws(() => playlistExport('샘플', [{ ...sample(1), path: '../file.flac' }]));
+});
+
+test('local playlist track order survives backup validation and can be exported without the library', () => {
+  const folder = '내 음원';
+  const first = sample(2), second = { ...sample(1), seconds: null };
+  const music = { ...emptyMusic(), type: 'playlist', favorite: true, localPlaylist: { folder, tracks: [first, second] } };
+  const entry = { id: 'local-playlist', kind: 'music', title: '저녁 재즈', detail: '', category: '디지털',
+    status: '컬렉션', url: '', date: '', done: false, createdAt: '2026-11-26T00:00:00.000Z', music };
+  const restored = validateData(JSON.parse(JSON.stringify({ ...initial, entries: [entry] }))).entries[0];
+  assert.equal(restored.music.type, 'playlist');
+  assert.equal(restored.music.favorite, true);
+  assert.equal(restored.music.localPlaylist.folder, folder);
+  assert.deepEqual(restored.music.localPlaylist.tracks.map(track => track.path), [first.path, second.path]);
+  assert.deepEqual(Object.keys(restored.music.localPlaylist.tracks[0]), ['path', 'title', 'artist', 'album', 'seconds']);
+  assert.deepEqual(playlistExport(restored.title, restored.music.localPlaylist.tracks), playlistExport(entry.title, [first, second]));
+  assert.throws(() => validateMusic({ ...music, type: 'album' }));
+  assert.throws(() => validateMusic({ ...music, localPlaylist: { folder, tracks: [first, first] } }));
+  assert.throws(() => validateMusic({ ...music, localPlaylist: { folder, tracks: [{ ...first, path: '../side.flac' }] } }));
 });
 
 test('calls the free-tier-capable model with bounded metadata and preserves the selected order', async () => {

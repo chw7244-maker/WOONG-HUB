@@ -141,7 +141,7 @@ export default function Hub({section}:{section:string}) {
     if(!untouched.length){notify('기록이 다시 바뀌어 되돌릴 수 없어요.');return;}
     if(persist({...data,entries:data.entries.flatMap(e=>!restore.has(e.id)?[e]:restore.get(e.id)?[restore.get(e.id)!]:[])}))notify(untouched.length===items.length?'가져오기 전으로 되돌렸어요.':`${untouched.length}개를 되돌렸어요. 그사이 바뀐 ${items.length-untouched.length}개는 그대로 뒀어요.`);
   }
-  function quickAdd(entry:Entry,message:string){save(entry,{message,revert:{before:null,after:entry}});}
+  function quickAdd(entry:Entry,message:string){return save(entry,{message,revert:{before:null,after:entry}});}
   function revertQuickSave(){
     if(!toast?.revert)return;
     const {before,after}=toast.revert;

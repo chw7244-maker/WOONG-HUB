@@ -103,11 +103,16 @@
 .local-playlist-inputs button { min-height: 44px; }
 .local-playlist-form .local-muted a { text-decoration: underline; text-underline-offset: 2px; }
 .local-playlist-form [role=status]:empty { display: none; }
-.local-playlist-results ol { display: grid; gap: 4px; min-width: 0; margin: 0; padding-inline-start: 26px; }
-.local-playlist-results li { padding-inline-start: 4px; }
-.local-playlist-results li > div { display: inline-grid; gap: 2px; max-width: calc(100% - 50px); vertical-align: middle; overflow-wrap: anywhere; font-size: 14px; }
-.local-playlist-results li small { color: var(--muted); font-size: 12px; }
-.local-playlist-results li button { width: 44px; min-height: 44px; margin-inline-start: 4px; vertical-align: middle; }
+.local-playlist-tracks { display: grid; gap: 10px; min-width: 0; }
+.local-playlist-tracks ol { display: grid; gap: 7px; min-width: 0; margin: 0; padding-inline-start: 26px; }
+.local-playlist-tracks li { padding-inline-start: 4px; }
+.local-playlist-tracks li > div { display: inline-grid; gap: 2px; max-width: 100%; vertical-align: middle; overflow-wrap: anywhere; font-size: 14px; }
+.local-playlist-tracks li:has(button) > div { max-width: calc(100% - 50px); }
+.local-playlist-tracks li small { color: var(--muted); font-size: 12px; }
+.local-playlist-tracks li button { width: 44px; min-height: 44px; margin-inline-start: 4px; vertical-align: middle; }
+.music-local-playlist { display: grid; justify-items: start; gap: 12px; margin-top: 20px; }
+.music-local-playlist h3 { margin: 0; font-size: 15px; }
+.music-local-playlist > .button { min-height: 44px; }
 
 @media (max-width: 1180px) {
   .local-layout { grid-template-columns: minmax(0, 1fr) 300px; }

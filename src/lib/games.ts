@@ -4,7 +4,7 @@ import {validateSteamRef,type SteamAccountRef} from './steam-account.ts';
 export const gamePlatforms=['PC','PlayStation','Nintendo','Xbox','모바일','기타'];
 export const gameStatuses=['플레이 예정','플레이 중','완료','위시리스트','보류'];
 export type SteamMetadata={appId:number;name:string;developers:string[];publishers:string[];genres:string[];releaseDate:string;comingSoon:boolean;description:string;storeUrl:string;imageUrl:string;checkedAt:string};
-export type GameDetails={playMinutes:number|null;rating:number|null;startedAt:string;completedAt:string;tags:string[];steam?:SteamMetadata;steamAccount?:SteamAccountRef};
+export type GameDetails={playMinutes:number|null;rating:number|null;startedAt:string;completedAt:string;tags:string[];steam?:SteamMetadata;steamAccount?:SteamAccountRef;xboxTitleId?:string};
 export const emptyGame=():GameDetails=>({playMinutes:null,rating:null,startedAt:'',completedAt:'',tags:[]});
 const day=(v:unknown)=>{if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(v))return false;const d=new Date(v+'T00:00:00Z');return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===v;};
 export function steamAppId(value:string):number|null{
@@ -23,24 +23,24 @@ export function validateGame(input:unknown):GameDetails{
   const g=input as GameDetails;
   if(!g||typeof g!=='object'||(g.playMinutes!==null&&(!Number.isSafeInteger(g.playMinutes)||g.playMinutes<0||g.playMinutes>6000000))||(g.rating!==null&&(typeof g.rating!=='number'||!Number.isFinite(g.rating)||g.rating<0||g.rating>5||g.rating*2%1!==0))||typeof g.startedAt!=='string'||typeof g.completedAt!=='string'||(g.startedAt&&!day(g.startedAt))||(g.completedAt&&!day(g.completedAt))||(g.startedAt&&g.completedAt&&g.completedAt<g.startedAt)||!Array.isArray(g.tags)||g.tags.length>8||g.tags.some(t=>typeof t!=='string'||!t.trim()||t.length>30))throw new Error('플레이 시간·별점·날짜·태그를 확인해주세요.');
   const ref=g.steamAccount!==undefined?validateSteamRef(g.steamAccount):undefined;if(ref&&g.steam&&ref.appId!==g.steam.appId)throw new Error('Steam 상점 정보와 연결할 게임의 App ID가 달라요.');
-  return {playMinutes:g.playMinutes,rating:g.rating,startedAt:g.startedAt,completedAt:g.completedAt,tags:[...new Set(g.tags.map(t=>t.trim()))],...(g.steam!==undefined?{steam:validateSteam(g.steam)}:{}),...(ref?{steamAccount:ref}:{})};
+  if(g.xboxTitleId!==undefined&&(typeof g.xboxTitleId!=='string'||!/^\d{1,10}$/.test(g.xboxTitleId)))throw new Error('Xbox 게임 연결 정보를 확인해주세요.');
+  return {playMinutes:g.playMinutes,rating:g.rating,startedAt:g.startedAt,completedAt:g.completedAt,tags:[...new Set(g.tags.map(t=>t.trim()))],...(g.steam!==undefined?{steam:validateSteam(g.steam)}:{}),...(ref?{steamAccount:ref}:{}),...(g.xboxTitleId!==undefined?{xboxTitleId:g.xboxTitleId}:{})};
 }
-/**
- * The play time a game shows. Steam's total wins whenever it has any minutes; the time recorded by hand only shows
- * for games Steam reports as 0 minutes or does not know (not linked, other platforms). `steam` is undefined while
- * a linked account is still being read, so a hand-recorded value does not flash before Steam's arrives.
- */
-export type PlayTimeSource='steam'|'own'|'loading'|null;
-export function effectivePlayTime(own:number|null,steam:number|null|undefined,linked:boolean):{minutes:number|null;source:PlayTimeSource}{
+/** Prefer Steam, Xbox, then manual time. Keep a provider's zero when there is no other time. */
+export type PlayTimeSource='steam'|'xbox'|'own'|'loading'|null;
+export function effectivePlayTime(own:number|null,steam:number|null|undefined,linked:boolean,xbox:number|null=null):{minutes:number|null;source:PlayTimeSource}{
   if(typeof steam==='number'&&steam>0)return {minutes:steam,source:'steam'};
   if(linked&&steam===undefined)return {minutes:null,source:'loading'};
+  if(xbox!==null&&xbox>0)return {minutes:xbox,source:'xbox'};
   if(own!==null)return {minutes:own,source:'own'};
   if(typeof steam==='number')return {minutes:0,source:'steam'};
+  if(xbox===0)return {minutes:0,source:'xbox'};
   return {minutes:null,source:null};
 }
 export function playTimeLabel({minutes,source}:{minutes:number|null;source:PlayTimeSource}){
   if(source==='loading')return 'Steam 시간 확인 중';
   if(source==='steam')return `Steam ${playTime(minutes)}`;
+  if(source==='xbox')return `Xbox ${playTime(minutes)}`;
   if(source==='own')return `직접 ${playTime(minutes)}`;
   return playTime(null);
 }

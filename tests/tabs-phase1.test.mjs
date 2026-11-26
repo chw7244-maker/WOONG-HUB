@@ -67,6 +67,14 @@ test('Steam minutes win; the hand-recorded time shows only when Steam has none',
   assert.equal(ownPlayTimeShown(null), true);
 });
 
+test('Xbox time appears after Steam and before manual time, without adding across platforms', () => {
+  assert.deepEqual(effectivePlayTime(300, 0, true, 90), { minutes: 90, source: 'xbox' });
+  assert.deepEqual(effectivePlayTime(300, 120, true, 90), { minutes: 120, source: 'steam' });
+  assert.deepEqual(effectivePlayTime(300, null, false, 0), { minutes: 300, source: 'own' });
+  assert.equal(playTimeLabel(effectivePlayTime(null, null, false, 0)), 'Xbox 0분');
+  assert.equal(playTimeLabel(effectivePlayTime(null, null, false, 90)), 'Xbox 1시간 30분');
+});
+
 test('accessories split into ear tips and cables by name, and categories keep a stable order', () => {
   for (const name of ['JVC Spiral Dot Original (EP-FX9)', 'final Type E', 'Divinus Velvet Wide Bore', 'AZLA SednaEarfit MAX', 'SpinFit CP145']) assert.equal(guessAccessory(name), '이어팁', name);
   for (const name of ['Eletech Baroque Stage', 'iFi Audio 4.4mm ↔ 4.4mm 케이블', 'Effect Audio Cadmus 8W', 'NICEHCK SnowAg']) assert.equal(guessAccessory(name), '케이블', name);

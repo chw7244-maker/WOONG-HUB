@@ -56,11 +56,17 @@
 .xbox-history-heading .games-summary-icon { background: var(--panel-soft); color: var(--green); }
 .xbox-history-list { display: grid; gap: 5px; width: 100%; margin: 0; padding: 0; list-style: none; }
 .xbox-history-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 13px; background: var(--panel-soft); }
-.xbox-history-list li div { display: grid; min-width: 0; overflow-wrap: anywhere; }
+.xbox-history-list li > div:first-child { display: grid; min-width: 0; overflow-wrap: anywhere; }
 .xbox-history-list li small { color: var(--muted); }
-.xbox-history-list li > span { flex: none; font-variant-numeric: tabular-nums; }
 .xbox-cover-grid { width: 100%; margin: 0; padding: 0; list-style: none; }
-.xbox-cover-grid .game-tile-time { color: var(--accent); font-variant-numeric: tabular-nums; }
+.xbox-history .game-tile-time { color: var(--accent); font-variant-numeric: tabular-nums; }
+.xbox-link-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.xbox-history-list .xbox-link-actions { justify-content: flex-end; }
+.xbox-link-actions > .text-button { font-size: 12px; }
+@media(max-width:760px) {
+  .xbox-history-list li { flex-wrap: wrap; }
+  .xbox-history-list .xbox-link-actions { justify-content: flex-start; }
+}
 
 /* Result count with the grouping and list / cover switches */
 .game-result-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }

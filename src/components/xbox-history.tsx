@@ -1,11 +1,13 @@
 'use client';
 
 import {useCallback, useEffect, useRef, useState} from 'react';
-import {Gamepad2, RefreshCw} from 'lucide-react';
-import {playTime} from '@/lib/games';
+import {Gamepad2, Link2, Plus, RefreshCw} from 'lucide-react';
+import {emptyGame, playTime} from '@/lib/games';
+import type {Entry} from '@/lib/store';
+import Dialog from './dialog';
 import {GameCover, GameViewToggle, useGameView} from './game-view';
 
-type XboxGame = {id:string; name:string; lastPlayed:string|null; minutes:number|null; imageUrl?:string};
+export type XboxGame = {id:string; name:string; lastPlayed:string|null; minutes:number|null; imageUrl?:string};
 type XboxSnapshot = {
   games:XboxGame[];
   historyIncomplete:boolean;
@@ -27,12 +29,10 @@ const messages:Record<string,string> = {
   xbox_refresh_incomplete:'새 기록의 일부를 불러오지 못했어요.',
 };
 
-export default function XboxHistory() {
-  const [view, setView] = useGameView('xbox');
+export function useXboxHistory(enabled:boolean) {
   const [snapshot, setSnapshot] = useState<XboxSnapshot|null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [visible, setVisible] = useState(PAGE_SIZE);
   const active = useRef<AbortController|null>(null);
   const load = useCallback(async (method:'GET'|'POST') => {
     if (active.current) return;
@@ -63,12 +63,38 @@ export default function XboxHistory() {
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
     void load('GET');
     return () => {
       active.current?.abort();
       active.current = null;
     };
-  }, [load]);
+  }, [enabled,load]);
+
+  return {snapshot,loading,error,refresh:()=>load('POST')};
+}
+
+function xboxGameDraft(game:XboxGame):Entry {
+  return {id:crypto.randomUUID(),kind:'games',title:game.name.slice(0,200),detail:'',category:'Xbox',status:'플레이 중',
+    url:'',date:'',done:false,createdAt:new Date().toISOString(),game:{...emptyGame(),xboxTitleId:game.id}};
+}
+
+export default function XboxHistory({history,entries,onEdit,onSave}:{
+  history:ReturnType<typeof useXboxHistory>;entries:Entry[];onEdit:(entry:Entry)=>void;onSave:(entry:Entry)=>boolean;
+}) {
+  const {snapshot,loading,error,refresh} = history;
+  const [view, setView] = useGameView('xbox');
+  const [visible, setVisible] = useState(PAGE_SIZE);
+  const [linkGame, setLinkGame] = useState<XboxGame|null>(null);
+  const [linkEntryId, setLinkEntryId] = useState('');
+  const linkedIds = new Set(entries.map(entry=>entry.game?.xboxTitleId));
+  const candidates = entries.filter(entry=>!entry.game?.xboxTitleId);
+  const linkEntry = candidates.find(entry=>entry.id===linkEntryId);
+
+  function linkExisting() {
+    if (!linkGame || !linkEntry || linkedIds.has(linkGame.id)) return;
+    if (onSave({...linkEntry,game:{...(linkEntry.game??emptyGame()),xboxTitleId:linkGame.id}})) setLinkGame(null);
+  }
 
   return (
     <section className="games-summary" aria-labelledby="xbox-history-title">
@@ -81,7 +107,7 @@ export default function XboxHistory() {
       </div>
       <div className="xbox-history" aria-busy={loading}>
         <div className="xbox-history-actions">
-          <button type="button" className="button secondary" disabled={loading} onClick={()=>void load('POST')}>
+          <button type="button" className="button secondary" disabled={loading} onClick={()=>void refresh()}>
             <RefreshCw size={14} aria-hidden="true"/>
             {loading ? '불러오는 중' : snapshot ? '새로고침' : 'Xbox 기록 불러오기'}
           </button>
@@ -104,9 +130,14 @@ export default function XboxHistory() {
                   <div className={view==='cover'?'game-tile-copy':undefined}>
                     <strong>{game.name}</strong>
                     <small>{game.lastPlayed ? `마지막 플레이 ${kst.format(new Date(game.lastPlayed))}` : '마지막 플레이 날짜 미기록'}</small>
-                    {view==='cover'&&<small className="game-tile-time">{playTime(game.minutes)}</small>}
+                    <small className="game-tile-time">{playTime(game.minutes)}</small>
                   </div>
-                  {view==='list'&&<span>{playTime(game.minutes)}</span>}
+                  <div className="xbox-link-actions">
+                    {linkedIds.has(game.id) ? <span className="badge">HUB에 연결됨</span> : <>
+                      <button type="button" className="button secondary small" onClick={()=>onEdit(xboxGameDraft(game))}><Plus size={12} aria-hidden="true"/>HUB 게임으로 추가</button>
+                      <button type="button" className="text-button muted" disabled={!candidates.length} onClick={()=>{setLinkEntryId('');setLinkGame(game);}}>기존 기록에 연결</button>
+                    </>}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -115,6 +146,19 @@ export default function XboxHistory() {
             <button type="button" className="button secondary" onClick={()=>setVisible(count=>count+PAGE_SIZE)}>더 보기</button>}
         </>}
       </div>
+      {linkGame&&<Dialog title="기존 게임에 Xbox 기록 연결" onClose={()=>setLinkGame(null)}>
+        <div className="steam-link-dialog">
+          <p>‘{linkGame.name}’과 연결할 HUB 게임을 선택하세요.</p>
+          <label>HUB 게임<select value={linkEntryId} onChange={event=>setLinkEntryId(event.target.value)}>
+            <option value="">기존 게임을 선택해주세요</option>
+            {candidates.map(entry=><option key={entry.id} value={entry.id}>{entry.title}{entry.category?` · ${entry.category}`:''}</option>)}
+          </select></label>
+        </div>
+        <div className="dialog-footer">
+          <button type="button" className="button secondary" onClick={()=>setLinkGame(null)}>취소</button>
+          <button type="button" className="button primary" disabled={!linkEntry||linkedIds.has(linkGame.id)} onClick={linkExisting}><Link2 size={14} aria-hidden="true"/>이 기록에 연결</button>
+        </div>
+      </Dialog>}
     </section>
   );
 }

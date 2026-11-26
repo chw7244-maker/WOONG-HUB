@@ -35,6 +35,16 @@ test('기존 게임 기록과 새 플레이 기록은 백업 왕복에서 함께
   assert.throws(()=>validateData(document({...record('bad',full()),kind:'note'})));
 });
 
+test('Xbox 게임 연결은 백업과 복원에서 기존 Steam 정보와 수동 기록을 보존한다',()=>{
+  const game={...full(),xboxTitleId:'4294967295'};
+  const linked=record('linked',game);
+  assert.deepEqual(validateData(JSON.parse(JSON.stringify(document(linked)))).entries[0],linked);
+  assert.deepEqual(validateGame({...game,xboxTitleId:undefined}),full());
+  for(const xboxTitleId of ['',123,'1e5','12345678901','https://example.test/123']){
+    assert.throws(()=>validateGame({...game,xboxTitleId}),/Xbox 게임 연결/);
+  }
+});
+
 test('플레이 시간 합계는 미기록과 0분을 구분하며 게임 기록만 계산한다',()=>{
   const data=[record('a',{...emptyGame(),playMinutes:125}),record('b',{...emptyGame(),playMinutes:0}),{...record('c'),status:'완료'},{...record('d'),status:'위시리스트'},{...record('ignored'),kind:'note'}];
   assert.deepEqual(gameStats(data),{count:4,playing:2,completed:1,wishlist:1,recorded:2,minutes:125});assert.equal(playTime(null),'시간 미기록');assert.equal(playTime(0),'0분');assert.equal(playTime(125),'2시간 5분');
@@ -67,7 +77,7 @@ test('실제 DB에서 게임 상세의 계정 분리·오프라인 복구·기�
   const api=(user,init={})=>handleApi(new Request('https://hub.test/api/hub',{...init,headers:{'oai-authenticated-user-id':user,Origin:'https://hub.test','Content-Type':'application/json'}}),{DB});
   class MemoryStorage{values=new Map();get length(){return this.values.size;}key(i){return [...this.values.keys()][i]??null;}getItem(k){return this.values.get(k)??null;}setItem(k,v){this.values.set(k,v);}removeItem(k){this.values.delete(k);}}
   const store=new MemoryStorage();let online=true;const device=(storage=store)=>new SyncClient({storage,auto:false,online:()=>online,fetch:async(path,init={})=>{if(!online)throw new Error('offline');return api('alice',init);}});
-  const a=device();await a.refresh();online=false;const data=document(record('a',full()));a.change(data);
+  const a=device();await a.refresh();online=false;const data=document(record('a',{...full(),xboxTitleId:'123456'}));a.change(data);
   const restored=device();online=true;await restored.refresh();await restored.flush();const b=device(new MemoryStorage());await b.refresh();assert.deepEqual(b.getSnapshot().data,data);
   assert.equal((await (await api('bob')).json()).data.entries.length,0);
   const invalid=structuredClone(data);invalid.entries[0].game.rating=6;assert.equal((await api('alice',{method:'PUT',body:JSON.stringify({data:invalid,expectedRevision:1,mutationId:'invalid-game'})})).status,400);

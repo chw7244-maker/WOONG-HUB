@@ -95,7 +95,13 @@ export default function Hub({section}:{section:string}) {
   function notify(message:string){setToast({message});}
   function addCalendarEvent(date:string){setModal({kind:'event',entry:{id:crypto.randomUUID(),kind:'event',title:'',detail:'',category:'',status:'',url:'',date:date+'T09:00',done:false,createdAt:new Date().toISOString()}});}
   function save(entry:Entry, feedback?:HubToast){
-    const exists=data.entries.some(e=>e.id===entry.id);
+    const current=data.entries.find(e=>e.id===entry.id);
+    const exists=!!current;
+    const xboxTitleId=entry.game?.xboxTitleId;
+    if(xboxTitleId&&xboxTitleId!==current?.game?.xboxTitleId&&data.entries.some(e=>e.id!==entry.id&&e.game?.xboxTitleId===xboxTitleId)){
+      notify('이미 다른 HUB 게임에 연결된 Xbox 기록이에요.');
+      return false;
+    }
     if(!persist({...data,entries:exists?data.entries.map(e=>e.id===entry.id?entry:e):[entry,...data.entries]}))return false;
     setModal(null);
     setToast(feedback??{message:`${entry.music?.type==='playlist'?'플레이리스트':kindLabels[entry.kind]} ${exists?'수정했어요':'기록했어요'}`});

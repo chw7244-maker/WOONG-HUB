@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, Heart, Plus } from 'lucide-react';
 import type { Entry } from '@/lib/store';
@@ -8,7 +8,7 @@ import GamesHub from './games-hub';
 import { GameQuickAdd } from './quick-add';
 import SteamAccount from './steam-account';
 import SteamSync from './steam-sync';
-import XboxHistory from './xbox-history';
+import XboxHistory, {useXboxHistory} from './xbox-history';
 
 const gamePages = [
   { id: 'games', label: '내 게임', href: '/games/' },
@@ -44,6 +44,8 @@ export default function GamePlatforms({ active, entries, onAdd, onEdit, onDelete
   const showGames = active === 'games';
   const showSteam = active === 'steam';
   const showXbox = active === 'xbox';
+  const xbox = useXboxHistory(showXbox || visited.includes('xbox') || entries.some(entry=>entry.game?.xboxTitleId));
+  const xboxGames = useMemo(()=>new Map(xbox.snapshot?.games.map(game=>[game.id,game])), [xbox.snapshot]);
 
   return <>
     <div className="page-heading section-heading">
@@ -58,7 +60,7 @@ export default function GamePlatforms({ active, entries, onAdd, onEdit, onDelete
     </div>}
     {/* Keep the list and Xbox results in memory when moving between game pages. */}
     {(showGames || visited.includes('games')) && <div hidden={!showGames}>
-      <GamesHub active={showGames} entries={entries} goneIds={goneIds} onQuickSave={onQuickSave} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete}/>
+      <GamesHub active={showGames} entries={entries} goneIds={goneIds} xboxGames={xboxGames} onQuickSave={onQuickSave} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete}/>
     </div>}
     <div hidden={!showSteam}>
       {showSteam && <SteamAccount entries={entries} onEdit={onEdit} onSave={onSave}/>}
@@ -68,6 +70,6 @@ export default function GamePlatforms({ active, entries, onAdd, onEdit, onDelete
         <div id="steam-wishlist" className="steam-disclosure-body"><SteamSync entries={entries} onBulkSave={onBulkSave} onGone={setGoneIds}/></div>
       </details>}
     </div>
-    {(showXbox || visited.includes('xbox')) && <div hidden={!showXbox}><XboxHistory/></div>}
+    {(showXbox || visited.includes('xbox')) && <div hidden={!showXbox}><XboxHistory history={xbox} entries={entries} onEdit={onEdit} onSave={onSave}/></div>}
   </>;
 }

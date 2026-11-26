@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Check, Download, Sparkles, X } from 'lucide-react';
 import Link from 'next/link';
 import { formatLength, type LocalAlbum } from '@/lib/local-music';
-import { playlistCandidateLimit, playlistCandidates, playlistExport, playlistPromptLimit, playlistRequest, type LocalPlaylistTrack } from '@/lib/local-playlist';
+import { playlistCandidateLimit, playlistCandidates, playlistExport, playlistPromptLimit, playlistRequest, type LocalPlaylistTrack, type SavedLocalPlaylist } from '@/lib/local-playlist';
 import { emptyMusic, validateMusic } from '@/lib/music';
 import type { Entry } from '@/lib/store';
 import Dialog from './dialog';
@@ -15,8 +15,8 @@ const errors: Record<string, string> = {
   gemini_rejected: 'Gemini가 요청을 받아들이지 않았어요. AI Studio의 인증키와 모델 사용 권한을 확인해주세요.',
 };
 
-export function downloadLocalPlaylist(title: string, tracks: LocalPlaylistTrack[]) {
-  const file = playlistExport(title, tracks);
+export function downloadLocalPlaylist(title: string, tracks: LocalPlaylistTrack[], windowsFolder?: string) {
+  const file = playlistExport(title, tracks, windowsFolder);
   const url = URL.createObjectURL(new Blob([file.content], { type: 'audio/x-mpegurl;charset=utf-8' }));
   const link = document.createElement('a');
   link.href = url;
@@ -28,7 +28,7 @@ export function downloadLocalPlaylist(title: string, tracks: LocalPlaylistTrack[
 }
 
 export function LocalPlaylistTracks({ tracks, folder, onRemove }: {
-  tracks: LocalPlaylistTrack[]; folder: string; onRemove?: (path: string) => void;
+  tracks: LocalPlaylistTrack[]; folder?: string; onRemove?: (path: string) => void;
 }) {
   const knownSeconds = tracks.reduce((sum, track) => sum + (track.seconds ?? 0), 0);
   return <div className="local-playlist-tracks">
@@ -38,7 +38,32 @@ export function LocalPlaylistTracks({ tracks, folder, onRemove }: {
       {onRemove && <button type="button" className="icon-button" aria-label={`${track.title} 빼기`}
         onClick={() => onRemove(track.path)}><X size={16} aria-hidden="true"/></button>}
     </li>)}</ol>
-    <p className="local-muted">M3U8 파일을 PC의 ‘{folder || '음원'}’ 폴더에 넣고 M3U8을 지원하는 플레이어로 여세요.</p>
+    {folder!==undefined&&<p className="local-muted">M3U8 파일을 PC의 ‘{folder || '음원'}’ 폴더에 넣고 M3U8을 지원하는 플레이어로 여세요.</p>}
+  </div>;
+}
+
+export function LocalPlaylistExports({ title, playlist, onSpotify }: {
+  title: string; playlist: SavedLocalPlaylist; onSpotify: () => void;
+}) {
+  const [windowsFolder, setWindowsFolder] = useState('');
+  const [error, setError] = useState('');
+  function foobar() {
+    try { downloadLocalPlaylist(title, playlist.tracks, windowsFolder); setError(''); }
+    catch (error) { setError(error instanceof Error ? error.message : 'M3U8을 만들지 못했어요.'); }
+  }
+  return <div className="local-playlist-exports">
+    <div>
+      <button type="button" className="button secondary" onClick={foobar}><Download size={15} aria-hidden="true"/>foobar2000용 M3U8</button>
+      <button type="button" className="button secondary" onClick={onSpotify}>Spotify로 추가</button>
+    </div>
+    <p className="local-muted">기본 M3U8은 PC의 ‘{playlist.folder || '음원'}’ 폴더에 넣고 foobar2000에서 여세요.</p>
+    <details>
+      <summary>다운로드 위치에서 바로 열기</summary>
+      <label>처음 읽은 음원 폴더의 Windows 경로
+        <input value={windowsFolder} maxLength={1000} placeholder="D:\Music" onChange={event=>setWindowsFolder(event.target.value)}/>
+      </label>
+    </details>
+    {error&&<p className="form-error" role="alert">{error}</p>}
   </div>;
 }
 

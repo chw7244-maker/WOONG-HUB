@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { playlistCandidates, playlistExport, playlistRequest } from '../src/lib/local-playlist.ts';
+import { spotifyTrackChoices, spotifyTrackQuery } from '../src/lib/spotify-playlist-copy.ts';
 import { emptyMusic, validateMusic } from '../src/lib/music.ts';
 import { initial, validateData } from '../src/lib/store.ts';
 import { handleMusicPlaylist } from '../worker/music-playlist.mjs';
@@ -39,6 +40,37 @@ test('export uses Unicode metadata and relative paths from the scanned folder', 
   assert.match(file.content, /#EXTM3U\n#PLAYLIST:밤: 재즈\n#EXTINF:180,샘플 연주자 - 샘플 곡 1\n\.\/샘플 앨범\/1\.flac/);
   assert.match(file.content, /#EXTINF:-1,샘플 연주자 - 샘플 곡 2\n\.\/#광고가 아닌 곡.flac\n$/);
   assert.throws(() => playlistExport('샘플', [{ ...sample(1), path: '../file.flac' }]));
+});
+
+test('foobar2000 export supports Windows relative, drive and network paths in track order', () => {
+  const tracks = [sample(2), sample(1)];
+  for (const [folder, base] of [['', '.\\'], ['D:/Music/', 'D:\\Music\\'], ['\\\\NAS\\Music', '\\\\NAS\\Music\\']]) {
+    const { content, filename } = playlistExport('한글 목록', tracks, folder);
+    assert.equal(filename, 'HUB - 한글 목록.m3u8');
+    assert.deepEqual(content.split('\n').filter(line => line && !line.startsWith('#')),
+      [base + '샘플 앨범\\2.flac', base + '샘플 앨범\\1.flac']);
+  }
+  for (const folder of ['D:Music', 'D:\\Music\\..\\Other', '\\\\NAS', 'D:\\Music\nOther']) {
+    assert.throws(() => playlistExport('샘플', tracks, folder));
+  }
+});
+
+test('Spotify suggestions prefer one matching recording and leave ambiguous versions for review', () => {
+  const local = sample(1);
+  const exact = { id: 'album-match', type: 'track', name: local.title, artist: local.artist,
+    albumName: local.album, durationMs: 180000, playable: true };
+  const compilation = { ...exact, id: 'compilation', albumName: '모음집' };
+  const live = { ...exact, id: 'live', name: local.title + ' Live' };
+  const extended = { ...exact, id: 'extended', durationMs: 200000 };
+  const blocked = { ...exact, id: 'blocked', playable: false };
+  assert.deepEqual(spotifyTrackChoices(local, [compilation, live, extended, blocked, exact, exact]), {
+    candidates: [compilation, live, extended, exact], recommended: exact.id,
+  });
+  assert.equal(spotifyTrackChoices(local, [exact, { ...exact, id: 'reissue' }]).recommended, '');
+  assert.equal(spotifyTrackChoices(local, [live, extended]).recommended, '');
+  assert.equal(spotifyTrackChoices({ ...local, artist: '아티스트 미상' }, [exact]).recommended, '');
+  assert.equal(spotifyTrackQuery(local), 'track:"샘플 곡 1" artist:"샘플 연주자"');
+  assert.ok(spotifyTrackQuery({ ...local, title: '곡'.repeat(300), artist: '가'.repeat(300) }).length <= 120);
 });
 
 test('local playlist track order survives backup validation and can be exported without the library', () => {

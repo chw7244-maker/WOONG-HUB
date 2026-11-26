@@ -21,6 +21,7 @@ Spotify Developer Dashboard에 정확히 같은 Redirect URI와 사용할 API(We
 - 브라우저 재생: 위 재생 권한에 `streaming`, `user-read-email`, `user-read-private`. SDK 공식 요구 권한이며 이메일을 별도로 보관하지 않습니다.
 - 라이브러리: `playlist-read-private`, `playlist-read-collaborative`, `user-read-recently-played`, `user-top-read`.
 - 플레이리스트 편집: `playlist-modify-private`, `playlist-modify-public`. 실제 변경은 각 생성·수정·추가·제거 폼의 명시적 제출에서만 실행합니다.
+- 로컬 플레이리스트 복사: `user-read-private`, `playlist-read-private`, `playlist-modify-private`. 곡 검색과 선택을 마친 후 확인 버튼을 누르면 비공개 목록을 만들고 곡 순서를 유지합니다. 곡 추가 응답을 받지 못한 경우에는 Spotify의 같은 목록을 다시 확인합니다.
 
 `spotify_connections`에 사용자별 Access/Refresh Token을 AES-256-GCM으로 암호화하고 사용자 ID를 추가 인증 데이터로 결합합니다. 만료 60초 전 갱신, DB 갱신 잠금, 변경 버전 비교, Refresh Token 회전과 기존 값 보존을 지원합니다. 인증 코드·토큰·Client Secret을 로그로 출력하지 않습니다. 다른 기기에서 연결을 해제하거나 새 인증을 시작한 경우 늦은 콜백·갱신이 연결을 복구하지 못하도록 검사합니다.
 

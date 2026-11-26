@@ -68,13 +68,28 @@ export function validateLocalPlaylist(input: unknown): SavedLocalPlaylist {
   return { folder: value.folder, tracks };
 }
 
-export function playlistExport(title: string, tracks: LocalPlaylistTrack[]) {
+function windowsMusicFolder(value: string) {
+  const path = value.trim().replace(/\//g, '\\');
+  if (!path) return '';
+  const drive = /^[a-z]:\\/i.test(path);
+  const unc = /^\\\\[^\\]+\\[^\\]+(?:\\|$)/.test(path);
+  const rest = drive ? path.slice(3) : path.slice(2);
+  if ((!drive && !unc) || /[\u0000-\u001f<>:"|?*]/.test(rest) ||
+    rest.split('\\').some(part => part === '.' || part === '..')) {
+    throw new Error('D:\\Music처럼 처음 읽은 음원 폴더의 전체 Windows 경로를 입력해주세요.');
+  }
+  return path.replace(/\\+$/, '') + '\\';
+}
+
+export function playlistExport(title: string, tracks: LocalPlaylistTrack[], windowsFolder?: string) {
   const name = oneLine(title).slice(0, titleLimit) || 'AI 플레이리스트';
   const basename = name.replace(/[\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim().replace(/[. ]+$/, '') || 'AI 플레이리스트';
   const lines = ['#EXTM3U', `#PLAYLIST:${name}`];
+  const windowsBase = windowsFolder === undefined ? null : windowsMusicFolder(windowsFolder) || '.\\';
   for (const track of tracks) {
     if (!safePath(track.path)) throw new Error('음원 경로를 확인해주세요.');
-    lines.push(`#EXTINF:${track.seconds ?? -1},${oneLine(track.artist)} - ${oneLine(track.title)}`, `./${track.path}`);
+    const path = windowsBase === null ? `./${track.path}` : windowsBase + track.path.replace(/\//g, '\\');
+    lines.push(`#EXTINF:${track.seconds ?? -1},${oneLine(track.artist)} - ${oneLine(track.title)}`, path);
   }
   return { filename: `HUB - ${basename}.m3u8`, content: lines.join('\n') + '\n' };
 }

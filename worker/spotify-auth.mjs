@@ -7,6 +7,7 @@ const FEATURES={
   browser:['streaming','user-read-email','user-read-private','user-read-playback-state','user-modify-playback-state'],
   library:['playlist-read-private','playlist-read-collaborative','user-read-recently-played','user-top-read'],
   manage:['playlist-modify-private','playlist-modify-public'],
+  playlistCopy:['user-read-private','playlist-read-private','playlist-modify-private'],
 };
 export class SpotifyError extends Error{
   constructor(code,status=502,extra={}){super(code);this.code=code;this.status=status;this.extra=extra;}

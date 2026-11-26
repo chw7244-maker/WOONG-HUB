@@ -1,12 +1,13 @@
 'use client';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
-import {ArrowUpRight,Check,Database,Disc3,Download,FolderOpen,Heart,Music2,Plus,Pencil,RefreshCw,Search,Star,Trash2} from 'lucide-react';
+import {ArrowUpRight,Check,Database,Disc3,FolderOpen,Heart,Music2,Plus,Pencil,RefreshCw,Search,Star,Trash2} from 'lucide-react';
 import Link from 'next/link';
 import {type Entry,safeUrl} from '@/lib/store';
 import {emptyMusic,lastListenedAt,musicCoverUrl,musicFormats,musicStatuses,musicStats,validateAlbum,validateMusic,type AlbumMetadata} from '@/lib/music';
 import {recentListening} from '@/lib/home-dashboard';
 import Dialog from './dialog';
-import { downloadLocalPlaylist, LocalPlaylistTracks } from './local-playlist';
+import { LocalPlaylistExports, LocalPlaylistTracks } from './local-playlist';
+import SpotifyPlaylistCopy from './spotify-playlist-copy';
 import {SpotifyConnection,SpotifyPlayer,ListeningJournal,PlaylistFavorite,playlistDraft} from './spotify-music';
 import { SpotifyLivePlayer } from './spotify-playback';
 import { SectionFilters, SectionStats } from './section-controls';
@@ -31,6 +32,7 @@ function MusicBand({entries,onOpen}:{entries:Entry[];onOpen:(entry:Entry)=>void}
 
 export default function MusicHub({entries,onAdd,onEdit,onDelete,onSave}:{entries:Entry[];onAdd:()=>void;onEdit:(entry:Entry)=>void;onDelete:(entry:Entry)=>void;onSave:(entry:Entry)=>boolean}){
   const [view,setView]=useState('albums'),[favoritesOnly,setFavoritesOnly]=useState(true);
+  const [spotifyCopyId,setSpotifyCopyId]=useState<string|null>(null);
   const allEntries=entries;
   entries=entries.filter(e=>view==='playlists'?e.music?.type==='playlist'&&(!favoritesOnly||e.music.favorite!==false):e.music?.type!=='playlist');
   const addPlaylist=()=>{setView('playlists');setQuery('');setStatus('전체');setFormat('전체');setFavoritesOnly(true);onEdit(playlistDraft());};
@@ -38,6 +40,7 @@ export default function MusicHub({entries,onAdd,onEdit,onDelete,onSave}:{entries
   const [query,setQuery]=useState(''),[status,setStatus]=useState('전체'),[format,setFormat]=useState('전체'),[sort,setSort]=useState('recent'),[selectedId,setSelectedId]=useState<string|null>(null);
   const stats=musicStats(allEntries),selected=allEntries.find(e=>e.id===selectedId);
   const savedPlaylist=selected?.music?.localPlaylist;
+  const copyEntry=allEntries.find(entry=>entry.id===spotifyCopyId&&entry.music?.localPlaylist);
   const albums=entries.filter(e=>(status==='전체'||e.status===status)&&(format==='전체'||e.category===format)&&[e.title,e.detail,e.music?.artist,e.music?.genre,e.music?.favoriteTrack,...(e.music?.tags??[]),e.music?.catalog?.title,e.music?.catalog?.artist].join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).sort((a,b)=>sort==='name'?a.title.localeCompare(b.title,'ko'):sort==='artist'?(a.music?.artist??'').localeCompare(b.music?.artist??'','ko'):sort==='rating'?(b.music?.rating??-1)-(a.music?.rating??-1):sort==='listened'?lastListenedAt(b.music).localeCompare(lastListenedAt(a.music)):b.createdAt.localeCompare(a.createdAt));
   // The links from 내 음원 라이브러리 open the saved record once sync loads it.
   const opened=useRef(false);
@@ -81,13 +84,13 @@ export default function MusicHub({entries,onAdd,onEdit,onDelete,onSave}:{entries
     {selected&&<Dialog title={selected.title} onClose={()=>setSelectedId(null)} className="music-dialog section-detail"><div className="album-detail"><div className="album-detail-top"><AlbumArt key={musicCoverUrl(selected.music)||'empty'} url={musicCoverUrl(selected.music)} title={selected.title}/><div><span className="badge">{selected.category||'포맷 미기록'}</span><p>{selected.music?.artist||(selected.music?.type==='playlist'?'나의 플레이리스트':'아티스트 미기록')}</p><span className="badge">{selected.status||'상태 미기록'}</span></div></div>
       {savedPlaylist&&<section className="music-local-playlist">
         <h3>곡 목록</h3>
-        <LocalPlaylistTracks tracks={savedPlaylist.tracks} folder={savedPlaylist.folder}/>
-        <button type="button" className="button secondary" onClick={()=>downloadLocalPlaylist(selected.title,savedPlaylist.tracks)}>
-          <Download size={15} aria-hidden="true"/>M3U8 내려받기
-        </button>
+        <LocalPlaylistTracks tracks={savedPlaylist.tracks}/>
+        <LocalPlaylistExports key={selected.id} title={selected.title} playlist={savedPlaylist} onSpotify={()=>setSpotifyCopyId(selected.id)}/>
       </section>}
       {(!savedPlaylist||selected.music?.favoriteTrack)&&<><h3>오래 듣고 싶은 곡</h3><p className="album-favorite">{selected.music?.favoriteTrack||'아직 기록한 곡이 없어요.'}</p></>}
       {selected.music?.tags.length?<div className="music-tags">{selected.music.tags.map(t=><span key={t}>#{t}</span>)}</div>:null}<h3>나의 감상</h3><p className="album-memo">{selected.detail||'아직 남긴 감상이 없어요.'}</p>{selected.music?.spotify&&<SpotifyPlayer key={selected.music.spotify.id} spotify={selected.music.spotify}/>}<ListeningJournal entries={[selected]} onSave={onSave}/><dl className="album-specs">{selected.music?.type!=='playlist'&&<><div><dt>장르 · 분류</dt><dd>{selected.music?.genre||'미기록'}</dd></div><div><dt>기록한 발매일</dt><dd>{selected.music?.releaseDate||'미기록'}</dd></div></>}<div><dt>나의 별점</dt><dd>{selected.music?.rating==null?'미기록':`${selected.music.rating} / 5`}</dd></div><div><dt>최근 감상일</dt><dd>{lastListenedAt(selected.music)||'미기록'}</dd></div></dl>{selected.music?.catalog&&<section className="album-source"><h3>MusicBrainz 앨범 정보</h3><strong>{selected.music.catalog.title} · {selected.music.catalog.artist}</strong><p>최초 발매 {selected.music.catalog.firstReleaseDate||'정보 없음'}{selected.music.catalog.type?` · ${selected.music.catalog.type}`:''}</p><a className="text-button blue" href={selected.music.catalog.sourceUrl} target="_blank" rel="noreferrer">원본 정보 보기<ArrowUpRight size={13}/></a><small>{new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'numeric',day:'numeric'}).format(new Date(selected.music.catalog.checkedAt))} 확인 · 표지는 제공 여부에 따라 표시됩니다.</small></section>}{selected.url&&selected.url!==selected.music?.catalog?.sourceUrl&&<a className="text-button muted album-related" href={safeUrl(selected.url)} target="_blank" rel="noreferrer">음악 관련 링크 열기<ArrowUpRight size={13}/></a>}</div><div className="dialog-footer"><button type="button" className="button secondary music-delete" onClick={()=>{setSelectedId(null);onDelete(selected);}}><Trash2 size={14}/>삭제</button><button className="button secondary" onClick={()=>setSelectedId(null)}>닫기</button><button className="button primary" onClick={()=>{setSelectedId(null);onEdit(selected);}}><Pencil size={14}/>감상 수정</button></div></Dialog>}
+    {copyEntry?.music?.localPlaylist&&<SpotifyPlaylistCopy key={copyEntry.id} title={copyEntry.title}
+      tracks={copyEntry.music.localPlaylist.tracks} onClose={()=>setSpotifyCopyId(null)}/>}
     </>}
   </div>;
 }

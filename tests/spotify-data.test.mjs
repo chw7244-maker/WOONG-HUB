@@ -48,3 +48,33 @@ test('플레이리스트 관리는 새 /me/playlists·/items를 사용하고 소
 test('쓰기 결과가 불명확하면 같은 요청을 자동 재전송하지 않는다',async t=>{
   const h=await harness(t,async()=>{throw new Error('network failure');});const first=await h.command({action:'next'});assert.equal(first.status,502);assert.equal((await first.json()).error,'spotify_command_outcome_unknown');assert.equal((await h.command({action:'next'})).status,502);assert.equal(h.calls.length,1);
 });
+
+test('로컬 곡 복사는 순서를 유지하며 재시도에서 이미 추가한 곡을 중복 쓰지 않는다',async t=>{
+  const uris=['spotify:track:'+trackId,'spotify:track:'+id];
+  let current=[],writes=0,isPublic=false;
+  const h=await harness(t,async(url,init)=>{
+    const endpoint=new URL(url);
+    if(endpoint.pathname==='/v1/playlists/'+id)return Response.json({...playlist,public:isPublic});
+    assert.equal(endpoint.pathname,'/v1/playlists/'+id+'/items');
+    if(init.method==='GET'){
+      assert.equal(endpoint.searchParams.get('limit'),'25');
+      return Response.json({items:current.map(uri=>({item:{uri}})),next:null,total:current.length});
+    }
+    assert.equal(init.method,'POST');
+    assert.deepEqual(JSON.parse(init.body),{uris});
+    current=uris;
+    writes++;
+    throw new Error('Spotify added the tracks but its response did not arrive');
+  });
+  const input={action:'playlist-fill',playlistId:id,uris};
+  assert.equal((await h.command({...input,uris:[uris[0],'invalid']},'copy-invalid-0001')).status,400);
+  assert.equal(h.calls.length,0);
+  assert.equal((await h.command(input,'copy-fixture-0001')).status,502);
+  assert.deepEqual(await (await h.command(input,'copy-fixture-0002')).json(),{accepted:true,added:2});
+  const conflict=await h.command({...input,uris:uris.toReversed()},'copy-fixture-0003');
+  assert.equal(conflict.status,409);
+  assert.equal((await conflict.json()).error,'spotify_playlist_already_has_tracks');
+  isPublic=true;
+  assert.equal((await h.command(input,'copy-fixture-0004')).status,403);
+  assert.equal(writes,1);
+});

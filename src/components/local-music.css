@@ -112,7 +112,21 @@
 .local-playlist-tracks li button { width: 44px; min-height: 44px; margin-inline-start: 4px; vertical-align: middle; }
 .music-local-playlist { display: grid; justify-items: start; gap: 12px; margin-top: 20px; }
 .music-local-playlist h3 { margin: 0; font-size: 15px; }
-.music-local-playlist > .button { min-height: 44px; }
+.local-playlist-exports, .spotify-copy-content { display: grid; gap: 12px; width: 100%; min-width: 0; }
+.local-playlist-exports > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.local-playlist-exports .button { min-height: 44px; }
+.local-playlist-exports details { font-size: 14px; }
+.local-playlist-exports summary { width: fit-content; min-height: 44px; align-content: center; cursor: pointer; }
+.local-playlist-exports label, .spotify-copy-name, .spotify-copy-list label { display: grid; gap: 6px; font-size: 14px; }
+.local-playlist-exports input, .spotify-copy-content :is(input,select) { min-width: 0; max-width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font: inherit; }
+.spotify-copy-content { padding: 4px 20px 20px; }
+.spotify-copy-intro { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.spotify-copy-intro p { flex: 1 1 220px; margin: 0; font-size: 14px; }
+.spotify-copy-content .button { min-height: 44px; }
+.spotify-copy-link { justify-self: start; }
+.spotify-copy-list { display: grid; gap: 10px; padding-inline-start: 24px; margin: 0; min-width: 0; }
+.spotify-copy-list li { min-width: 0; overflow-wrap: anywhere; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.spotify-copy-list small { color: var(--muted); }
 
 @media (max-width: 1180px) {
   .local-layout { grid-template-columns: minmax(0, 1fr) 300px; }
@@ -134,4 +148,5 @@
   .local-chips button { flex: none; }
   .local-tracks { max-height: none; }
   .local-playlist-form :is(textarea,select), .local-playlist-results input { font-size: 16px; }
+  .local-playlist-exports input, .spotify-copy-content :is(input,select) { font-size: 16px; }
 }

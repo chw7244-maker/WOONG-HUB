@@ -1,6 +1,8 @@
 import {SpotifyError,privateJson,spotifyErrorResponse,authenticatedUser,requireSameOrigin,requestJson,connection,apiRequest,requireScopes,hash} from './spotify-auth.mjs';
 import {spotifyCover} from '../src/lib/spotify.ts';
+import {playlistTrackLimit} from '../src/lib/local-playlist.ts';
 const idPattern=/^[A-Za-z0-9]{22}$/;
+const trackUriPattern=/^spotify:track:[A-Za-z0-9]{22}$/;
 const plain=(v,max=200)=>typeof v==='string'?v.trim().slice(0,max):'';
 const number=(v,max=86400000)=>Number.isFinite(v)?Math.max(0,Math.min(max,v)):0;
 const array=v=>Array.isArray(v)?v:[];
@@ -37,6 +39,25 @@ async function executeCommand(input,env,user,options){
   }else if(action==='playlist-create'){
     const name=text(input.name,100),description=input.description===undefined?'':String(input.description);if(description.length>300)throw new SpotifyError('invalid_playlist_details',400);
     const result=await apiRequest(env,user,'/me/playlists',{...options,method:'POST',scopes:['playlist-modify-private'],body:{name,description,public:false}});const row=await connection(env,user);const value=normalizeEntity(result,row?.spotify_user_id);if(!value)throw new SpotifyError('spotify_command_outcome_unknown');return {accepted:true,playlist:value};
+  }else if(action==='playlist-fill'){
+    const {uris}=input;
+    if(!Array.isArray(uris)||!uris.length||uris.length>playlistTrackLimit||
+      uris.some(uri=>typeof uri!=='string'||!trackUriPattern.test(uri)))throw new SpotifyError('invalid_spotify_uri',400);
+    const id=ID(input.playlistId),{data,row}=await ownPlaylist(env,user,id,options);
+    if(data.public!==false)throw new SpotifyError('spotify_playlist_read_only',403);
+    const scopes=['playlist-read-private','playlist-modify-private'];
+    requireScopes(row,scopes);
+    const itemsPath=`/playlists/${id}/items`;
+    const current=await apiRequest(env,user,`${itemsPath}?limit=${playlistTrackLimit}`,{...options,scopes});
+    if(!Array.isArray(current?.items))throw new SpotifyError('spotify_invalid_response');
+    if(current.items.length||current.next||current.total>0){
+      if(!current.next&&current.items.length===uris.length&&current.items.every((item,index)=>(item?.item??item?.track)?.uri===uris[index])){
+        return {accepted:true,added:uris.length};
+      }
+      throw new SpotifyError('spotify_playlist_already_has_tracks',409);
+    }
+    await apiRequest(env,user,itemsPath,{...options,method:'POST',scopes,body:{uris}});
+    return {accepted:true,added:uris.length};
   }else if(['playlist-rename','playlist-add','playlist-remove'].includes(action)){
     const id=ID(input.playlistId),{data}=await ownPlaylist(env,user,id,options);const scopes=[data.public===false?'playlist-modify-private':'playlist-modify-public'];
     if(action==='playlist-rename'){await apiRequest(env,user,`/playlists/${id}`,{...options,method:'PUT',scopes,body:{name:text(input.name,100)}});return {accepted:true};}
